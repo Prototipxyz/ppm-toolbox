@@ -1,0 +1,51 @@
+# OPEN QUESTIONS & UNCERTAINTIES
+
+## All Resolved
+
+| # | Resolution |
+|---|---|
+| OQ-01 | Worker login: PIN code on personal phones |
+| OQ-02 | Workers stay logged in — personal phones, not shared devices |
+| OQ-04/05/06 | Organizations / Members / Clients model (D-70) |
+| OQ-07 | Part revision letters: A, B, C (D-82) |
+| OQ-09 | `stirg_operations` table: skip for now, upload later. Companies fill it out themselves (D-85). |
+| OQ-10 | Inventor BOM: skip for now, upload later |
+| OQ-11 | N/A operations hidden (D-75) |
+| OQ-13 | App UI: same design for all orgs, light/dark toggle only. Company name in header. Logo/fonts/colors for documents only (D-79/D-80) |
+| OQ-15/18 | Clients tab: local DB, Attio stays standalone |
+| OQ-16 | No custom domain needed |
+| OQ-17 | Push notification triggers: define later (Phase 3) |
+| OQ-19 | Google Drive folder auto-creation: skip, manual for now (D-83) |
+| OQ-20 | Make keep-alive ping: ✅ **Running every 3 days, confirmed working** |
+| OQ-21 | Pausal.rs integration: skip for now |
+| OQ-22 | App working title: PPM |
+| OQ-23 | Stirg meeting: postponed |
+| OQ-24 | Stirg subscription pricing: define later (before pilot) |
+| OQ-25 | Stirg account ownership: define later (before pilot) |
+| OQ-26 | Work laptop has Tailscale |
+| OQ-27 | GitHub account: `Prototipxyz` ✅ — `ppm-toolbox` repo created |
+| OQ-28 | Vercel active, hosts prototip.xyz. PPM = separate deployment. |
+| OQ-29 | Sentry: install with GitHub setup |
+| OQ-30 | Groq API: ✅ **account created**, model: `llama-3.3-70b-versatile` |
+| U-01 | Resolved by Organizations/Members/Clients model |
+| U-02 | `work_orders.context` field: REMOVED — organization_id is source of truth (D-86) |
+| U-03 | Branding seeded against wrong entity — migration pending |
+| U-04 | WO-26-002 client ref: re-link to Ivan Advokat once proper clients table exists |
+| U-05 | stirg_operations: update once uploaded. Each org fills out own rates (D-85). |
+| U-06 | Part hierarchy: update once BOM is uploaded |
+| U-07 | C312029_Gummipuffer underscore display: noted, acceptable |
+| U-08 | Solo org onboarding: design later |
+| U-09 | Revision letter field: add `revision TEXT` to parts table (D-82) |
+| U-10 | Photo reuse: `part_reference_photos` table (D-84) |
+| U-11 | Completion photo requirement per operation: defer |
+| U-12 | Supervisor sees all workers (D-73) |
+
+## Still Open
+
+| # | Question | Priority |
+|---|---|---|
+| OQ-24 | Stirg subscription pricing | Before pilot |
+| OQ-25 | Stirg account ownership | Before pilot |
+| OQ-17 | Push notification trigger list per role | Phase 3 |
+| OQ-31 | Worker home screen card model — single task card + queue vs full list? | UX design phase |
+| OQ-32 | Supervisor push notifications: active anomaly alerts (long pause, variance) vs passive display only? | Phase 3 |
