@@ -16,28 +16,36 @@
 | OQ-16 | No custom domain needed |
 | OQ-17 | Push notification triggers: define later (Phase 3) |
 | OQ-19 | Google Drive folder auto-creation: skip, manual for now (D-83) |
-| OQ-20 | Make keep-alive ping: ✅ **Running every 3 days, confirmed working** |
+| OQ-20 | Make keep-alive ping: ✅ Running every 3 days, confirmed working |
 | OQ-21 | Pausal.rs integration: skip for now |
 | OQ-22 | App working title: PPM |
 | OQ-23 | Stirg meeting: postponed |
-| OQ-24 | Stirg subscription pricing: define later (before pilot) |
-| OQ-25 | Stirg account ownership: define later (before pilot) |
 | OQ-26 | Work laptop has Tailscale |
-| OQ-27 | GitHub account: `Prototipxyz` ✅ — `ppm-toolbox` repo created |
-| OQ-28 | Vercel active, hosts prototip.xyz. PPM = separate deployment. |
-| OQ-29 | Sentry: install with GitHub setup |
-| OQ-30 | Groq API: ✅ **account created**, model: `llama-3.3-70b-versatile` |
+| OQ-27 | GitHub account: Prototipxyz ✅ — ppm-toolbox repo created |
+| OQ-28 | Vercel active, hosts prototip.xyz. PPM deploys to ppm.prototip.xyz, new domain later. |
+| OQ-29 | Sentry: install at ppm-app repo creation |
+| OQ-30 | Groq API: ✅ account created, model: llama-3.3-70b-versatile |
+| OQ-36 | Build approach: from scratch with Claude Code (D-99) |
+| OQ-37 | Cursor: deferred (D-100) |
+| OQ-38 | agent-skills: HTTPS install first, SSH when configured (D-101) |
+| OQ-39 | App repo: ppm-app, monorepo (D-102) |
+| OQ-40 | Deployment: ppm.prototip.xyz subdomain (D-103) |
+| OQ-41 | Sub-folder CLAUDE.md: generate as each module is reached (D-104) |
+| OQ-42 | Skills: write all 5 before coding (D-105) |
+| OQ-43 | Spec location: kb/specs/ in ppm-toolbox (D-106) |
+| OQ-44 | Build sequence: schema first, then auth (D-107) |
+| OQ-45 | Worker PIN auth: Option C — email once, PIN daily, bcrypt on members table (D-108) |
 | U-01 | Resolved by Organizations/Members/Clients model |
-| U-02 | `work_orders.context` field: REMOVED — organization_id is source of truth (D-86) |
-| U-03 | Branding seeded against wrong entity — migration pending |
-| U-04 | WO-26-002 client ref: re-link to Ivan Advokat once proper clients table exists |
-| U-05 | stirg_operations: update once uploaded. Each org fills out own rates (D-85). |
+| U-02 | work_orders.context field: REMOVED (D-86) |
+| U-03 | Branding seeded against wrong entity — migration pending in Phase 1 |
+| U-04 | WO-26-002 client ref: re-link to Ivan Advokat once clients table exists |
+| U-05 | stirg_operations: each org fills out own rates (D-85) |
 | U-06 | Part hierarchy: update once BOM is uploaded |
-| U-07 | C312029_Gummipuffer underscore display: noted, acceptable |
+| U-07 | C312029_Gummipuffer underscore display: acceptable |
 | U-08 | Solo org onboarding: design later |
-| U-09 | Revision letter field: add `revision TEXT` to parts table (D-82) |
-| U-10 | Photo reuse: `part_reference_photos` table (D-84) |
-| U-11 | Completion photo requirement per operation: defer |
+| U-09 | Revision letter field: add revision TEXT to parts table (D-82) |
+| U-10 | Photo reuse: part_reference_photos table (D-84) |
+| U-11 | Completion photo per operation: defer |
 | U-12 | Supervisor sees all workers (D-73) |
 
 ## Still Open
@@ -46,6 +54,8 @@
 |---|---|---|
 | OQ-24 | Stirg subscription pricing | Before pilot |
 | OQ-25 | Stirg account ownership | Before pilot |
-| OQ-17 | Push notification trigger list per role | Phase 3 |
-| OQ-31 | Worker home screen card model — single task card + queue vs full list? | UX design phase |
-| OQ-32 | Supervisor push notifications: active anomaly alerts (long pause, variance) vs passive display only? | Phase 3 |
+| OQ-31 | Worker home screen card model — single task card + queue vs full list? | Phase 3 UX |
+| OQ-32 | Supervisor push notifications: anomaly alerts vs passive display? | Phase 3 |
+| OQ-33 | First real screen after schema + auth — decide when Phase 2 begins | Phase 2 |
+| OQ-34 | Node.js 18+ installation on work laptop — required before Claude Code install | Immediate |
+| OQ-35 | SSH keys: generate on laptop + add to GitHub — required before first git clone | Immediate |

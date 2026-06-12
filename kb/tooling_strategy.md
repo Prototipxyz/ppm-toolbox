@@ -2,24 +2,51 @@
 
 ## AI-Assisted Development Workflow
 
-### Tool Roles (assigned, not interchangeable)
+### Tool Roles (confirmed, not interchangeable)
 
-| Tool | Role | When to use |
+| Tool | Role | Status |
 |---|---|---|
-| **Claude.ai Project** (this) | Architect + KB | Design decisions, schema design, KB updates, chat-end patches |
-| **Claude Code (CLI)** | Primary coding agent | Multi-file features, DB migrations, refactors, full feature builds |
-| **Cursor** | In-editor assistant | Fast edits, visual diff review, code cleanup, inline questions |
-| **v0 (Vercel)** | Component generator | Complex isolated UI components — pipeline strip, AI bar, financials layout |
-| **Claude Design / Artifacts** | UI exploration | Screen layout validation before committing to code |
+| **Claude.ai Project** (this) | Architect + KB + specs + decisions | Active |
+| **Claude Code (CLI)** | Primary coding agent — multi-file, migrations, full features | Install next |
+| **agent-skills (Osmani)** | Skills + slash commands + subagent review | Install with Claude Code |
+| **Context7 MCP** | Live library docs injected into Claude Code context | Install with Claude Code |
+| **Lovable** | Throwaway UI sketchpad only — validate screens visually before coding | Use when needed |
+| **Sentry** | Error tracking — day one of app repo | Install at app repo creation |
+| **Playwright** | E2E tests — CI gate, never ships without passing | Install at app repo creation |
 
-### Workflow Sequence per Feature
+Cursor: deferred. Add only if Claude Code workflow hits friction.
+v0: deferred. Use only for isolated complex components if needed.
+
+### Workflow Per Feature (exact sequence, every time)
 ```
-1. Claude.ai → decision locked in KB
-2. Claude Design → screen validated visually
-3. v0 → complex components scaffolded (if needed)
-4. Claude Code → full implementation (schema + API + UI wired together)
-5. Cursor → review + cleanup
-6. Playwright → regression test
+Step 1 — SPEC (Claude.ai, this chat)
+  Write 10-line spec in kb/specs/<feature-name>.md
+  Covers: what it does, what it doesn't, acceptance criteria, edge cases
+  Commit to ppm-toolbox → CLAUDE.md auto-updates
+
+Step 2 — VISUAL (optional, Lovable)
+  Only for complex screens — paste spec, get throwaway mockup
+  Screenshot useful parts, discard the code entirely
+
+Step 3 — BUILD (Claude Code)
+  Run /spec to confirm Claude Code read the spec
+  Run /plan — review and approve the plan before any code written
+  Run /build — Claude Code implements
+  Never accept output without reading every file changed
+
+Step 4 — REVIEW (Claude Code, fresh session)
+  New Claude Code session, sees only the diff
+  Run /review — Osmani's review skill, fresh context
+  Fix anything flagged before proceeding
+
+Step 5 — TEST (Claude Code)
+  Run /test — write tests with explicit inputs/outputs
+  For financials + RLS: test every role, every edge case
+  Tests must pass before commit
+
+Step 6 — COMMIT
+  Pre-commit hooks run: TypeScript compiles, tests pass, RLS check
+  Push to ppm-app → Vercel auto-deploys to ppm.prototip.xyz
 ```
 
 ---

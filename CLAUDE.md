@@ -1,7 +1,7 @@
 # CLAUDE.md — PPM Toolbox
 
 > Auto-generated from `/kb/*.md`. Edit KB files, not this file directly.
-> Full context: see `/kb/` directory.
+> Full context: see `/kb/` directory. Specs: see `/kb/specs/`.
 
 ---
 
@@ -9,7 +9,8 @@
 
 **PPM** — multi-tenant SaaS manufacturing job management platform.
 Lightweight MES with job costing for SME manufacturers in Serbia/ex-Yugoslavia.
-Two live orgs: **Stirg Metal** (15-worker fab shop) + **Prototip** (engineering services, solo).
+Two live orgs: **Stirg Metal** (15-worker fab shop, accent #E8450A) + **Prototip** (engineering services, solo, accent #2563EB).
+Supabase project: `bfhioxqspmypcnpmakyg`
 
 ---
 
@@ -17,13 +18,14 @@ Two live orgs: **Stirg Metal** (15-worker fab shop) + **Prototip** (engineering 
 
 - **Frontend:** Next.js 14+ App Router, TypeScript, Tailwind CSS, shadcn/ui
 - **Database:** PostgreSQL via Supabase (`bfhioxqspmypcnpmakyg`)
-- **Auth:** Supabase Auth — email/password for staff, PIN for Workers
+- **Auth:** Supabase Auth — email/password for staff, PIN (Option C) for Workers
 - **Storage:** Supabase Storage
-- **Hosting:** Vercel — separate project from prototip.xyz
-- **AI base:** Groq API — `llama-3.3-70b-versatile`
+- **Hosting:** Vercel — `ppm.prototip.xyz` subdomain
+- **AI base:** Groq API — `llama-3.3-70b-versatile` ✅ account created
 - **AI paid:** Anthropic Claude Haiku
 - **Error tracking:** Sentry (day one)
-- **CI/CD:** GitHub Actions
+- **Validation:** Zod + next-safe-action on every server action
+- **Data fetching:** TanStack Query (optimistic UI)
 
 ---
 
@@ -31,7 +33,35 @@ Two live orgs: **Stirg Metal** (15-worker fab shop) + **Prototip** (engineering 
 
 ```
 /app/...     → main app (Owner, Manager, Supervisor, PM)
-/w/...       → Worker UI (PIN auth, mobile-only, zero shared components with /app)
+/w/...       → Worker UI (PIN auth, mobile-only, ZERO shared components with /app)
+```
+
+---
+
+## Skills Available
+
+```
+/implement-migration    → migration → RLS → types (use after every schema change)
+/implement-rls-policy   → write + test RLS for all 5 roles
+/implement-api-route    → server action with Zod + role check + error handling
+/implement-component    → shadcn base + PPM tokens + role-aware + optimistic UI
+/kb-patch               → end-of-session KB update → commit → CLAUDE.md auto-update
+```
+
+Also available via agent-skills: `/spec /plan /build /test /review /ship`
+
+---
+
+## Workflow Per Feature (exact sequence every time)
+
+```
+1. Spec written in kb/specs/<feature>.md (Claude.ai)
+2. /spec → Claude Code confirms spec read
+3. /plan → review and approve plan BEFORE any code
+4. /build → implement
+5. /review → FRESH SESSION, diff only
+6. /test → explicit inputs/outputs, all roles
+7. Commit → pre-commit hooks gate
 ```
 
 ---
@@ -39,113 +69,89 @@ Two live orgs: **Stirg Metal** (15-worker fab shop) + **Prototip** (engineering 
 ## Critical Rules — Read Before Writing Any Code
 
 1. **RLS on every table before any external user gets access.** No exceptions.
-2. **Every table has `organization_id`.** Every query filters by it. RLS enforces this at DB level.
-3. **Quoted value never changes after approval** (D-40). Never write code that modifies `quotes.total_amount` after status = Approved.
-4. **Rework is always absorbed** (D-26). Log as `stirg_hours_log.log_type = 'Rework'`, never bill to client.
-5. **Worker UI has no AI bar** (D-90). Don't add it to `/w/` routes.
-6. **Role-aware home screens** (D-87). Each role gets a different default screen — enforce in middleware/layout.
-7. **Optimistic UI** (D-89). Status updates reflect instantly; confirm server-side after.
-8. **Destructive actions need multi-step confirmation** (D-95). BOM import deletes existing parts — make this visible.
-9. **`work_orders.context` field does not exist** (D-86). Use `organization_id` as source of truth.
-10. **Display names ≠ part numbers** (D-17). `display_name` auto-generated: capital+digit start → keep underscores; else → underscores to spaces.
+2. **Every table has `organization_id`.** Every query filters by it.
+3. **Use `(SELECT auth.uid())` never bare `auth.uid()`** — bare re-evaluates per row.
+4. **Quoted value never changes after approval** (D-40). Never modify `quotes.total_amount` after status = Approved.
+5. **Rework always absorbed** (D-26). Log as `log_type = 'Rework'`, never bill.
+6. **Worker UI has no AI bar** (D-90). Never render it in `/w/` routes.
+7. **Role-aware home screens** (D-87). Middleware enforces per-role routing.
+8. **Optimistic UI with rollback** (D-89). Status updates instant; roll back on server error.
+9. **Destructive actions = multi-step confirmation** (D-95). BOM import shows consequences.
+10. **`work_orders.context` does not exist** (D-86). Use `organization_id`.
+11. **Financial tables = Owner + Manager only** (quotes, invoices, transactions).
+12. **Worker sees own hours only** — RLS on `stirg_hours_log` must enforce this.
+13. **Spec before code, always** (D-109). No exceptions.
+14. **Review in fresh context** (D-110). Never review in the session that built.
 
 ---
 
-## Naming & Formatting Conventions
+## Naming & Formatting
 
-- Monospace for: part numbers, WO codes (WO-26-001), quote codes (Q-26-001), invoice codes (INV-26-001)
+- Monospace (`font-mono`): part numbers, WO codes, invoice codes, financial figures
 - Status colors (never change): Complete=`#16A34A` · In Progress=`#D97706` · Blocked=`#DC2626` · Pending=`#0EA5E9` · Not Started=`#6B7280`
-- Accent colors: Stirg=`#E8450A` · Prototip=`#2563EB` · Header/nav=`#0D1117`
-- Dark mode primary, light mode toggle available
-- App header: company name only — no logos, no custom colors in app UI
+- Dark mode primary, light toggle available
+- App header: company name only — no logos in app UI
 
 ---
 
-## Key Entities (short version)
+## Worker PIN Auth (D-108)
+
+Owner invites worker by email → Supabase Auth handles session → worker taps link once.
+Every subsequent open: app shows PIN screen → PIN validated server-side against `members.pin_hash` (bcrypt).
+Session stays alive on personal phone (D-81). If phone lost: owner deactivates member.
+Zero custom auth logic — Supabase handles sessions entirely.
+`members` table has `pin_hash TEXT` (nullable — NULL until worker sets PIN).
+
+---
+
+## Key Entities
 
 ```
 organizations     → PPM subscribers (company/group/solo/platform)
-members           → users within an org, each with a functional role
-clients           → external parties per org (C001 scoped per org)
-work_orders       → WO-26-001, status: Draft→Active→On Hold→Delivered→Invoiced→Paid→Closed
-quotes            → Q-26-001 (same number as WO on win, prefix changes)
-parts             → BOM lines, parent_id self-ref, assembly_level 0/1/2, 9 operations each
-stirg_hours_log   → worker time entries with norm/actual, pause reasons, log_type
+members           → users within org, role + pin_hash
+clients           → external parties per org (C001 scoped per org, D-78)
+work_orders       → WO-26-001, Draft→Active→Delivered→Invoiced→Paid→Closed
+quotes            → Q-26-001 (same number as WO on win)
+parts             → BOM lines, parent_id self-ref, assembly_level 0/1/2, 9 ops each
+stirg_hours_log   → worker time entries, norm/actual, pause reasons, log_type
 invoices          → INV-26-001
 transactions      → income/expense ledger
 ```
 
-Full schema: see `/kb/entities.md`
-
----
-
-## Roles & Permissions (short version)
-
-| Role | Key permissions |
-|---|---|
-| Owner | Everything + billing + members |
-| Manager | All ops + financials + assign + approve hours |
-| Supervisor | All workers visible, assign tasks, approve hours. No financials. |
-| Worker | Own tasks only. PIN login. Simplified UI. No AI bar. |
-| Viewer | Read-only. External client or auditor. |
-
-Full matrix: see `/kb/permissions.md`
-
----
-
-## BOM Structure
-
-- **3 levels max:** L0=final assembly, L1=sub-assembly, L2=part
-- **9 operations per part:** `cad_fixed`, `drawings_ready`, `laser_cut`, `bent`, `cut_to_size`, `procured`, `welded`, `powder_coated`, `assembly`
-- **Operation status per part:** Not Started / In Progress / Done / N/A
-- **N/A operations are hidden** in UI (D-75)
-- **Status roll-up:** assembly blocked if any child blocked (D-22)
-- **Operations are NOT separate PNs** — tracked per row, not as separate BOM entries (D-96)
-
----
-
-## AI Bar (persistent, above bottom nav)
-
-- Inactive: slim bar, ✦ icon
-- Active: expands to contextual chips + text input + mic
-- Context injected server-side: org, user role, active WO, current tab
-- Guard: manufacturing ops only — off-topic politely declined
-- Token routing: zero-token chip → SQL | Groq → Haiku → Sonnet
-
----
-
-## DB Quick Reference
-
-- Supabase project: `bfhioxqspmypcnpmakyg`
-- Auth key: `sb_publishable_i9V8xr4SJQ4V1b-6T9k49Q_gQLBJLIm`
-- Exchange rate default: 117 RSD/EUR (adjustable per transaction)
-- Auto-numbering: C570001+ for empty BOM part numbers
+Full schema: `kb/entities.md`
+Permissions: `kb/permissions.md`
 
 ---
 
 ## What NOT To Do
 
-- Don't add features excluded in D-47–D-57 (no Gantt, no MRP, no real-time collab, no payroll, no GPS)
 - Don't write cross-org queries without RLS
 - Don't modify quoted totals after approval
-- Don't add AI bar to Worker UI
+- Don't add AI bar to `/w/` Worker UI
+- Don't use bare `auth.uid()` in RLS policies
 - Don't create per-operation part numbers in BOM (D-96)
-- Don't use `work_orders.context` — it was removed (D-86)
+- Don't use `work_orders.context` — removed (D-86)
+- Don't add: Gantt, MRP, real-time collab, payroll, GPS, in-app messaging (D-47–D-57)
+- Don't skip the spec step
+- Don't review in the same session that built
 
 ---
 
-## KB Files (full context)
+## KB Files
 
 | File | Contents |
 |---|---|
-| `kb/vision.md` | Product vision, problem statement, target market |
-| `kb/architecture.md` | Full stack, integrations, build workflow |
-| `kb/entities.md` | Complete data model and table definitions |
+| `kb/vision.md` | Product vision, problem, target market |
+| `kb/architecture.md` | Stack, integrations, deployment |
+| `kb/entities.md` | Complete data model |
 | `kb/permissions.md` | Roles, org types, permissions matrix |
 | `kb/workflows.md` | WF-01 through WF-09 |
-| `kb/features.md` | Feature specs for all tabs and screens |
-| `kb/users.md` | User roles, org types, key journeys |
-| `kb/decisions.md` | All D-numbered decisions |
+| `kb/features.md` | Feature specs for all screens |
+| `kb/users.md` | User journeys per role |
+| `kb/decisions.md` | All D-numbered decisions (D-01 through D-111) |
 | `kb/open_questions.md` | Resolved and open questions |
-| `kb/tooling_strategy.md` | Tool roles, MCP strategy, skills strategy |
-| `kb/stirg_document_brand.md` | Stirg document/report brand spec |
+| `kb/tooling_strategy.md` | Tool roles, workflow sequence, MCP strategy |
+| `kb/stirg_document_brand.md` | Stirg document brand spec |
+| `kb/specs/phase-1-schema.md` | Phase 1 database spec |
+| `kb/specs/phase-1-implementation-workflow.md` | Exact steps for Phase 1 |
+| `kb/specs/_template.md` | Spec template for new features |
