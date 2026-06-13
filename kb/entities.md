@@ -43,8 +43,7 @@ parent_id (self-ref, hierarchy), assembly_level (0=final/1=sub/2=part)
 photo_url (Supabase Storage, per WO instance — Option B)  
 revision (TEXT, A/B/C revision letter — D-82)
 display_name (auto-generated: underscore→space for descriptive names)  
-9 operations each (Not Started/In Progress/Done/N/A):  
-cad_fixed, drawings_ready, laser_cut, bent, cut_to_size, procured, welded, powder_coated, assembly  
+Operations assigned via `part_operations` join table (max 12 per D-122)  
 overall_status, notes | UNIQUE (work_order_id, part_number)
 
 **procurement**  
@@ -85,6 +84,8 @@ name, category, purchase_price_eur, purchase_date, revenue_generated_eur
 - C002 Ivan Advokat → currently wrong entity type; must become a client under Prototip org
 - Prototip org record → does NOT exist yet (must be added)
 - All 365 parts have parent_id=NULL — awaiting structured BOM upload (OQ-10)
+- `ppm_operations` to be seeded with 44 global ops at launch (OP-00001 through OP-00042 unique)
+- `org_operations` seeded for Stirg (sheet metal preset) and Prototip (eng services preset)
 - stirg_operations empty — awaiting Excel (OQ-09)
 - Auto-number for empty BOM part numbers: C570001+ (above highest C561562)
 
