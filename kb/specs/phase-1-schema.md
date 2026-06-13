@@ -22,7 +22,11 @@ Creates the complete PPM database schema in Supabase with all tables, indexes, R
 6. `sequences` (no dependencies)
 7. `work_orders` (depends on organizations + clients)
 8. `quotes` + `quote_lines` (depends on work_orders + clients)
-9. `parts` (depends on work_orders — self-referential parent_id)
+9. `parts` (depends on work_orders — self-referential parent_id, NO op columns)
+9a. `ppm_operations` (no dependencies — seed with 42 unique ops)
+9b. `org_operations` (depends on organizations + ppm_operations)
+9c. `part_operations` (depends on parts + org_operations + users)
+9d. `operation_usage_log` (depends on ppm_operations + organizations)
 10. `part_reference_photos` (depends on organizations)
 11. `procurement` (depends on work_orders)
 12. `stirg_operations` (depends on organizations)
@@ -58,6 +62,11 @@ Ivan Advokat re-linked as client under Prototip org (U-04).
 - [ ] Cross-org isolation verified — org A cannot read org B data
 - [ ] TypeScript types generated and committed at `types/supabase.ts`
 - [ ] `supabase gen types` runs without errors
+- [ ] `part_operations` join table enforces max 12 ops per part (check constraint or app layer)
+- [ ] `ppm_operations` seeded with OP-00001 through OP-00042 (42 unique ops)
+- [ ] `org_operations` seeded for Stirg (sheet metal preset, ~18 active ops)
+      and Prototip (engineering services preset, ~15 active ops)
+- [ ] `operation_usage_log` unique constraint verified
 - [ ] Seed data applied — both orgs visible, existing data migrated
 - [ ] `(SELECT auth.uid())` used everywhere, never bare `auth.uid()`
 - [ ] All FK columns indexed
