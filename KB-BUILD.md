@@ -48,9 +48,15 @@ members:           id, organization_id, user_id, role, display_role, pin_hash, i
 work_orders:       id, organization_id, code (WO-26-001), client_id, quote_id, title, status, priority, their_ref, start_date, deadline
 quotes:            id, organization_id, code (Q-26-001), client_id, status, total_amount (LOCKED after Approved)
 quote_lines:       quote_id, activity, billing_type, quantity, unit, rate, amount, sort_order
-parts:             id, organization_id, work_order_id, part_number, display_name, parent_id (self-ref), assembly_level (0/1/2), revision, photo_url
-                   9 ops: cad_fixed, drawings_ready, laser_cut, bent, cut_to_size, procured, welded, powder_coated, assembly
-                   each op: Not Started | In Progress | Done | N/A
+parts:             id, organization_id, work_order_id, part_number, display_name, parent_id (self-ref),
+                   assembly_level (0/1/2), revision, photo_url
+                   → operations via part_operations join table (max 12, D-122)
+ppm_operations:    id (OP-00001), name, category, is_verified, usage_count, created_by_org_id
+org_operations:    id, organization_id, ppm_operation_id, name, default_fulfillment,
+                   default_assembly_levels[], is_active, sort_order
+part_operations:   id, part_id, org_operation_id, status (Not Started/In Progress/Done/N/A),
+                   fulfillment_type (in_house/outsourced/TBD), sort_order, added_by
+operation_usage_log: ppm_operation_id, raw_name, organization_id — UNIQUE per org+name
 stirg_hours_log:   work_order_id, operation_id, worker_user_id, date, norm_hours, actual_hours, log_type (Standard/Rework/Revision/Recall), pause_type
 invoices:          code (INV-26-001), work_order_id, client_id, amount, currency, amount_eur, exchange_rate (default 117)
 transactions:      date, type (Income/Expense), source, category, amount, currency, amount_eur
