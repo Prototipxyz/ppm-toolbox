@@ -59,3 +59,11 @@
 | OQ-33 | First real screen after schema + auth — decide when Phase 2 begins | Phase 2 |
 | OQ-34 | Node.js 18+ installation on work laptop — required before Claude Code install | Immediate |
 | OQ-35 | SSH keys: generate on laptop + add to GitHub — required before first git clone | Immediate |
+
+## Additional resolved from chats
+| OQ-36 | Product category confirmed: lightweight MES with job costing (D-112) |
+| OQ-37 | BOM display_name compound name rule (D-118) |
+| OQ-38 | Generic CAD name flagging in BOM import (D-119) |
+| OQ-39 | Parts deduplication in flat view (D-120) |
+| OQ-40 | KB-BUILD.md condensed file strategy confirmed (D-115) |
+| OQ-41 | New chat opener format confirmed (D-116) |
