@@ -67,3 +67,8 @@
 | OQ-39 | Parts deduplication in flat view (D-120) |
 | OQ-40 | KB-BUILD.md condensed file strategy confirmed (D-115) |
 | OQ-41 | New chat opener format confirmed (D-116) |
+
+## Warehouse feature open questions
+| OQ-46 | Confirm Stirg physical layout before warehouse implementation: how many zones, rows, positions? Required before generating location codes. | Pre-warehouse feature |
+| OQ-47 | Partial cut UI: if laser operator cuts 8 of 12 parts, does WO show 8 as "in progress at location" and 4 as "not started"? Treatment TBD. | Phase warehouse |
+| OQ-48 | QR label dimensions: what label sizes does Stirg use (e.g. 100×50mm, 50×25mm)? Needed before PDF generator. | Pre-warehouse feature |
