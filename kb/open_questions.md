@@ -69,6 +69,6 @@
 | OQ-41 | New chat opener format confirmed (D-116) |
 
 ## Warehouse feature open questions
-| OQ-46 | Confirm Stirg physical layout before warehouse implementation: how many zones, rows, positions? Required before generating location codes. | Pre-warehouse feature |
+| OQ-46 | Confirm Stirg physical layout before warehouse implementation: how many permanent fixtures (racks, shelves, floor areas)? Best resolved by 20-min factory floor walkthrough, not abstract question. | Pre-warehouse feature |
 | OQ-47 | Partial cut UI: if laser operator cuts 8 of 12 parts, does WO show 8 as "in progress at location" and 4 as "not started"? Treatment TBD. | Phase warehouse |
-| OQ-48 | QR label dimensions: what label sizes does Stirg use (e.g. 100×50mm, 50×25mm)? Needed before PDF generator. | Pre-warehouse feature |
+| OQ-48 | ~~QR label dimensions~~ RESOLVED — defaults: 100×50mm (bin) + 148×105mm A6 (pallet) + custom input. See D-144. | Resolved |
