@@ -106,3 +106,34 @@
 - D-118: **BOM display_name rule for compound names** — names with multiple capitalised segments (e.g. "Magna-Lok Rivet") are kept as-is. Only single-word names with underscores get underscore→space treatment. (From BOM analysis chat.)
 - D-119: **Generic CAD names flagged for review** — BOM import flags names like "Product1", "Part1", "Assembly" as requiring manual rename before production use. Shown in amber in review UI.
 - D-120: **Parts deduplication in flat view** — flat list shows unique PNs with total quantity summed across all parent assemblies. "In assemblies" column shows count in orange when PN appears in multiple places.
+
+
+## Configurable Operations (D-121 to D-130)
+- D-121: Fixed 9-column parts schema replaced with three-tier configurable system:
+  Global pool (PPM-managed) → Org catalog (per org) → Part assignment (per part).
+  The 9 hardcoded op columns on `parts` table are removed entirely.
+- D-122: Pipeline strip maximum = 12 segments. Only assigned non-N/A ops render.
+  PM can add/remove ops on a part card up to the 12-segment ceiling.
+- D-123: Operation fulfillment flag on every part-level assignment:
+  `fulfillment_type: in_house / outsourced / TBD`.
+  Outsourced ops automatically generate a procurement item.
+- D-124: Global pool operation IDs = `OP-00001` sequential with leading zeros.
+  Category stored as separate field, not encoded in ID.
+- D-125: Global pool promotion trigger = cross-org only (Option B).
+  Same op name (fuzzy matched) in 5+ distinct orgs triggers admin review queue.
+  Single-org internal usage never triggers promotion regardless of frequency.
+- D-126: Admin review flow — PPM admin panel shows flagged ops.
+  Decision: approve into global pool / reject / merge with existing op.
+  Approved ops receive permanent OP-NNNNN ID.
+- D-127: Add/remove operations on part card = Owner, Manager, Supervisor only.
+  Worker cannot add or remove operations.
+- D-128: Removing an In Progress operation is hard-blocked.
+  Must be reset to Not Started before removal. Warning shown.
+- D-129: New op added to a part → saves automatically to org catalog.
+  Never goes directly to global pool. Cross-org usage count triggers promotion per D-125.
+- D-130: Two industry presets at launch:
+  Sheet Metal Fabrication (Stirg profile) + Engineering Services / Prototyping (Prototip profile).
+  Each is a curated starter op set. Fully adaptable after activation.
+- D-98: ~~Assembly-level operation assignment hardcoded (L0/L1/L2 per op type)~~
+  SUPERSEDED by D-121/D-130. Now a soft suggestion (`default_assembly_levels[]`
+  on `org_operations`), not a hard rule.
