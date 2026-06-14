@@ -37,8 +37,8 @@
 | OQ-45 | Worker PIN auth: Option C — email once, PIN daily, bcrypt on members table (D-108) |
 | U-01 | Resolved by Organizations/Members/Clients model |
 | U-02 | work_orders.context field: REMOVED (D-86) |
-| U-03 | Branding seeded against wrong entity — migration pending in Phase 1 |
-| U-04 | WO-26-002 client ref: re-link to Ivan Advokat once clients table exists |
+| U-03 | Branding seeded against wrong entity — addressed in migration 20260614000006_seed_orgs_and_members (Phase 1 Session 1 prerequisite) |
+| U-04 | Ivan Advokat re-link: addressed in migration 20260614000006 — moves from `_legacy_clients` to `public.clients` under Prototip org |
 | U-05 | stirg_operations: each org fills out own rates (D-85) |
 | U-06 | Part hierarchy: update once BOM is uploaded |
 | U-07 | C312029_Gummipuffer underscore display: acceptable |
@@ -59,6 +59,7 @@
 | OQ-33 | First real screen after schema + auth — decide when Phase 2 begins | Phase 2 |
 | OQ-34 | Node.js 18+ installation on work laptop — required before Claude Code install | Immediate |
 | OQ-35 | SSH keys: generate on laptop + add to GitHub — required before first git clone | Immediate |
+| OQ-49 | Write and apply migration `20260614000006_seed_orgs_and_members.sql` before Session 2 — inserts Stirg Metal + Prototip orgs, Voja as Owner for both, Ivan Advokat as client under Prototip, fixes branding rows (U-03/U-04). Blocker for migrations 6–19. | Before Session 2 |
 
 ## Additional resolved from chats
 | OQ-36 | Product category confirmed: lightweight MES with job costing (D-112) |
