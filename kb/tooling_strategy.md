@@ -84,12 +84,14 @@ The AI bar calls Anthropic API with Supabase MCP injected — Claude reads live 
 
 Skills = reusable Claude Code workflows for atomic operations.
 
-Planned skills (create as patterns stabilize):
-- `implementing-migration` — write migration → apply → verify → update types
-- `implementing-rls-policy` — write policy → test with role → confirm isolation
-- `implementing-api-route` — route → zod validation → typed response → test
-- `implementing-component` — shadcn base → custom styling → role-aware props
-- `kb-patch` — end-of-chat consolidation → generate patch → commit to GitHub
+**Mechanism:** `.claude/commands/*.md` files in ppm-app repo. Claude Code reads these as `/command-name` project slash commands. Secondary copy in `.claude/skills/*/SKILL.md` (agent-skills format). The `.claude/commands/` path is operative (D-148).
+
+Implemented skills (all 5 live):
+- `/implement-migration` — write migration → apply → verify → update types
+- `/implement-rls-policy` — write policy → test with role → confirm isolation
+- `/implement-api-route` — route → Zod validation → typed response → test
+- `/implement-component` — shadcn base → PPM design tokens → role-aware props
+- `/kb-patch` — end-of-chat consolidation → generate patch → commit to GitHub
 
 ---
 
