@@ -59,10 +59,10 @@
 | OQ-33 | First real screen after schema + auth — decide when Phase 2 begins | Phase 2 |
 | OQ-34 | Node.js 18+ installation on work laptop — required before Claude Code install | Immediate |
 | OQ-35 | SSH keys: generate on laptop + add to GitHub — required before first git clone | Immediate |
-| OQ-49 | Write and apply migration `20260614000006_seed_orgs_and_members.sql` before Session 2 — inserts Stirg Metal + Prototip orgs, Voja as Owner for both, Ivan Advokat as client under Prototip, fixes branding rows (U-03/U-04). Blocker for migrations 6–19. | Before Session 2 |
-| OQ-50 | **Members backfill — manual step after Voja's first Supabase Auth sign-up.** Migration 6 includes a conditional INSERT for Voja as Owner of both orgs, but `auth.users` was empty at migration time so 0 rows were inserted. After Voja signs up (email invite or magic link), run: `INSERT INTO public.members (organization_id, user_id, role, is_active, joined_at) SELECT o.id, u.id, 'Owner', true, now() FROM public.organizations o CROSS JOIN auth.users u WHERE o.code IN ('STIRG', 'PROTO') AND u.email = 'voja.g.95@gmail.com' ON CONFLICT (organization_id, user_id) DO NOTHING;` Required done-criterion for Phase 1: Voja must be active Owner of each org before any RLS-protected table can be accessed. | After first Auth sign-up |
+| OQ-50 | **Members backfill — manual step after Voja's first Supabase Auth sign-up.** Migration 6 includes a conditional INSERT for Voja as Owner of both orgs, but `auth.users` was empty at migration time so 0 rows were inserted. After Voja signs up (email invite or magic link), run: `INSERT INTO public.members (organization_id, user_id, role, is_active, joined_at) SELECT o.id, u.id, 'Owner', true, now() FROM public.organizations o CROSS JOIN auth.users u WHERE o.code IN ('STIRG', 'PROTO') AND u.email = 'voja.g.95@gmail.com' ON CONFLICT (organization_id, user_id) DO NOTHING;` Required done-criterion for Phase 1: Voja must be active Owner of each org before any RLS-protected table can be accessed. Does NOT block Session 2. | After first Auth sign-up |
 
 ## Additional resolved from chats
+| OQ-49 | Migration `20260614000006_seed_orgs_and_members.sql` applied 2026-06-14. Verified: STIRG + PROTO orgs, branding (correct colors + document names), Ivan Advokat as C001 under PROTO. Members row conditional on auth signup — see OQ-50. |
 | OQ-36 | Product category confirmed: lightweight MES with job costing (D-112) |
 | OQ-37 | BOM display_name compound name rule (D-118) |
 | OQ-38 | Generic CAD name flagging in BOM import (D-119) |
