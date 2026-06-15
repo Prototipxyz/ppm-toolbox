@@ -160,6 +160,17 @@ Plus agent-skills (Osmani): `/spec /plan /build /test /review /ship`
 
 ---
 
+## Parts/Operations Screen (D-162-175) -- Phase 3
+- Ops: blocked flag + reason enum (Material wait/Machine issue/Quality issue/Procurement delay/Other), independent of status, overrides color to red. Fulfillment (in_house/outsourced) toggled inline per op-instance.
+- Procurement (outsourced ops): status/lead_time/sent/expected/actual dates. last_order_date = WO.deadline - lead_time - 3d buffer. Alerts: green/blue/amber/red.
+- Flat view: Assembly(has children)/Parts(leaf)/All filter; List(default)/Cards toggle on md+; mobile = compact bullet+OpName status-lights, tap to expand.
+- Search bar: paste PNs -> select matches; unmatched -> prompt qty/desc -> add ad-hoc part. Delete allowed only when leaf (live-computed, no cascade needed).
+- AI bar: zero-token chip resolution (PN -> assigned-op chips -> catalog-op chips -> "+new op"), tap = instant action; free-text API path remains for the rest.
+- Export: per-operation columns (not summary string); "Consignment note" template for any op-filtered set.
+- Validated (v2, D-162/163/165/166/167) via ppm-parts-ops.jsx artifact. Unvalidated (v3, D-168-174) -- prototype in Claude Code, not artifact (OQ-55).
+
+---
+
 ## Tools (what each is for)
 | Tool | Use for |
 |---|---|
@@ -174,7 +185,7 @@ Plus agent-skills (Osmani): `/spec /plan /build /test /review /ship`
 ## New Chat Opener
 ```
 PPM build — continue. Read KB-BUILD.md in project files.
-Decisions run D-01 to D-120. 
+Decisions run D-01 to D-175. 
 Last completed: [X].
 Next: [Y].
 ```

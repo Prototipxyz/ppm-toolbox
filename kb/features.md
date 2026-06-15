@@ -22,7 +22,7 @@ Overview · Parts · Procurement · Quote · Financials · Hours (scrollable tab
 - Smart chips: skip parts already at target status
 - Status hierarchy: assembly = blocked if any child blocked; complete only when all children complete
 
-**Procurement:** items per WO, supplier, status (Pending/Ordered/In Transit/Arrived/Cancelled), ETA, issue notes
+**Procurement:** items per WO, supplier, status (Not Ordered/Ordered/In Transit/Arrived/Unavailable-find replacement), lead time (days), sent/expected/actual return dates, issue notes. Computed alerts vs. WO deadline (last-order-date = deadline - lead time - admin buffer; D-164). "Consignment note" export per operation-filtered part set (D-166).
 
 **Quote:**
 - 3 sections: Operations (h × rate), Materials, Subcontractors
