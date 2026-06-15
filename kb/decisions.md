@@ -159,3 +159,61 @@
 - D-146: **Migration history repair** — 8 remote migration versions from legacy ppm setup (20260609192327 through 20260611092839) marked as `reverted` in `supabase_migrations.schema_migrations`. Schema and data untouched. Required to unblock `supabase db push` in the new ppm-app repo.
 - D-147: **Seed migration `20260614000006_seed_orgs_and_members.sql` required before Session 2.** Must run before migrations 6–19 because later tables FK into `organizations`. Must: insert Stirg Metal org (code: STIRG, org_type: company), insert Prototip org (code: PROTO, org_type: solo — new, did not exist), move Ivan Advokat from `_legacy_clients` into `public.clients` under Prototip org (U-04), insert Voja as Owner member for both orgs, fix `organization_branding` rows for both orgs (U-03).
 - D-148: **All 5 PPM skills implemented and live as Claude Code project slash commands.** Mechanism: `.claude/commands/*.md` files in ppm-app repo — Claude Code reads these automatically as `/command-name` slash commands. Files also exist in `.claude/skills/*/SKILL.md` (agent-skills format, secondary). The `.claude/commands/` path is operative. Skills: `/implement-migration`, `/implement-rls-policy`, `/implement-api-route`, `/implement-component`, `/kb-patch`.
+
+## System Resilience & Fallback Principles
+- D-149: **Graceful degradation is a standing requirement.** Every automated/AI/optional
+  feature must have a manual equivalent for core workflows (status updates, hours,
+  quotes, invoices). Non-core features must be toggleable per-org without breaking
+  anything. Every feature spec must answer: "What happens if this is OFF or FAILS?
+  Does core still work?" Applies retroactively to D-123, D-125, D-137, AI bar, push
+  notifications, photo reuse, status rollup caching.
+
+## Phase 1 Follow-up & Cross-Phase Resolutions (D-150 to D-161)
+- D-150: **Group org RLS validated via synthetic seed data** (parent + 1 subsidiary)
+  before Phase 3. Fallback if RLS recursion is impractical: parent-dashboard reads
+  via SECURITY DEFINER function instead of policy recursion.
+- D-151: **"Win" transition = one server action, independently-retryable steps,
+  never blocked by side-effect failure.** Failed steps (folder rename, BOM trigger)
+  create a flagged task for Owner/Manager + expose a manual retry button. Spec:
+  `kb/specs/win-transition.md` (Phase 8). This retryable-steps pattern is the
+  template for all multi-system transitions.
+- D-152: **Procurement auto-gen (D-123) never auto-deletes.** Fulfillment change
+  away from outsourced leaves the procurement item in place
+  (`source: 'auto_generated'` flag) for Manager review. Fulfillment change TO
+  outsourced links to an existing matching item instead of duplicating.
+- D-153: **Assembly status rollup materialized** via `computed_status` column/trigger
+  on `parts`, updated on child `part_operations` change. Self-healing backstop:
+  scheduled recompute job if trigger fails. Tree view never computes rollup live.
+- D-154: **Recursive CTE load test required before Phase 3 sign-off** (3 levels,
+  ~365 parts, worst-case fan-out). If >200ms, extend materialization
+  (`part_hierarchy_flat` view per WO, refreshed on BOM import/structural change).
+  Results logged as D-154a/b once measured.
+- D-155: **Norm-vs-Actual report added to Phase 6 scope.** Hidden entirely
+  (not empty) if `stirg_operations` has zero norm values for the org — appears
+  automatically once OQ-09 data is entered. No schema change.
+- D-156: **Quote Accuracy trend added to Phase 7 scope** (Reports Tab sparkline,
+  last 10 closed WOs). Shows "Not enough data yet" if <3 closed WOs (D-94 empty
+  state). No schema change.
+- D-157: **AI-bar query pattern sketch required in Phase 3 spec** — write the SQL
+  for a representative "what's blocking WO-X" query against the proposed Phase 3
+  schema as a sanity check, 6 phases before AI bar is built.
+- D-158: **OQ-31 resolved** — Worker home = single current-task card (primary),
+  queue via swipe/expand (D-88). **Offline pattern**: optimistic local state +
+  queued sync + visible "syncing" indicator; failed sync shows explicit retry
+  message, never silent loss. Backstop: Supervisor can always manually correct
+  any worker's hours/status (existing permission). Documented in
+  `kb/specs/phase-5-worker-ui.md`.
+- D-159: **Phase 5 Start-action built with post-Start hook list** (extension
+  points). Warehouse location-clear (D-137) added later as a hook, not a Phase 5
+  modification. Hooks are fire-and-forget — failure logged, never blocks the
+  primary action (timer start).
+- D-160: **Prototip document brand spec** — new file `kb/prototip_document_brand.md`
+  before Phase 8. Activity-based quote layout (vs Stirg's operations/materials/subs).
+  Confirm document language default with Voja (Prototip may be EN-primary vs
+  Stirg's SR-primary per D-38).
+- D-161: **OQ-32 resolved** — two always-on layers: (1) passive badge counts
+  (Supervisor approvals pending, skip-flags, Blocked WOs, overdue procurement) —
+  computed independently of push, push-failure-proof; (2) OneSignal push, fixed
+  initial event set (skip-flag→Supervisor, hour-log Queried→Worker,
+  WO Blocked→Manager+Owner), per-member togglable, no rules engine. Passive badges
+  are source of truth if push fails.

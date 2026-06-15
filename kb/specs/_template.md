@@ -39,6 +39,11 @@ Copy this file, rename it `<feature-name>.md`, fill in all sections before handi
 - Tables written: [list]
 - RLS considerations: [anything non-standard]
 
+## Failure / Disable Behavior (D-149)
+- [What happens if this feature is turned OFF for an org?]
+- [What happens if the automated/AI part of this feature FAILS at runtime?]
+- [What is the manual fallback that keeps core workflows (status, hours, quotes, invoices) working?]
+
 ## Known constraints
 - [Performance: e.g. "BOM can have 365+ parts — list must not block UI"]
 - [Security: e.g. "Quoted total must not change after Approved status"]

@@ -54,8 +54,6 @@
 |---|---|---|
 | OQ-24 | Stirg subscription pricing | Before pilot |
 | OQ-25 | Stirg account ownership | Before pilot |
-| OQ-31 | Worker home screen card model — single task card + queue vs full list? | Phase 3 UX |
-| OQ-32 | Supervisor push notifications: anomaly alerts vs passive display? | Phase 3 |
 | OQ-33 | First real screen after schema + auth — decide when Phase 2 begins | Phase 2 |
 | OQ-34 | Node.js 18+ installation on work laptop — required before Claude Code install | Immediate |
 | OQ-35 | SSH keys: generate on laptop + add to GitHub — required before first git clone | Immediate |
@@ -69,8 +67,18 @@
 | OQ-39 | Parts deduplication in flat view (D-120) |
 | OQ-40 | KB-BUILD.md condensed file strategy confirmed (D-115) |
 | OQ-41 | New chat opener format confirmed (D-116) |
+| OQ-31 | Worker home screen: single current-task card (primary) + queue via swipe/expand (D-158) |
+| OQ-32 | Notifications: passive badges (always-on, push-failure-proof) + fixed OneSignal alert set, per-member togglable (D-161) |
 
 ## Warehouse feature open questions
 | OQ-46 | Confirm Stirg physical layout before warehouse implementation: how many permanent fixtures (racks, shelves, floor areas)? Best resolved by 20-min factory floor walkthrough, not abstract question. | Pre-warehouse feature |
 | OQ-47 | Partial cut UI: if laser operator cuts 8 of 12 parts, does WO show 8 as "in progress at location" and 4 as "not started"? Treatment TBD. | Phase warehouse |
 | OQ-48 | ~~QR label dimensions~~ RESOLVED — defaults: 100×50mm (bin) + 148×105mm A6 (pallet) + custom input. See D-144. | Resolved |
+
+## Pending evidence / follow-up files (from D-149–D-161 resilience review)
+| # | Item | When |
+|---|---|---|
+| OQ-51 | D-154 recursive CTE load test results not yet measured — record as D-154a/b once Phase 3 schema exists | Phase 3 sign-off |
+| OQ-52 | `kb/specs/win-transition.md` not yet written (D-151) | Phase 8 |
+| OQ-53 | `kb/specs/phase-5-worker-ui.md` not yet written — must include D-158 offline pattern | Phase 5 |
+| OQ-54 | `kb/prototip_document_brand.md` not yet written (D-160) — needs Voja input on Prototip document language default | Before Phase 8 |

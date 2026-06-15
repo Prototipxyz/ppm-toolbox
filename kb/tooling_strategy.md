@@ -22,6 +22,8 @@ v0: deferred. Use only for isolated complex components if needed.
 Step 1 — SPEC (Claude.ai, this chat)
   Write 10-line spec in kb/specs/<feature-name>.md
   Covers: what it does, what it doesn't, acceptance criteria, edge cases
+  Must include "Failure/Disable Behavior" section per D-149 — no spec is
+    complete without it
   Commit to ppm-toolbox → CLAUDE.md auto-updates
 
 Step 2 — VISUAL (optional, Lovable)
