@@ -237,3 +237,28 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
 - D-173: Parts are deletable only when they currently have no children (leaf, computed live) — deleting an assembly's children bottom-up naturally makes it deletable too; no cascade-delete is offered. One-tap-then-confirm; removes the part's operations/procurement records.
 - D-174: AI command bar gets a zero-token chip-resolution mode (D-30 lineage): typed text is matched token-by-token against PNs/items; once resolved, the part's assigned ops appear as tappable status-colored chips (tap = cycle status instantly), then matching catalog ops not yet assigned (tap = add instantly), then — if nothing matches remaining text — "+ Add '<text>' as new operation" (tap = add custom op instantly, per D-129). Free-text AI/API path remains for anything chips can't express.
 - D-175: Procurement lead-time/alert/consignment-note tracking (D-164/D-166) is scheduled within Phase 3 (Parts tracking) — the `procurement` table already exists from Phase 1, item generation is driven by Phase-3 fulfillment flags (D-123/D-163), and it addresses Stirg's real outsourcing pain (unlike warehouse-locations, which stays post-pilot). Subcontractor cost roll-up into Financials (Phase 7) is separate and unaffected.
+
+## Visual Identity & Design Workflow (D-176 to D-179)
+- D-176: **Claude Design = visual design tool**, included in existing Pro/Max
+  subscription (research preview, no extra cost). Replaces "Lovable, optional"
+  as Step 1.5 (Visual Validation) in the per-feature workflow — describe screen,
+  iterate in Claude Design, hand result to Claude Code as visual spec for /build.
+- D-177: **Color philosophy = consistency + familiarity, not color-psychology
+  symbolism.** Existing status-color convention (D-43-46, traffic-light
+  green/amber/red/sky/grey) is the correct "behavioral" pattern — universal
+  recognition beats theoretical color meaning. Visual identity exploration
+  (logo, app screens) inherits these status colors as fixed constraints.
+- D-178: **"Instagram-easy, SAP-powerful" = interaction patterns, not visual
+  mimicry.** Already encoded via D-88 (progressive disclosure), D-89 (optimistic
+  UI), D-95 (two-step destructive confirm). Worker UI (/w/) is where
+  consumer-app interaction patterns (swipe, tap-to-expand, large touch targets)
+  matter most — already scoped that way.
+- D-179: **Phase 3 slice (priority build) = full parts/assemblies tracker.**
+  Scope: parts-operations-screen.md (D-162-175) + procurement-tracking.md
+  (D-164/166/175) — operations per PN, status, pipeline strip, photos,
+  outsourced flag, procurement/lead-time/last-order-date/alerts, exports.
+  Excludes: financials, hours logging, CEO dashboard (deferred to later phases
+  per existing sequence). AI bar: chip-resolution (D-174) included as
+  zero-token UI logic; free-text AI path deferred to Phase 9 per D-157.
+  Model strategy: Opus 4.8 for RLS/migrations/recursive-CTE logic, Sonnet 4.6
+  for UI components and routine feature work (cost/risk-proportionate split).

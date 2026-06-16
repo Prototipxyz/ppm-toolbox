@@ -26,9 +26,12 @@ Step 1 — SPEC (Claude.ai, this chat)
     complete without it
   Commit to ppm-toolbox → CLAUDE.md auto-updates
 
-Step 2 — VISUAL (optional, Lovable)
-  Only for complex screens — paste spec, get throwaway mockup
-  Screenshot useful parts, discard the code entirely
+Step 2 — VISUAL (Claude Design, D-176)
+  For new/changed screens: describe screen + requirements in Claude Design
+  Iterate until visual direction satisfactory (golden-middle: dense but
+    hierarchical, D-87/88/91 role-aware progressive disclosure)
+  Hand resulting design to Claude Code as visual reference for /build
+  Included in existing Pro/Max subscription — no extra cost
 
 Step 3 — BUILD (Claude Code)
   Run /spec to confirm Claude Code read the spec
