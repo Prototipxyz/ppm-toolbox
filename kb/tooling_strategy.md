@@ -137,3 +137,33 @@ Images and supplier/contact data go to Supabase Storage, never into this (public
 | Siemens | not started | — |
 | Supplier 4 | not started | — |
 | Cross-analysis | not started | — |
+
+## BOM Analysis Procedure (per-source checklist, D-180)
+
+Setup (one-time, done): Supabase Storage buckets `part-photos` and
+`kb-private-fixtures` (both private) already exist -- reuse across all
+sources, never recreate. Path convention: {org_code}/{source_label}/
+{part_number}.{ext} -- source-namespaced because raw/unassigned part
+numbers are not guaranteed unique across different clients' BOMs (OQ-59).
+
+Per source:
+1. View the xlsx skill before touching any file.
+2. Inspect structure first (sheet names, dims, header rows) -- never assume
+   layout from the file name or a prior source's structure.
+3. Identify the hierarchy column and empirically check max depth -- do not
+   assume the documented 3-level model (D-96) holds without checking.
+4. Extract embedded images via ws._images row anchors; dedupe to
+   canonical-per-part-number (first occurrence wins).
+5. Map operation/status columns as actually found -- record raw column
+   name + cleaned key, don't force-fit to the 9-segment pipeline.
+6. Extract procurement and supplier/contact data as separate sections.
+   Supplier contact PII never goes in the public-repo fixture.
+7. Build two outputs: <source>_structured.json (public, GitHub -- no PII,
+   no embedded image bytes) and a private payload (Supabase
+   kb-private-fixtures -- supplier directory + anything sensitive).
+8. Write findings_for_cross_analysis as raw observations only -- flag
+   conflicts with existing decisions, don't silently resolve them.
+9. Push: GitHub (pipeline status table row + one consolidated OQ if
+   warranted) + Supabase (images + private JSON).
+10. For Supabase uploads: generate a fresh sb_secret_ key per session,
+    delete it immediately after use. Never reuse a previous source-chat's key.
