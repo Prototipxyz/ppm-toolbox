@@ -262,3 +262,14 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   zero-token UI logic; free-text AI path deferred to Phase 9 per D-157.
   Model strategy: Opus 4.8 for RLS/migrations/recursive-CTE logic, Sonnet 4.6
   for UI components and routine feature work (cost/risk-proportionate split).
+
+## BOM Analysis Pipeline
+- D-180: BOM/source-document analysis (Stadler, GST, Siemens, Supplier 4, cross-analysis)
+  runs in separate Claude.ai chats — never Claude Code, which stays reserved for app
+  build work. Model: Sonnet 4.6. Deterministic extraction (hierarchy parsing, image
+  extraction, format classification) runs via code execution, not model reading of
+  raw cells. Model judgment is reserved for classification/flagging calls and
+  cross-source reconciliation notes. Each chat outputs a compact JSON fixture
+  (no embedded images, no supplier/contact PII) to kb/test-fixtures/. Extracted
+  images and any contact-level data go to Supabase Storage (private buckets:
+  part-photos, kb-private-fixtures), never to the public ppm-toolbox repo.

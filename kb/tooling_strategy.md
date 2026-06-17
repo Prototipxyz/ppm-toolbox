@@ -122,3 +122,18 @@ Implemented skills (all 5 live):
 - Install only what's used — no bundle bloat
 
 Custom design tokens sit on top of shadcn. Stirg orange (#E8450A) and Prototip blue (#2563EB) applied via CSS variables.
+
+---
+
+## BOM Analysis Pipeline Status
+
+Per D-180. Each row = one Claude.ai chat, output = compact JSON fixture in kb/test-fixtures/.
+Images and supplier/contact data go to Supabase Storage, never into this (public) repo.
+
+| Source | Status | Fixture |
+|---|---|---|
+| Stadler | not started | — |
+| GST | done (2026-06-17) | kb/test-fixtures/gst_structured.json |
+| Siemens | not started | — |
+| Supplier 4 | not started | — |
+| Cross-analysis | not started | — |
