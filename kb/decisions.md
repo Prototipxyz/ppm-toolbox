@@ -273,3 +273,16 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   (no embedded images, no supplier/contact PII) to kb/test-fixtures/. Extracted
   images and any contact-level data go to Supabase Storage (private buckets:
   part-photos, kb-private-fixtures), never to the public ppm-toolbox repo.
+- D-181: **Supabase Storage uploads now go through a deployed Edge Function
+  proxy**, not a generated/deleted `sb_secret_` key per session (supersedes
+  D-180 step 10's literal ritual -- see tooling_strategy.md). Function
+  `kb-storage-upload` (project `bfhioxqspmypcnpmakyg`) holds the service-role
+  key only inside its own runtime (Supabase auto-injects
+  `SUPABASE_SERVICE_ROLE_KEY`, never exposed to the calling chat). Hardcoded
+  bucket allowlist (`part-photos`, `kb-private-fixtures` only), path-traversal
+  validation (whole-segment check, not substring -- substring match
+  false-flagged a real PN, `C518846.2.1.2..jpg`), upsert writes, 200-files/
+  request cap. Auth = anon/publishable key (non-secret) + a random token
+  embedded in the function's own source, retrievable via `get_edge_function`
+  in any future chat -- never persisted in Claude memory. Kept live in
+  production for now rather than torn down after use; see OQ-60.

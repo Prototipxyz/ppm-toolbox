@@ -165,5 +165,9 @@ Per source:
    conflicts with existing decisions, don't silently resolve them.
 9. Push: GitHub (pipeline status table row + one consolidated OQ if
    warranted) + Supabase (images + private JSON).
-10. For Supabase uploads: generate a fresh sb_secret_ key per session,
-    delete it immediately after use. Never reuse a previous source-chat's key.
+10. For Supabase uploads: POST to the `kb-storage-upload` Edge Function
+    (project `bfhioxqspmypcnpmakyg`) -- batch files as {bucket, path,
+    content_base64, content_type}, max 200/request. Auth: anon key + the
+    function's embedded token (recover via `get_edge_function` if not
+    already in context -- never store the token in memory). Supersedes the
+    per-session sb_secret_ key ritual (D-181).
