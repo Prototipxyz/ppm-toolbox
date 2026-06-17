@@ -132,7 +132,7 @@ Images and supplier/contact data go to Supabase Storage, never into this (public
 
 | Source | Status | Fixture |
 |---|---|---|
-| Stadler | not started | — |
+| Stadler | done (2026-06-17) | kb/test-fixtures/stadler_structured.json |
 | GST | done (2026-06-17) | kb/test-fixtures/gst_structured.json |
 | Siemens | not started | — |
 | Supplier 4 | not started | — |
