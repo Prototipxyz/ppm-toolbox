@@ -80,14 +80,14 @@ name, category, purchase_price_eur, purchase_date, revenue_generated_eur
 
 ## Current DB State
 
-- C001 Stirg Metal → organization ✓
-- C002 Ivan Advokat → currently wrong entity type; must become a client under Prototip org
-- Prototip org record → does NOT exist yet (must be added)
+- C001 Stirg Metal → organization ✓ (STIRG)
+- Prototip org ✓ exists (PROTO); Ivan Advokat is C001 under PROTO in `public.clients` — resolved per U-04/OQ-49, confirmed live 2026-06-18
 - All 365 parts have parent_id=NULL — awaiting structured BOM upload (OQ-10)
-- `ppm_operations` to be seeded with 44 global ops at launch (OP-00001 through OP-00042 unique)
-- `org_operations` seeded for Stirg (sheet metal preset) and Prototip (eng services preset)
+- `ppm_operations` / `org_operations` / `part_operations` tables do not exist yet — not seeded, contrary to prior note here (verified live 2026-06-18, see OQ-58)
 - stirg_operations empty — awaiting Excel (OQ-09)
 - Auto-number for empty BOM part numbers: C570001+ (above highest C561562)
+- `_legacy_clients`/`company_branding` retained alongside the new org-scoped tables; several transactional tables (quotes/work_orders/invoices/transactions/parts/procurement/hours_log) still reference the legacy structure — see OQ-65
+- RLS enabled on 5/20 tables (`organizations`, `organization_branding`, `users`, `members`, `clients`); 15 disabled — see OQ-66, D-185
 
 ---
 
