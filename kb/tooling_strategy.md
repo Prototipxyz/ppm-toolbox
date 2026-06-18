@@ -134,6 +134,7 @@ Images and supplier/contact data go to Supabase Storage, never into this (public
 |---|---|---|
 | Stadler | done (2026-06-17) | kb/test-fixtures/stadler_structured.json |
 | Stadler (79000 SWC) | done (2026-06-18, text-only, no images -- Inventor export unavailable) | kb/test-fixtures/79000_structured.json |
+| Stadler — ÖBB NV bid (lost, case study, D-187) | SWC spot-checked vs. manual file: 50% direct ID match, 92% qty agreement on matches (2026-06-18); UWC fully extracted, no images/material fields available (2026-06-18) | kb/test-fixtures/stadler-obb-nv_uwc_structured.json |
 | GST | done (2026-06-17) | kb/test-fixtures/gst_structured.json |
 | Siemens | not started | — |
 | Supplier 4 | not started | — |
