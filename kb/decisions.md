@@ -297,3 +297,8 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
 ## RLS Enablement Methodology
 
 - D-185: **RLS enablement for the 15 currently-disabled tables follows a fixed single-combined-migration methodology, independent of policy content.** `ENABLE ROW LEVEL SECURITY` and `CREATE POLICY` ship in the same migration per table — never split, since a table with RLS on and zero policies blocks all access. Spec-first: policy content (org-scoping mechanism per table, role granularity) gets written in plain language before any SQL — see OQ-65 (dual schema / legacy table fate) and OQ-66 (role granularity), both unresolved. Model: Opus 4.8, extending D-179's RLS/migration routing. Verification: `pg_class.relrowsecurity`, not `information_schema` (existing established pattern). Testing isolation: the current single real auth user is Owner of both orgs and can't demonstrate cross-org denial alone — use a second single-org test user or `SET request.jwt.claims` simulation instead. Deferred to a future session (Voja working from home); not started 2026-06-18.
+
+
+## Data Completeness
+
+- D-186: **Extends D-149 (Graceful Degradation) to part-level data completeness.** Non-core fields on a part record (photos, supplier, lead time, description) may be null at creation and filled in at any time afterward; missing values never block that part's use in BOMs, work orders, or other core workflows. UI treatment for surfacing gaps is not decided here -- left to whichever feature spec actually builds the parts screen.
