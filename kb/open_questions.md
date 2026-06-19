@@ -101,3 +101,10 @@
 | # | Note | Phase |
 |---|---|---|
 | OQ-55 | ppm-parts-ops.jsx v2 (D-162–167) built and tested in Claude.ai Project sandbox. v3 (D-168–174) specified via clarification but not built. AI bar in the mockup used claude-sonnet-4-6 (artifact API-proxy constraint) vs. production D-28 Haiku-first routing — no decision change, sandbox note only. Future iteration on this screen recommended in Claude Code (incremental edits) rather than full-artifact rewrites, for token efficiency. | Phase 3 |
+
+## Operations norming session (Stirg_Operacije_Norms.xlsx, D-191–197)
+| # | Question | Priority |
+|---|---|---|
+| OQ-70 | Vendor reply lead-time (elapsed waiting on RFQ responses) needs a home. Confirmed NOT part of the Operations cost-rate table (D-192) — likely belongs on the purchased-part or vendor record as a tracked lead-time field, feeding scheduling rather than costing. Schema/concept not yet designed. | Procurement / scheduling feature |
+| OQ-71 | DXF naming convention (PN_MATERIAL_THICKNESS_QTY or similar) not yet defined — required for tier-2 fallback in D-196's resolution strategy. Needs a concrete format spec before the DXF estimator tool can be built. | Before DXF estimator build |
+| OQ-72 | Calibration plan for `Stirg_Operacije_Norms.xlsx` placeholder norm hours (D-195) — no defined trigger/process yet for when a placeholder gets replaced with a real measured value (e.g. after N logged jobs, manual review cadence, automatic once variance data exists). | Post-launch, once hour-logging exists |
