@@ -108,3 +108,9 @@
 | OQ-70 | Vendor reply lead-time (elapsed waiting on RFQ responses) needs a home. Confirmed NOT part of the Operations cost-rate table (D-192) — likely belongs on the purchased-part or vendor record as a tracked lead-time field, feeding scheduling rather than costing. Schema/concept not yet designed. | Procurement / scheduling feature |
 | OQ-71 | DXF naming convention (PN_MATERIAL_THICKNESS_QTY or similar) not yet defined — required for tier-2 fallback in D-196's resolution strategy. Needs a concrete format spec before the DXF estimator tool can be built. | Before DXF estimator build |
 | OQ-72 | Calibration plan for `Stirg_Operacije_Norms.xlsx` placeholder norm hours (D-195) — no defined trigger/process yet for when a placeholder gets replaced with a real measured value (e.g. after N logged jobs, manual review cadence, automatic once variance data exists). | Post-launch, once hour-logging exists |
+
+## DXF macro + bend-count session (D-198–200)
+| # | Question | Priority |
+|---|---|---|
+| OQ-73 | Whether Stirg's actual DXF exports (Inventor and/or SolidWorks origin) include bend lines on a separate, consistent layer — determines if D-198's bend-count extraction is viable at all. Also need to check what (if anything) is already embedded in current exports before designing the D-199 macro's metadata-embedding mechanism. Pending Voja sharing 2-3 real sample DXFs. | Before DXF Phase 1 build |
+| OQ-74 | Exact DXF metadata embedding mechanism for the D-199 macro's output — layer-name encoding, text entity, or true DXF custom property/XDATA — not yet chosen. Depends on OQ-73 findings (what's parseable vs. what Inventor's iLogic can realistically write on export). | Before macro build |
