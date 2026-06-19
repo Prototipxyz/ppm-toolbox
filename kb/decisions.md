@@ -323,3 +323,59 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
 - D-198: **Bend count is geometrically extractable from a DXF, conditional on bend lines being present and layer-separated.** Flat pattern DXFs from Inventor/SolidWorks may include bend lines on a distinct layer (or as a distinguishable linetype) — if so, counting those entities gives bend count with the same reliability as cut-length/pierce-count extraction (D-196 Tier 0/1). If bend lines are stripped before laser export (a real possibility, sometimes done deliberately so the laser doesn't attempt to cut them), bend count is not recoverable from that DXF and must come from elsewhere (3D model bend table, or BOM/operation data). Not yet confirmed which case applies to Stirg's actual exports — pending real sample DXF review (see OQ-73).
 - D-199: **CAD-side pre-export macro approved as the preferred fix for DXF metadata + filename reliability, ahead of relying on export-template configuration alone.** Build order: Inventor iLogic macro first (current CAD system in use); SolidWorks VBA macro later, deferred until Stirg's possible future SolidWorks switch happens. Both must share one CAD-agnostic output contract (same filename format + same embedded metadata structure) so downstream DXF parsing never needs to know which CAD system produced the file. Macro behavior: prompts the laser-file-prep worker (shop-floor user, not engineer) for qty/material/thickness before export; blocks export until filled; writes the correct filename automatically; embeds the same values as DXF metadata (exact embedding mechanism — layer text vs. custom property — still open, see OQ-73). Material field is free text for now (D-200 supersedes with dropdown once real data exists); thickness likely a dropdown of common values (1mm, 2mm, 3mm...) with a manual/"Other" fallback, consistent with D-149 Graceful Degradation Principle.
 - D-200: **Filename convention locked: `PN_MATERIAL_THICKNESSmm_QTYpcs.dxf`.** Applies as the Tier 2 fallback in D-196's resolution strategy, and as the macro's auto-written filename (D-199). Material dropdown explicitly deferred — free text for now; a fixed dropdown list should be sourced from real BOM/parts material data later, not invented ad hoc (avoids inventing a materials taxonomy disconnected from what parts records actually contain).
+
+## DXF Estimator — Layer Rule, Scope & Resolution Chain
+
+- D-201: **OQ-73 resolved — bend lines confirmed present and layer-separated in
+  Inventor's flat-pattern DXF export**, via real export sample (`testpart.dxf`)
+  and cross-checked against Autodesk's documented `FLAT PATTERN DXF` translator
+  parameters. Fixed, version-stable layer vocabulary: `IV_OUTER_PROFILE` /
+  `IV_INTERIOR_PROFILE` (cut geometry), `IV_BEND` / `IV_BEND_DOWN` (bend lines,
+  one entity per bend), `IV_FEATURE_PROFILES` (formed features — excluded from
+  cut geometry per explicit decision), plus several non-cutting reference layers
+  (`IV_TANGENT`, `IV_TOOL_CENTER`, `IV_ARC_CENTER`, `IV_ROLL*`, `IV_ALTREP*`,
+  `IV_UNCONSUMED`) discarded entirely. Earlier laser-floor DXF samples lacking
+  bend-line layers reflect a downstream export/CAM step, not a translator
+  limitation — the estimator tool's input contract is the Inventor-side
+  flat-pattern export, not arbitrary laser-floor files.
+- D-202: **DXF cutting-time estimator scoped as a standalone tool** (extends
+  D-197): per-part pipeline reads an Inventor flat-pattern DXF, classifies
+  geometry by the D-201 layer rule, computes cut length / pierce count / bend
+  count, re-exports a clean laser-ready DXF (cut geometry only — no text, no
+  bend lines, no markings), and writes an Excel report row. Interface: local
+  GUI, drag-drop, editable rate-constant fields in both the tool form and the
+  Excel output (placeholder defaults, D-195 convention). Output (clean DXFs +
+  report) goes to a user-chosen destination folder; source DXFs and any
+  supplied BOM file are never modified, renamed, or moved.
+- D-203: **Pierce count = interior closed loops + 1** (the outer profile counts
+  as one pierce).
+- D-204: **Material/thickness resolution is metadata → filename → manual flag
+  only — no BOM fallback.** These are part-intrinsic properties (true regardless
+  of which WO/assembly the part is used in), owned by the D-199 macro's embedded
+  metadata and the D-200 filename convention. BOM cross-reference is explicitly
+  scoped to quantity only (D-205), since quantity is contextual to a specific
+  assembly/WO rather than intrinsic to the part.
+- D-205: **Quantity resolution chain: metadata → filename → optional BOM
+  cross-reference → flag+default(qty=1) → manual.** BOM cross-reference (only
+  when the user supplies an Inventor BOM Excel export alongside the DXF batch)
+  has two paths depending on which BOM view is provided: Parts Only (flat) view
+  — direct read of the `QTY` column, since Inventor's flat view already sums
+  quantity across parent assemblies (consistent with D-97/D-120); Structured
+  (hierarchical) view — tool walks the Item-number hierarchy and computes final
+  per-PN quantity as the product of each ancestor's quantity down the tree,
+  summed across all occurrences (real traversal algorithm, not a groupby — same
+  family as D-114's recursive BOM logic, applied to a BOM Excel file rather than
+  the `parts` table). PN matching between DXF and BOM rows is not assumed exact
+  (per OQ-59/68/69 precedent) — unmatched rows are flagged, never silently
+  attributed. This resolves the "should the macro pull qty from the assembly
+  BOM" question raised this session: quantity resolution stays entirely in the
+  estimator tool, not the macro — avoids making the macro assembly-context-aware,
+  which would have required a different (batch/assembly-level) trigger point
+  than D-199's part-level export-time prompt.
+- D-206: **Estimator report computes per-piece and total (per-piece × qty) time
+  and cost separately, qty as a live-editable cell driving the total via
+  formula, never hardcoded.** Per-piece figures are the values intended to
+  later attach to a PN's norm data in PPM (`org_operations`/`part_operations`
+  lineage, OQ-09); the qty multiplier is applied at the order/BOM-line level,
+  matching D-188's existing quoting model (rate × time → cost, then quantity
+  applied separately) rather than baking quantity into the part's own cost data.

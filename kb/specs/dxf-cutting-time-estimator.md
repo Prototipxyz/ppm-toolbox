@@ -1,0 +1,162 @@
+# Spec: DXF Cutting-Time & Bend-Count Estimator (Standalone Tool)
+
+**Phase:** Pre-PPM, standalone validation tool (per D-197) — not integrated into ppm-app
+**Depends on:** D-196 (resolution strategy), D-198 (bend extraction), D-199/D-200 (macro, filename convention)
+
+## What it does
+A locally-run GUI tool (drag-drop window) that takes one or more Inventor flat-pattern
+DXFs as input and produces, per part: a clean laser-ready DXF (cut geometry only) and
+an Excel report row with cut length, pierce count, bend count, and resulting
+cutting/bending time and cost — both per-piece and multiplied by quantity, with
+quantity live-editable in the report. Resolves material/thickness/quantity from the
+best available source (embedded metadata, filename, or an optionally-supplied Inventor
+BOM export) with a flagged manual fallback. Designed to be run standalone and compared
+against the shop's own laser/CAM software output before any rate is trusted.
+
+## What it does NOT do
+- Does not integrate with Supabase/ppm-app — standalone only (D-197)
+- Does not require the D-199 macro to function — must work on existing, already-exported
+  DXFs with inconsistent/legacy naming, not only future macro-exported files
+- Does not modify, rename, or move original source DXF files in any way — all generated
+  output (clean DXFs, Excel report) goes to a separate destination folder chosen by the user
+- Does not attempt to make the Inventor macro assembly/BOM-aware — quantity resolution via
+  BOM cross-reference lives entirely in this tool, not in the macro
+- Does not compute press-brake bending *time* from bend count — outputs bend *count* only;
+  bend-time costing uses the existing (placeholder) OP-008 press-brake norm separately (D-191)
+- Does not yet use real CAM/laser-software cut-time data — placeholder rate formula only,
+  explicitly editable so it can be run in parallel against real machine output for comparison
+
+## Roles that interact with this feature
+| Role | Can do |
+|---|---|
+| Voja / PM (only user for now) | Run tool, supply DXFs + optional BOM, edit rate constants, review/export report |
+
+(Not role-gated — standalone desktop tool, pre-dates any PPM auth/role model.)
+
+## Layer classification rule (confirmed via real export + Autodesk documentation)
+Inventor's Flat Pattern DXF Export uses a fixed, version-stable layer vocabulary
+(`IV_*` prefix). Classification:
+
+- **Cut/pierce geometry (kept):** `IV_OUTER_PROFILE`, `IV_INTERIOR_PROFILE` (and
+  equivalently-named inner-profile layers as they appear per export config)
+- **Bend lines (counted, not cut):** `IV_BEND` (bend up), `IV_BEND_DOWN` (bend down) —
+  one bend line entity = one bend; bend count = entity count across both layers
+- **Excluded entirely (neither cut nor counted):** `IV_FEATURE_PROFILES` (formed
+  features — louvers, ribs — not cut lines), `IV_TANGENT`, `IV_TOOL_CENTER`,
+  `IV_ARC_CENTER`, `IV_ALTREP_*`, `IV_UNCONSUMED`, `IV_ROLL`, `IV_ROLL_TANGENT`
+
+Verified against a real export (`testpart.dxf`: 8 LINEs on `IV_OUTER_PROFILE`, 1 on
+`IV_BEND`, 3 on `IV_BEND_DOWN`) and cross-checked against Autodesk's documented
+`FLAT PATTERN DXF` translator parameters (`BendUpLayer=IV_BEND`,
+`InvisibleLayers=IV_ARC_CENTERS;IV_BEND_DOWN;IV_BEND;IV_FEATURE_PROFILES`, etc. —
+consistent across Inventor versions and third-party DXF batch-export tools).
+
+**Note:** laser-floor DXFs inspected during this spec session (`C518483`,
+`Bottom_Sheet` samples) had no bend-line layer present at all — geometry was
+flattened to layer `0` with no `IV_*` separation. This confirms the gap is in
+*which export config/step* produced those files, not a limitation of Inventor's
+DXF translator. The tool's input contract is the **Inventor-side flat-pattern
+export** (`IV_*` layers present), not arbitrary laser-floor DXFs.
+
+## Pierce count definition
+One pierce per closed geometric loop on cut/pierce layers, **including the outer
+profile** — i.e. total pierces = (number of interior closed loops) + 1.
+
+## Material / Thickness / Quantity resolution (per field, in priority order)
+
+**Material + Thickness:**
+1. DXF embedded metadata (present only on macro-exported files, per D-199 — future-dated)
+2. Filename parsing against the `PN_MATERIAL_THICKNESSmm_QTYpcs.dxf` convention
+   (D-200), tolerant of older/inconsistent real-world variants (confirmed two
+   different separator/field-order patterns already exist in current files)
+3. Flag as missing in the batch-review screen → manual input
+
+**Quantity:**
+1. DXF embedded metadata (macro-exported files)
+2. Filename parsing
+3. **BOM cross-reference** (optional — only if user supplies an Inventor BOM Excel
+   export alongside the DXF batch):
+   - **Parts Only (flat) BOM:** direct read of the `QTY` column per matched PN —
+     Inventor's flat view already sums quantity across all parent assemblies
+     (consistent with D-97/D-120's existing summation logic)
+   - **Structured (hierarchical) BOM:** tool walks the Item-number hierarchy
+     (`1`, `1.1`, `1.1.1` — same pattern as WF-02's BOM import) and computes
+     final per-PN quantity as the product of each ancestor's quantity down the
+     tree, summed across all occurrences of that PN in the structure. This is a
+     real traversal algorithm, not a groupby — must be scoped as such at build time.
+   - PN matching between DXF filename and BOM rows is not assumed to be a clean
+     exact match (per OQ-59/68/69 precedent) — unmatched/ambiguous rows are
+     flagged, never silently attributed.
+4. Flag + default qty=1, visible in batch-review screen
+5. Manual input (last resort)
+
+**Both fallback chains converge on one batch-review screen** — not per-file popups.
+Anything that resolved automatically (any source) flows through with zero clicks;
+only flagged items require attention, presented as one editable table.
+
+## Output behavior
+- User selects a destination folder (separate from source folder)
+- Per part: one clean re-exported DXF (cut/pierce geometry only, no text, no bend
+  lines, no markings, single layer) written to destination folder
+- One consolidated Excel report covering the full batch:
+  - One row per part: PN, material, thickness, qty, cut length, pierce count,
+    bend count
+  - Rates & Constants section/sheet: cut speed (mm/min), pierce time (sec/pierce),
+    bend time (sec/bend) — editable cells, placeholder defaults clearly marked
+    (consistent with D-195's "PLACEHOLDER —" convention)
+  - Per-piece cutting time/cost and bend time/cost as formulas referencing the
+    rate constants (not hardcoded)
+  - Total time/cost columns as formulas multiplying per-piece values by the qty
+    cell — changing qty live-recalculates totals
+- **Source DXF files are never modified, renamed, or moved** — read-only input
+
+## Acceptance criteria
+- [ ] Correctly separates cut geometry from bend lines using the `IV_*` layer rule
+      on a real macro-exported (or equivalent) flat-pattern DXF
+- [ ] Bend count matches manual count on `testpart.dxf` (4 bend lines: 1 IV_BEND + 3 IV_BEND_DOWN)
+- [ ] Pierce count = interior holes + 1, verified against a part with known hole count
+- [ ] Handles a batch of 300+ files without manual per-file intervention beyond the
+      single batch-review screen for flagged items
+- [ ] Filename parsing tolerates at least the two real naming variants already observed
+- [ ] BOM cross-reference correctly computes multiplied quantity on a structured
+      (hierarchical) BOM with at least 2 levels of nesting
+- [ ] BOM cross-reference correctly reads flat quantity on a Parts Only BOM
+- [ ] Rate constants are editable and changes propagate through all report formulas
+- [ ] Re-exported DXF contains no text, no bend lines, no markings — cut geometry only
+- [ ] Original source DXFs and any supplied BOM file are untouched on disk after a run
+
+## Edge cases
+- DXF has no `IV_BEND`/`IV_BEND_DOWN` entities at all → bend count = 0, not an error
+  (flat parts are valid)
+- Filename matches no known pattern and no BOM/metadata available → full flag,
+  qty defaults to 1, material/thickness require manual entry
+- BOM supplied but PN doesn't match any DXF in the batch → BOM row ignored, no error
+  (informational note only)
+- BOM supplied but a DXF's PN doesn't match any BOM row → falls through to
+  flag/default qty=1, same as no-BOM case
+- Structured BOM has a part appearing under multiple distinct parent paths →
+  sum across all paths (already the established model, D-97/D-120)
+- Two different parts in the batch resolve to the same output filename →
+  flagged, never silently overwritten in destination folder
+
+## Data touched
+- Reads: source DXF files (read-only), optional BOM Excel export (read-only)
+- Writes: new clean DXF files + Excel report to user-chosen destination folder only
+- No database, no PPM schema involvement (standalone tool, D-197)
+
+## Failure / Disable Behavior (D-149)
+- BOM cross-reference unavailable/not supplied → quantity resolution falls through
+  to flag+default+manual; tool remains fully usable without a BOM file
+- Embedded metadata absent (pre-macro files, i.e. all current real files) → filename
+  parsing is the working baseline; tool must not depend on the macro existing
+- Rate constants left at placeholder defaults → report still generates, values
+  visibly marked as unvalidated, never silently presented as authoritative
+
+## Known constraints
+- Build environment: standalone, in Claude Code (new local project, not inside
+  `ppm-app`), per D-197 — never as a Claude.ai/chat-uploaded-files workflow; the
+  20-files-per-chat limit is irrelevant since the tool reads a local folder directly
+- Cutting-time formula is an explicit placeholder (D-194/D-195 lineage) — designed
+  to run in parallel with real machine/CAM output for comparison, not as a trusted
+  source of truth in v1
+- SolidWorks export support deferred (D-199) — Inventor flat-pattern DXF only for v1
