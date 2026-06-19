@@ -82,6 +82,7 @@ name, category, purchase_price_eur, purchase_date, revenue_generated_eur
 
 - C001 Stirg Metal → organization ✓ (STIRG)
 - Prototip org ✓ exists (PROTO); Ivan Advokat is C001 under PROTO in `public.clients` — resolved per U-04/OQ-49, confirmed live 2026-06-18
+- Winkler Design is C001 under STIRG in `public.clients` — first fully in-house Stirg design project (200L FWT 41100 + 900L AWT 41200 tanks); BOM fixtures: kb/test-fixtures/winkler_200l_structured.json, winkler_900l_structured.json; confirmed live 2026-06-19
 - All 365 parts have parent_id=NULL — awaiting structured BOM upload (OQ-10)
 - `ppm_operations` / `org_operations` / `part_operations` tables do not exist yet — not seeded, contrary to prior note here (verified live 2026-06-18, see OQ-58)
 - stirg_operations empty — awaiting Excel (OQ-09)
