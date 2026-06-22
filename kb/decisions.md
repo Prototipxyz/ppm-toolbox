@@ -490,3 +490,133 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   retroactively as a standing rule to all future BOM/operations analysis
   output (D-180 pipeline chats, PPM Reports tab per D-155/156, any
   operation-filtered stat per D-167).
+
+## Cuts and Bends Estimator — Rate Tables, Layer Mapping, DWG, Telemetry (D-215 to D-218)
+
+- D-215: **Rate constants are per-machine + per-material+thickness combination,
+  not flat global values.** Cut speed (mm/min) and pierce time (sec) vary
+  significantly by both material and thickness (e.g. stainless cuts slower
+  than mild steel at the same thickness; doubling thickness more than halves
+  achievable speed), so a single global constant would produce systematically
+  wrong output for any batch spanning multiple materials. The rate table in
+  Cut Rates Settings is keyed by machine + material + thickness — rows
+  addable/removable, not a fixed list. Bend time is also per-machine (different
+  press brakes) and optionally per-material+thickness, same table structure.
+  The Excel report's per-piece time formulas reference this table via lookup
+  (not hardcoded constants), so changing a rate cell recalculates all affected
+  rows. Placeholder defaults ship with the app per D-195 convention, clearly
+  marked as unvalidated until the user replaces them with real measured values.
+
+- D-216: **D-201's hardcoded IV_* layer rule is superseded — layer classification
+  is now configurable via a CAD profile system.** Different CAD tools export
+  flat-pattern DXFs with different layer naming conventions; hardcoding
+  Inventor's IV_* names would break any non-Inventor shop. The tool ships
+  with three built-in presets and supports user-defined custom profiles:
+  Inventor default (IV_OUTER_PROFILE / IV_INTERIOR_PROFILE / IV_BEND /
+  IV_BEND_DOWN); SolidWorks pre-2022 (CUT / CUT / BEND / BEND — no up/down
+  distinction by default); SolidWorks 2022+ (CUT / CUT / BEND-UP / BEND-DOWN
+  — requires mapping file enabled on export side); Custom (all four layer
+  name fields user-definable). The active CAD profile is selected in Settings,
+  persisted locally, defaults to Inventor on first run. The DXF parser reads
+  layer names from the active profile at runtime — never hardcoded strings.
+  This is the primary mechanism for extending the tool to additional CAD
+  sources in future (Fusion 360, Catia, Creo, etc.) — adding a new source
+  is adding a new preset entry, no parser changes needed. The IV_* layer
+  names documented in D-201 remain accurate as the Inventor preset's values,
+  but are no longer the tool's fixed contract.
+
+- D-217: **The tool accepts DXF files only — DWG is explicitly out of scope.**
+  DWG is AutoCAD's proprietary binary format; reliable parsing requires a
+  commercial library (ODA/Teigha) which adds cost and licensing complexity
+  inconsistent with the tool's standalone/no-external-dependency posture
+  (D-211). DXF is the standard format used by laser cutting shops and is
+  natively exportable from every CAD tool that can also save DWG. DWG files
+  dropped onto the tool show a clear, non-blocking notice: "DWG files are
+  not supported — export as DXF from your CAD tool first." This is consistent
+  with D-149 (graceful degradation, never silent failure) — the user gets an
+  actionable message, not a parse error or silent skip.
+
+- D-218: **Telemetry pipeline for cross-customer rate calibration — Phase 2,
+  architecture must support it from day one.** The product vision (D-211,
+  genuinely sellable to multiple shops) creates an opportunity: with explicit
+  opt-in consent, installations can contribute anonymized machine configuration
+  data (rate table values and machine types only — never part files, filenames,
+  part numbers, or any shop-identifying information) to a private central store
+  (Supabase, existing project bfhioxqspmypcnpmakyg) which the developer can
+  query to derive improved default rate presets and push them as app updates.
+  Existing users' own configurations are never overwritten by updates.
+  Architecture requirement that must be implemented NOW (before settings
+  screen is built): three strictly separate local files —
+  settings.json (user's own config, never touched by app updates),
+  presets.json (shipped with the app, replaced on update, never contains
+  user-modified values), telemetry_config.json (opt-in flag + anonymous
+  installation ID only). This separation is the sole Phase 1 requirement;
+  the actual telemetry submission module, the Supabase endpoint, and the
+  preset-derivation workflow are all Phase 2 and must not be built yet.
+  Legal/compliance note: telemetry requires explicit opt-in (not opt-out)
+  and a privacy notice specifying what is collected and how it is used —
+  mandatory for EU/Serbian market compliance regardless of data minimization.
+  The opt-in prompt appears on first run; declining has no effect on
+  functionality.
+
+## Cuts and Bends Estimator — Distribution, Quality, Legal (D-219 to D-222)
+
+- D-219: **App must be distributable as a standalone Windows .exe via
+  PyInstaller — code must support this from the start.** For distribution
+  to other shops, the app cannot require Python to be installed on the
+  target machine. PyInstaller bundles the entire app (including PySide6,
+  ezdxf, openpyxl) into a standalone executable. Code requirements that
+  must be respected from day one: a single `version.py` file containing
+  only `__version__ = "x.y.z"` as the canonical version source; no
+  hardcoded absolute paths anywhere in the code (all paths relative to
+  the app's runtime location or the user's configured data directory);
+  clean separation of app code from user data per D-218's three-file
+  structure. PyInstaller packaging itself is a Phase 2 task — the code
+  structure requirement is Phase 1.
+
+- D-220: **Auto-update via PyUpdater (GitHub releases as distribution
+  channel) — Phase 2, architecture-ready from day one.** PyUpdater
+  (built on PyInstaller) enables the installed app to check a GitHub
+  releases page on startup, notify the user of available updates, and
+  apply them with one click. Updates are signed with a developer-held
+  private key — only authorized releases apply. The update mechanism
+  distinguishes app code updates (replaces the executable) from preset
+  updates (replaces presets.json only) — rate table improvements can
+  ship independently of full app releases. Phase 1 requirement: correct
+  `version.py` and D-218 file separation. Phase 2: PyUpdater integration,
+  GitHub releases workflow, signing key generation.
+
+- D-221: **EULA accept screen on first launch — hook built now, text
+  finalized before first external distribution.** A EULA is required
+  before charging any non-Stirg customer. Minimum required content:
+  description of what the tool does; disclaimer that time/cost estimates
+  are based on user-configured placeholder rates and are not guaranteed
+  to be accurate for binding quotes; limitation of liability for losses
+  caused by incorrect estimates; license scope definition (one installation
+  per company, or similar). The EULA text will be written in Serbian and
+  English. The first-launch Accept/Decline button is built now as a hook
+  (decline exits the app); the EULA text file ships with the app and is
+  replaceable without a code change. Code signing certificate (~$100-300/yr,
+  DigiCert or similar) to suppress Windows "Unknown publisher" warning —
+  required before first external customer, not needed for internal Stirg use.
+
+- D-222: **Standing production-quality rules for all Cuts and Bends
+  Estimator code — every session.** These are non-negotiable baselines,
+  not aspirational goals: (1) Per-file error isolation — every DXF
+  processed in a batch is wrapped in its own try/except; any exception
+  flags that file and continues the batch, never crashes the app.
+  (2) Input validation at all boundaries — rate table fields, BOM Excel
+  imports, DXF drops, settings imports — invalid input is rejected with
+  a clear message at the point of entry, never reaches calculation logic.
+  (3) Structured session logging — every session writes to
+  logs/session_YYYY-MM-DD.log: files processed, flags raised, exports
+  completed, errors with full tracebacks. Log files rotate (keep last
+  30 days). (4) Top-level crash reporter — unhandled exceptions are
+  caught at the application entry point, written to logs/crash_YYYY-MM-DD.log,
+  and shown to the user as a clean "something went wrong — crash report
+  saved at [path]" dialog, never a raw Python traceback. (5) Settings
+  backup — before any write to settings.json, a timestamped backup copy
+  is written to settings_backup/. (6) No hardcoded strings that belong
+  in config (layer names, file paths, version numbers, rate values).
+  (7) No silent failures anywhere — every error either recovers
+  gracefully or surfaces explicitly to the user.

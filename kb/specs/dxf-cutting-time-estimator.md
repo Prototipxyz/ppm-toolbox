@@ -17,6 +17,13 @@ against the shop's own laser/CAM software output before any rate is trusted.
 - Does not integrate with Supabase/ppm-app — standalone only (D-197)
 - Does not require the D-199 macro to function — must work on existing, already-exported
   DXFs with inconsistent/legacy naming, not only future macro-exported files
+- Does not parse DWG files — accepts DXF only; DWG files show a clear
+  in-app notice directing the user to export as DXF from their CAD tool
+  first (D-217)
+- Does not hardcode Inventor's IV_* layer names as a fixed contract —
+  layer classification is configurable via CAD profile presets (Inventor,
+  SolidWorks pre-2022, SolidWorks 2022+, Custom), active profile selected
+  in Settings (D-216)
 - Does not modify, rename, or move original source DXF files in any way — all generated
   output (clean DXFs, Excel report) goes to a separate destination folder chosen by the user
 - Does not attempt to make the Inventor macro assembly/BOM-aware — quantity resolution via
@@ -34,8 +41,13 @@ against the shop's own laser/CAM software output before any rate is trusted.
 (Not role-gated — standalone desktop tool, pre-dates any PPM auth/role model.)
 
 ## Layer classification rule (confirmed via real export + Autodesk documentation)
-Inventor's Flat Pattern DXF Export uses a fixed, version-stable layer vocabulary
-(`IV_*` prefix). Classification:
+**This rule is superseded by D-216** — layer names are now configurable
+via a CAD profile system rather than hardcoded. The values below describe
+the built-in **Inventor preset** (the default on first run); SolidWorks
+pre-2022, SolidWorks 2022+, and Custom profiles are also built in.
+The DXF parser reads layer names from the active profile at runtime.
+
+Inventor preset layer classification:
 
 - **Cut/pierce geometry (kept):** `IV_OUTER_PROFILE`, `IV_INTERIOR_PROFILE` (and
   equivalently-named inner-profile layers as they appear per export config)
@@ -160,3 +172,8 @@ only flagged items require attention, presented as one editable table.
   to run in parallel with real machine/CAM output for comparison, not as a trusted
   source of truth in v1
 - SolidWorks export support deferred (D-199) — Inventor flat-pattern DXF only for v1
+- Settings file architecture: three strictly separate local files —
+  settings.json (user config, never touched by updates), presets.json
+  (ships with app, replaced on update), telemetry_config.json (opt-in
+  flag + anonymous ID only). Required from first build to support the
+  Phase 2 telemetry pipeline (D-218) without restructuring.
