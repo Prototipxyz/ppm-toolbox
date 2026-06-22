@@ -718,3 +718,99 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   (material, material_raw, din_code, thickness_mm, gas, cut_speed_mm_min,
   pierce_time_sec, laser_power_w, nozzle, gas_pressure_bar,
   corner_speed_mm_min, param_date).
+
+## Cuts and Bends Estimator — Product Strategy, Quotation Scope, Materials Library (D-227 to D-237)
+
+- D-227: **Pricing model — one-time purchase for Estimator, subscription for PPM.**
+  The Estimator is a pure local desktop tool with no server costs, no live service
+  component, and no ongoing data dependency. A subscription on a local tool is a
+  hard sell to SME manufacturers in the Serbian/Balkans market. The two-tier model
+  (Estimator one-time purchase → PPM subscription) supports the gateway strategy
+  structurally: low barrier entry product converts to recurring-revenue platform.
+
+- D-228: **Estimator is a PPM gateway tool — company account transfers in one click.**
+  The Estimator is designed from the start as a conversion tool for PPM. Data that
+  transfers: org name, branding, customer list, job history. Full PPM setup
+  (operations, rates, RLS roles, workers) happens inside PPM after transfer —
+  the Estimator does not attempt to replicate PPM's configuration depth.
+  Handoff message framing: "Your company, clients, and job history are already here."
+  PPM import screen design is deferred to PPM Phase 8 (Quotes) — see OQ-75.
+
+- D-229: **Estimator reframed as a laser+bending quotation engine, not just a
+  geometry extractor.** Each estimation session is a Job record with: Customer
+  (from local customer list), Quote/Job reference (free-text or auto-generated
+  Q-number), Project name (optional), Date, Status (Draft/Sent/Won/Lost).
+  This reframing defines the tool's competitive position and the PPM transition
+  story. The geometry extraction pipeline (D-201 through D-217) is unchanged —
+  it is now the calculation engine inside a quotation workflow.
+
+- D-230: **Local job history stored in SQLite — same file as materials library.**
+  SQLite handles hundreds of jobs × 50–300 parts each trivially, ships as a
+  single local file, requires no server, and supports the future PPM export path
+  (SQLite read → PPM API POST). No external database dependency for the
+  standalone tool.
+
+- D-231: **Sheet cost supports two input modes — cost per kg and cost per sheet.**
+  Both stored on each material+thickness record. Last-used input mode remembered
+  per material. Cost per kg path: tool computes cost per sheet via
+  material density (g/cm³) × sheet width (mm) × sheet height (mm) × thickness (mm)
+  / 1,000,000 × cost_per_kg. Cost per sheet: direct input, no conversion.
+  Material densities ship as presets (steel 7.85, stainless steel 7.93,
+  aluminium 2.70 g/cm³), user-editable per material record.
+
+- D-232: **Sheet utilization via manual nesting efficiency % — Option A, not
+  algorithmic nesting.** True 2D polygon nesting is out of scope for v1.
+  User inputs a nesting efficiency % per material type (e.g. 70%) representing
+  their real-world experience. Tool computes: total cut area per
+  material+thickness from DXF geometry → divide by (sheet area × efficiency %)
+  → sheets needed (rounded up) → purchase cost of full sheets ordered →
+  cost of geometry actually used → scrap delta (purchase cost − used cost).
+  The efficiency % is explicitly a calibration input — shops refine it over time
+  against real production data. Displayed prominently as a user-set estimate,
+  never presented as a computed fact.
+
+- D-233: **Margin and discount fields on every Job record.**
+  Calculation flow: Raw cost → +Margin % → Selling price → −Discount % →
+  Customer price. Both fields editable on the Job record before any export.
+  Margin is the shop's internal markup; discount is a customer-facing
+  reduction applied on top. Both optional (default 0%).
+
+- D-234: **Three export outputs per Job: clean DXFs, internal Excel, quote PDF.**
+  (1) Clean laser-ready DXFs — existing scope (D-202). (2) Internal Excel cost
+  sheet — existing scope (D-206), extended with material cost columns (sheets
+  needed, sheet purchase cost, geometry cost, scrap). (3) Quote PDF — new.
+  Two document types within PDF export: Internal cost sheet (all rates, times,
+  costs visible) and Customer-facing quote (rates hidden, clean presentation).
+
+- D-235: **Customer quote PDF has configurable page structure, selectable at
+  export time.** Page 1 always included: header (shop logo, name), quote
+  reference, customer, date, validity, grand total, payment terms, signature
+  line. Optional pages selectable at export: (a) Itemized breakdown — one row
+  per PN, qty, line total only, no unit rates; (b) Summary by category —
+  cutting total, bending total, material total, subtotals, margin/discount
+  applied, grand total. User selects which optional pages to include at export.
+  Default page selection saveable per customer or globally in settings.
+
+- D-236: **Macro writes PPM_ESTIMATOR XDATA block on DXF export — resolves
+  OQ-74's remaining open item.** Confirmed via inspection of testpart.dxf:
+  Inventor does not natively embed sheet metal material or thickness into
+  DXF exports ($THICKNESS = 0.0; MATERIAL entries are visual rendering
+  objects only). The D-199 macro writes a custom XDATA block using app ID
+  "PPM_ESTIMATOR" containing: MATERIAL (string, Inventor Sheet Metal Style
+  name), THICKNESS_MM (float). This XDATA block becomes the top of the
+  material+thickness resolution chain (D-204), ahead of filename parsing.
+  Pre-existing DXFs without this block fall through to filename parsing →
+  manual flag unchanged. OQ-74 fully resolved by this decision.
+
+- D-237: **Materials library with canonical IDs and alias mapping — stored in
+  SQLite.** Each material record contains: canonical ID (MAT-001 format),
+  display name, density (g/cm³), default sheet dimensions (mm), cost per kg,
+  cost per sheet, usage count (auto-incremented on selection), favorite flag
+  (manual). Alias fields: inventor_name (matched against XDATA MATERIAL value),
+  laser_param_name (matched against rate table imports), additional free-text
+  aliases. Alias mapping configured once in Settings → Materials Library →
+  External Names. Unmatched aliases are flagged at resolution time, never
+  silently defaulted — consistent with D-204/D-205 resolution chain rules.
+  Starter library pre-seeded with common sheet metal materials (S235, S355,
+  304 SS, 5754 Al) and standard sheet sizes (3000×1500, 2500×1250, 2000×1000).
+  Sort order in pickers: favorites first, then by usage count descending.

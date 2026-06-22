@@ -177,3 +177,96 @@ only flagged items require attention, presented as one editable table.
   (ships with app, replaced on update), telemetry_config.json (opt-in
   flag + anonymous ID only). Required from first build to support the
   Phase 2 telemetry pipeline (D-218) without restructuring.
+
+## Product Strategy & Quotation Scope (D-227 to D-235)
+
+### Tool reframing
+The Estimator is a **laser+bending quotation engine** (D-229), not just a geometry
+extractor. The geometry pipeline (D-201–D-217) is the calculation engine inside a
+quotation workflow. The tool is a PPM gateway product (D-228): one-time purchase
+(D-227), designed so company data transfers to PPM in one click when the shop is
+ready to scale.
+
+### Job / Customer model
+Each estimation session is a **Job record**:
+- Customer (from local customer list)
+- Quote/Job reference (free-text or auto-generated Q-number)
+- Project name (optional)
+- Date
+- Status: Draft / Sent / Won / Lost
+- Margin % (shop markup, default 0%)
+- Discount % (customer-facing reduction applied after margin, default 0%)
+
+Cost flow: Raw cost → +Margin % → Selling price → −Discount % → Customer price (D-233)
+
+### Local storage
+SQLite file — job history + materials library in same file (D-230). No server
+dependency. Future PPM export path: SQLite read → PPM API POST (deferred, OQ-75).
+
+### Materials & Sheet Library (D-237)
+Stored in SQLite. Per material record:
+- Canonical ID (MAT-001 format), display name, density (g/cm³)
+- Default sheet dimensions (width × height, mm)
+- Cost per kg + cost per sheet (both stored, last-used mode remembered per material)
+- Usage count (auto-incremented), favorite flag
+- Alias fields: `inventor_name`, `laser_param_name`, free-text addable
+
+Alias mapping: one-time setup in Settings → Materials Library → External Names.
+Unmatched aliases flagged, never silently defaulted (D-237).
+Sort order in pickers: favorites first → usage count descending.
+Pre-seeded: S235, S355, 304 SS, 5754 Al; standard sheet sizes 3000×1500,
+2500×1250, 2000×1000.
+
+### Sheet cost inputs (D-231)
+Two modes per material record:
+- Cost per kg → computed: density × W × H × T / 1,000,000 × cost_per_kg = cost per sheet
+- Cost per sheet → direct input
+
+Default densities: steel 7.85, stainless 7.93, aluminium 2.70 g/cm³ (user-editable).
+
+### Sheet utilization / material ordering (D-232)
+User sets nesting efficiency % per material type. Tool outputs per material+thickness:
+- Sheets needed (⌈total cut area ÷ (sheet area × efficiency %)⌉)
+- Purchase cost (sheets needed × cost per sheet)
+- Geometry cost (total cut area × cost per mm²)
+- Scrap delta (purchase cost − geometry cost)
+
+Efficiency % displayed prominently as a user estimate, never a computed fact.
+
+### Export outputs (D-234, D-235)
+Three outputs per Job:
+1. **Clean laser-ready DXFs** — existing scope (D-202)
+2. **Internal Excel cost sheet** — existing scope (D-206), extended: adds material
+   cost columns (sheets needed, sheet purchase cost, geometry cost, scrap)
+3. **Quote PDF** — two document types:
+   - *Internal cost sheet*: all rates, times, costs visible
+   - *Customer-facing quote*: rates hidden; configurable pages:
+     - Page 1 (always): header, quote ref, customer, date, validity, grand total,
+       payment terms, signature line
+     - Optional: itemized per-PN breakdown (qty + line total, no rates)
+     - Optional: summary by category (cutting/bending/material subtotals,
+       margin/discount, grand total)
+   Page selection at export time; default saveable per customer or globally.
+
+## XDATA Metadata — OQ-74 Resolved (D-236)
+
+testpart.dxf confirmed: Inventor does not natively embed sheet metal material or
+thickness in DXF exports ($THICKNESS = 0.0; MATERIAL entries are visual rendering
+objects only, not sheet metal properties).
+
+**Resolution:** D-199 macro writes a custom XDATA block, app ID "PPM_ESTIMATOR":
+```
+1001
+PPM_ESTIMATOR
+1000
+MATERIAL
+1000
+<Inventor Sheet Metal Style name>
+1000
+THICKNESS_MM
+1040
+<thickness as float>
+```
+This block becomes the top of the material+thickness resolution chain (D-204).
+Pre-existing DXFs without this block fall through to filename parsing → flag unchanged.
+OQ-74 fully resolved.
