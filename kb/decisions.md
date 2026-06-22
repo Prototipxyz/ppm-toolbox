@@ -843,6 +843,10 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   Two UI additions: Activation screen (shown post-EULA if no valid license,
   has "Continue in Demo" escape) and License tab in Settings (shows status,
   activation date, transfer option).
+  Developer license: a hardcoded key `DEV-PROTOTIP-INTERNAL` in the source
+  bypasses the Gumroad API call entirely — activates full mode on any machine
+  without payment or network access. For developer/pilot use only; never
+  published. Re-enter on each new machine as needed.
 
 - D-240: **Gumroad is the license key authority and primary payment channel.**
   Handles EU VAT automatically, pays out to Serbian bank account, ~10% fee.
