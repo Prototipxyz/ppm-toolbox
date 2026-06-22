@@ -620,3 +620,101 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   in config (layer names, file paths, version numbers, rate values).
   (7) No silent failures anywhere — every error either recovers
   gracefully or surfaces explicitly to the user.
+
+## Machine Parameter Import, Library UX, File Format Support (D-223 to D-226)
+
+- D-223: **Machine selection uses a three-tier model: preset library
+  (presets.json, ships with app/updates) → user's configured machines
+  (settings.json, this shop's active machines) → favorite machine
+  (settings.json, default selection).** The Bystronic parameter library
+  generated from the .par file parser (D-215/D-216) is the source for
+  presets.json, covering all machine models found (SPRINT3015, STAR3015,
+  STAR4020, STAR4025, SPEED3015, SPEED4020, BYJIN3015, BYJIN4020,
+  VENTION3015, SUN3015, etc.) with full rate tables per
+  material+thickness+gas. New machines and corrected rates ship via
+  app updates that replace presets.json only — user's own settings.json
+  is never touched by updates (D-218).
+  User's machine list ("My Machines"): on first launch (or after a
+  library update adds new machines), the user sees a machine selection
+  screen listing all machines in presets.json. They tick the ones their
+  shop actually has — these get written to settings.json as active
+  machines. "Load more machines" button always available in Settings to
+  add more from the library later. Custom machines (not in the library)
+  can also be added manually with their own rate tables.
+  Favorite machine: one machine designated as the default selection,
+  stored in settings.json. Always pre-selected when the app opens. Can
+  be changed in Settings → My Machines → "Set as favorite."
+  Pre-estimation confirmation popup: before every estimation run, a
+  popup shows the currently selected machine and gas type and asks the
+  user to confirm before proceeding. Popup is dismissible per-session
+  (shows once per session on first run, then only shows again if the
+  machine selection was changed since the last run in that session).
+  Rationale: prevents silent errors from a machine selection left over
+  from a previous session. Consistent with D-222's no-silent-failures
+  rule.
+  Material name normalization: the .par library contains duplicate
+  material group names across different machine folders. presets.json
+  normalizes these to standard names: Mild Steel, Stainless Steel,
+  Aluminum, Copper, Brass, Titanium. The DIN code and original material
+  number are preserved as metadata. Normalization mapping maintained in
+  material_map.json, updatable without touching the parser or presets.
+
+- D-224: **In-app raw parameter import ("Import Machine Parameters")
+  — Option A, fully integrated into the estimator app itself.**
+  Machine Settings screen includes an "Import Machine Parameters" button
+  that opens a folder picker. The app scans the selected folder
+  recursively for supported parameter files, parses them internally
+  (same logic as the standalone parser scripts), normalizes material
+  names via material_map.json, and adds the discovered machines and
+  their rate tables to the user's local library. No external scripts,
+  no command line, no Python knowledge required — the entire pipeline
+  runs inside the app. Progress shown inline (files found → parsing →
+  normalizing → machines discovered → confirm import). User reviews the
+  discovered machines before committing — never silently overwrites
+  existing configured rates. After successful import, newly discovered
+  machines appear in "My Machines" with an option to set as active.
+  Contributing back to the global preset library: after import, the app
+  optionally (opt-in, per D-218's telemetry framework) submits the
+  normalized rate table to the developer's central store (Supabase,
+  project bfhioxqspmypcnpmakyg) so it can improve future presets.json
+  releases for all users. Only normalized rate data is submitted — never
+  raw files, never shop identity, never production data.
+
+- D-225: **Supported parameter file formats — Bystronic .par native,
+  Excel template universal fallback, Trumpf planned for v2.**
+  v1 supports: (1) Bystronic .par files (confirmed XML-inside,
+  machine model encoded in filename, full rate data available);
+  (2) Excel template import — the app exports a blank, correctly
+  structured template that any user can fill in manually regardless of
+  machine brand, then import back. This covers 100% of brands without
+  requiring reverse-engineering of proprietary formats. DWG files and
+  unrecognized formats show a clear non-blocking message, never crash.
+  Explicitly not supported in v1: Trumpf .geo/technology table files,
+  Amada JKA/JKAX/JKF formats, Mazak/Mitsubishi proprietary formats.
+  v2 target: Trumpf native support (technology tables exportable as
+  readable text from the machine per confirmed forum evidence — needs a
+  sample file to finalize the parser). All unsupported formats show:
+  "This format is not yet supported — use the Excel template to enter
+  parameters manually." Never "invalid file format" or a crash.
+  Rationale: doing one format well (Bystronic .par) plus a universal
+  manual fallback (Excel template) is more robust and honest than
+  attempting to parse six proprietary formats with varying reliability.
+
+- D-226: **presets.json is the app's shipped machine rate library —
+  generated from the Bystronic .par parameter database, normalized via
+  material_map.json, versioned, and updated with app releases.**
+  Current library: 11 machine models (BYJIN3015, BYJIN4020, SPEED3015,
+  SPEED4020, SPRINT3015, SPRINT4020, STAR3015, STAR4020, STAR4025,
+  SUN3015, VENTION3015), 1,407 unique rate entries across Aluminum,
+  Brass, Copper, Mild Steel, Stainless Steel, Titanium, thickness range
+  0.8–25mm. Source: Bystronic factory parameter database (.par files),
+  parsed with parse_bystronic_params_v3.py, normalized with
+  build_presets_json.py + material_map.json. Regeneration workflow:
+  obtain updated .par files → run parse_bystronic_params_v3.py →
+  run build_presets_json.py → replace presets.json in app → release.
+  The presets.json file structure: version, machine_count, total_entries,
+  machines dict keyed by model name, each containing entry_count,
+  materials list, thickness_range, laser_powers_w list, and rates array
+  (material, material_raw, din_code, thickness_mm, gas, cut_speed_mm_min,
+  pierce_time_sec, laser_power_w, nozzle, gas_pressure_bar,
+  corner_speed_mm_min, param_date).
