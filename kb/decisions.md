@@ -814,3 +814,54 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   Starter library pre-seeded with common sheet metal materials (S235, S355,
   304 SS, 5754 Al) and standard sheet sizes (3000×1500, 2500×1250, 2000×1000).
   Sort order in pickers: favorites first, then by usage count descending.
+
+## Cuts and Bends Estimator — Monetization Architecture (D-238 to D-241)
+
+- D-238: **Demo mode is the default state for all installations — same .exe,
+  no separate installer.** Every download starts in Demo mode until a valid
+  license key is activated. Demo limits: max 3 parts per job; PDF export
+  disabled; job history save disabled; Excel export works but watermarked
+  "DEMO — Cuts and Bends Estimator"; clean DXF re-export disabled. Every
+  restricted action surfaces a single non-blocking upgrade prompt with a
+  purchase URL. No nagware, no countdown timers. Stirg (pilot org) receives
+  a manually issued license key — no purchase required.
+
+- D-239: **LicenseManager is a single utility class — the sole authority on
+  licensed state.** Manages a fourth local file `license.json` (separate from
+  the D-218 three-file structure, never touched by app updates):
+  `{key, activated_at, machine_id, mode}`. Machine ID is a hash of stable
+  hardware identifiers (CPU ID + disk serial), stored locally only.
+  Activation flow: user enters key → app calls Gumroad license verify API
+  (`POST api.gumroad.com/v2/licenses/verify`) → on success writes
+  `license.json` → full mode unlocked permanently. On every subsequent
+  launch: reads `license.json`, validates machine ID, skips network call
+  entirely. No server dependency after activation — activated machines work
+  forever offline. If `license.json` absent or corrupt → Demo mode.
+  All restricted features check `LicenseManager.is_licensed() → bool` —
+  no other licensing logic anywhere in the codebase. One license = one
+  machine; additional machines handled manually by email at this stage.
+  Two UI additions: Activation screen (shown post-EULA if no valid license,
+  has "Continue in Demo" escape) and License tab in Settings (shows status,
+  activation date, transfer option).
+
+- D-240: **Gumroad is the license key authority and primary payment channel.**
+  Handles EU VAT automatically, pays out to Serbian bank account, ~10% fee.
+  License keys issued automatically on purchase (Gumroad built-in) or
+  manually from the Gumroad dashboard for offline customers. Base price
+  in EUR. No Supabase, no custom license server — Gumroad API is the only
+  external dependency in the licensing flow.
+
+- D-241: **Dual payment channel — Gumroad (online) and email/virman (offline).**
+  Serbian and regional market: bank transfer (virman) remains the dominant
+  B2B payment method; many shop owners will not use foreign online payment
+  platforms. Offline flow: customer emails purchase request → seller sends
+  proforma invoice (RSD or EUR, NBS middle rate on invoice date, includes
+  PIB/MB/bank account per Prototip org branding) → customer pays via virman
+  → seller confirms payment → manually issues license key from Gumroad
+  dashboard → customer activates identically to online path. App is
+  unaware of payment channel — activation screen and Gumroad API call
+  are identical regardless of how the key was obtained. PPM upgrade
+  credit (when PPM launches): Estimator customers identified via Gumroad
+  customer list (email), offered discounted PPM onboarding via manually
+  issued discount codes. No technical bridge between Gumroad and PPM
+  required at this stage.
