@@ -959,3 +959,28 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   2021 UI when working from a .ipt; the API path and the UI diverge here, and the API
   path is the correct one. Validated on a real Inventor 2021 installation with Sheet Metal
   Style material and thickness set.
+## Inventor iLogic 2021 — Macro Patterns (D-252 to D-255)
+
+- D-252: **iLogic 2021 assembly reference pattern.** Use `AddReference "System.Drawing"` and
+  `AddReference "System.Windows.Forms"` at rule top. Never use `Imports` — it causes namespace
+  conflicts with Inventor's own `Color`, `TextBox`, `Point` types. Always use full qualification
+  (`System.Drawing.Color`, `System.Windows.Forms.TextBox` etc.) throughout the rule.
+
+- D-253: **Part material read via `oDoc.ComponentDefinition.Material.Name`.** `oStyle.Name`
+  returns the rule name (e.g. `A1.6_Aluminium_2.0_mm`), not the material. `oStyle.SheetMetal_Material`
+  is unreliable in Inventor 2021. `ComponentDefinition.Material.Name` returns the actual assigned
+  material (e.g. `EN 1050A`).
+
+- D-254: **Thickness read via `oSMDef.Thickness.ModelValue * 10`.** Inventor internal units are cm;
+  multiplying by 10 gives mm. `oStyle.Thickness.Value` and bare `oStyle.Thickness` both fail to
+  compile in iLogic 2021.
+
+- D-255: **`PPM_ExportFlatPattern` macro confirmed complete and working on Inventor 2021.**
+  Final working call sequence: `AddReference` → guard (SheetMetal check) → read PN via
+  `Inventor.Property` explicit type → read material via `ComponentDefinition.Material.Name` →
+  read thickness via `oSMDef.Thickness.ModelValue * 10` → styled WinForms dialog (qty prompt,
+  auto-read material/thickness shown in green, manual fallback if read fails) → folder picker →
+  filename as `PN_MATERIAL_THICKNESSmm_QTYpcs.dxf` → `DataIO.WriteDataToFile("FLAT PATTERN
+  DXF?AcadVersion=2000", path)` → `WriteXDATA` appends `PPM_ESTIMATOR` block before EOF.
+  Validated end-to-end on Inventor 2021 with correct filename and XDATA output confirmed in Notepad.
+
