@@ -869,3 +869,51 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   customer list (email), offered discounted PPM onboarding via manually
   issued discount codes. No technical bridge between Gumroad and PPM
   required at this stage.
+
+- D-242: **Excel PPM Tracker built as interim solution pending PPM app completion.**
+  6-sheet workbook: RATES (static snapshot of `Stirg_Operacije_Norms.xlsx` at time of
+  build, not a live link), BOM_IMPORT (paste zone for Inventor Structural BOM export,
+  rows pre-sized for thumbnails), C&B_IMPORT (paste zone for Cuts & Bends Estimator
+  output), PARTS (main working table — per-PN op tracking), REPORT (live COUNTIF
+  dashboard, D-214 compliant denominator), LOOKUP (hidden named ranges).
+  C&B cost auto-populated in PARTS via VLOOKUP on PN from C&B_IMPORT.
+  Inventor thumbnails require manual paste into column A after BOM data import
+  (Excel limitation — images cannot be VLOOKUP'd).
+  File: `kb/excel-ppm-tracker/PPM_Tracker_Stirg.xlsx` (to be committed separately).
+
+- D-243: **PARTS sheet op columns use two-level Excel column grouping.**
+  Level 1 = category group (collapses all ops in a category e.g. all OBRADA cols).
+  Level 2 = per-op pair (collapses individual REQ?/DONE? pair for one operation).
+  Both levels independently toggleable. Default: all expanded. Header layout: Op.ID
+  above operation name, REQ?/DONE? as labelled pair underneath — one visual block per op.
+
+- D-244: **Type column replaces absolute Level number as auto-populate trigger.**
+  Absolute level number (L0–L8) is CAD-structural, not production-meaningful, and
+  inconsistent across projects (GST depth 1–7, Stadler depth 0–8). Type column values:
+  `Part / Weld Assy / Mech Assy / Top Assy / Purchased`. Auto-populate macro rules:
+  Part + Thickness>0 → OP-009 Laser Cutting + OP-014 Deburring;
+  Part + Bend Count>0 → OP-012 Press Bending;
+  Weld Assy → OP-015 Fit-up & Tack + OP-016 Welding (Full);
+  Top Assy → OP-017 Painting + OP-020 Assembly;
+  OP-023 Visual QC → all types.
+  Manual override always available — Type is an editable dropdown, REQ cells are
+  never locked. Level column retained as reference column only, drives nothing.
+
+- D-245: **Excel tracker macro suite planned (four macros).**
+  (1) BOM Import Cleaner — reads BOM_IMPORT, strips Inventor raw columns to
+  Level/PN/Desc/Qty/Type/Thickness/Bends, pastes cleaned rows into PARTS, auto-sizes
+  thumbnail rows, prompts user to paste image column manually.
+  (2) Clear Job — resets all REQ/DONE cells and job header fields in one click.
+  (3) Auto-Populate REQ — applies D-244 rules after BOM import; marks REQ cells,
+  never overwrites existing manual entries.
+  (4) Preset filter buttons — Show All / Parts Only / Weld Assemblies /
+  Painting Required / Incomplete (has REQ ✓ but not all DONE ✓).
+  Native AutoFilter also active for custom ad-hoc filtering.
+
+- D-246: **OP-028 Milling and OP-029 Turning added to Stirg operation catalog.**
+  Both in-house (Stirg has both CNC milling and turning machines). Placeholder rates
+  (machine rate 5850 RSD/h matching mid-tier CNC overhead), all norm hours placeholder
+  per D-195. Manual REQ assignment only — no auto-populate trigger exists in BOM
+  data for these operations. Added to `Stirg_Operacije_Norms.xlsx` under OBRADA category,
+  adjacent to other machining ops. To be reflected in `org_operations` seed data when
+  Phase 1 schema work resumes.
