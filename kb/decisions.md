@@ -917,3 +917,34 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   data for these operations. Added to `Stirg_Operacije_Norms.xlsx` under OBRADA category,
   adjacent to other machining ops. To be reflected in `org_operations` seed data when
   Phase 1 schema work resumes.
+
+- D-247: **Excel tracker BOM Import macro uses header-name matching, not column position.**
+  Inventor BOM export column order confirmed from real export (screenshot): Item, Part Number,
+  Thumbnail, BOM Structure, Unit QTY, QTY, Stock Number, Description, REV — but order varies
+  by export settings and user. Macro scans row 1 headers by name (case-insensitive), maps
+  dynamically. Tolerates any column order; robust to future export configuration changes.
+  Also handles "Unit QTY" as fallback for "QTY" column name variation.
+
+- D-248: **BOM Structure column → Type column mapping (Excel tracker).**
+  Inventor BOM Structure values: Normal / Purchased / Phantom.
+  Mapping: Purchased → Type = "Purchased" (auto-set by ImportBOM macro);
+  Phantom → row skipped entirely (not imported to PARTS);
+  Normal → Type left blank for manual assignment (Part / Weld Assy / Mech Assy / Top Assy).
+  Manual override always available after import.
+
+- D-249: **Inventor custom iProperty names standardized for Excel tracker integration.**
+  Three iProperty columns to add in Inventor BOM Editor before export:
+  `Thickness` (Number, mm), `Bends` (Number, count), `Material` (Text).
+  Exact names used by ImportBOM macro for column matching (case-insensitive).
+  These are not yet set up at Stirg — to be configured as part of CAD workflow setup.
+  Until set, Thickness and Bends columns will be blank after import and must be filled manually.
+
+- D-250: **Excel tracker macro suite delivered as `PPM_Macros.bas` (8 macros, expanded from D-245).**
+  Delivered as standalone VBA module file — imported via Alt+F11 → File → Import in Excel,
+  then buttons assigned manually on PARTS sheet. Not embedded as xlsm (Linux build environment
+  lacks win32com; xlsm binary injection unreliable without it).
+  Final 8 macros: ImportBOM, AutoPopulateREQ, ClearJob, FilterShowAll, FilterPartsOnly,
+  FilterWeldAssemblies, FilterPaintingRequired, FilterIncomplete.
+  FilterIncomplete uses a temporary helper column (written at runtime, cleared by FilterShowAll).
+  AutoPopulateREQ reads op columns dynamically from row 7/8 headers — robust to column reorder.
+  All filter macros use native Excel AutoFilter — compatible with manual ad-hoc filtering.
