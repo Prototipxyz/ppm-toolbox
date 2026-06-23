@@ -948,3 +948,14 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   FilterIncomplete uses a temporary helper column (written at runtime, cleared by FilterShowAll).
   AutoPopulateREQ reads op columns dynamically from row 7/8 headers — robust to column reorder.
   All filter macros use native Excel AutoFilter — compatible with manual ad-hoc filtering.
+## Inventor Macro — Validated Export Mechanism (D-251)
+
+- D-251: **`DataIO.WriteDataToFile` confirmed as the flat pattern DXF export mechanism
+  for the iLogic macro on Inventor 2021.** No drawing document, no TranslatorAddIn, no
+  INI file required. Export query string: `"FLAT PATTERN DXF?AcadVersion=2000"`.
+  `IV_*` layer names (IV_OUTER_PROFILE, IV_INTERIOR_PROFILE, IV_BEND, IV_BEND_DOWN etc.)
+  export natively without additional configuration. Flat pattern enters and exits cleanly
+  via API — no stuck-state risk. DXF option is absent from Save Copy As in the Inventor
+  2021 UI when working from a .ipt; the API path and the UI diverge here, and the API
+  path is the correct one. Validated on a real Inventor 2021 installation with Sheet Metal
+  Style material and thickness set.
