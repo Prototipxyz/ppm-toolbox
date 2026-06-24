@@ -355,7 +355,7 @@ Sub Main()
             ' Sleep gives Inventor time to complete the document switch before export.
             Try
                 oPartDoc.Activate()
-                System.Threading.Thread.Sleep(300)
+                System.Threading.Thread.Sleep(1000)
             Catch : End Try
 
             Try
