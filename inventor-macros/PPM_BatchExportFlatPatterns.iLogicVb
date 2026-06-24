@@ -383,6 +383,12 @@ Sub Main()
                     Try : oSMDef.ExitFlatPattern() : Catch : End Try
                 End If
             End Try
+
+        Catch ex As Exception
+            ' Catch-all for unexpected errors (e.g. cast failure on ComponentDefinition)
+            nFailed += 1
+            failList.Add(pn & " - " & ex.Message)
+        End Try
     Next
 
     ShowSummary(nExported, nSkipped, nFailed, nQty1, bomLoaded, failList, destFolder)
