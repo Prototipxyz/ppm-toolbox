@@ -1014,4 +1014,19 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   Consolas 11pt Bold for part number, Segoe UI Semibold 10pt Bold for material/
   thickness values. Light/dark toggle not feasible — Inventor 2021 does not expose
   its current theme via iLogic API.
+## Inventor iLogic — PPM Tools Global Form and Distribution (D-259)
+
+- D-259: **PPM Tools global iLogic form — launcher for Export Flat Pattern button.**
+  Created as a global iLogic form (For all documents) with PPM_ExportFlatPattern.iLogicVb
+  dragged onto it as a clickable button. Global forms stored at:
+  C:\Users\Public\Documents\Autodesk\Inventor 2021\Design Data\iLogic\UI\PPM Tools.xml.
+  iLogic forms are not dockable in Inventor 2021 (confirmed Autodesk community). Full
+  dockable panel requires a .NET Inventor add-in compiled from Visual Studio — deferred.
+  Ribbon buttons for external iLogic rules require Inventor 2023+ natively.
+  Working daily workflow: iLogic Browser docked alongside model tree → Global Forms tab
+  → double-click PPM Tools → click Export Flat Pattern. Two clicks total.
+  Distribution package (shared drive): INSTALL.bat + PPM_ExportFlatPattern.iLogicVb +
+  PPM Tools.xml + UPUTE.txt. INSTALL.bat copies both files to correct locations
+  automatically. One manual step per machine: Tools → iLogic → Edit iLogic Configuration
+  → add C:\Prototip\iLogic to Rule Directories. Total setup time per machine: ~5 minutes.
 
