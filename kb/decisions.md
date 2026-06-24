@@ -983,4 +983,35 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   filename as `PN_MATERIAL_THICKNESSmm_QTYpcs.dxf` → `DataIO.WriteDataToFile("FLAT PATTERN
   DXF?AcadVersion=2000", path)` → `WriteXDATA` appends `PPM_ESTIMATOR` block before EOF.
   Validated end-to-end on Inventor 2021 with correct filename and XDATA output confirmed in Notepad.
+## Inventor iLogic Macro — Final State (D-256 to D-258)
+
+- D-256: **`PPM_ExportFlatPattern` macro — final validated state on Inventor 2021.**
+  Complete working rule confirmed. Features: part number from iProperties (fallback to
+  filename); material from `oDoc.ComponentDefinition.Material.Name`; thickness from
+  `oSMDef.Thickness.ModelValue * 10` (cm to mm); styled WinForms dialog matching
+  Inventor background (#3B4453); overwrite warning on existing file; layer filter —
+  IV_OUTER_PROFILE and IV_INTERIOR_PROFILES always kept, IV_BEND + IV_BEND_DOWN
+  toggleable via checkbox (default checked); layer definitions cleaned from TABLES
+  section to match filtered entities; XDATA block (PPM_ESTIMATOR, MATERIAL,
+  THICKNESS_MM) written before EOF; filename format: PN_MATERIAL_THICKNESSmm_QTYpcs.dxf.
+  Distribution: exported as .iLogicVb to shared network folder; each machine adds
+  folder once via Tools → iLogic → Edit iLogic Configuration → Rule Directories;
+  INSTALL.bat copies rule file locally.
+
+- D-257: **Macro distribution via App Rules + shared folder — zero ongoing maintenance.**
+  Rule stored as `.iLogicVb` in shared network folder (e.g. \SERVER\Shared\iLogic or
+  C:\Prototip\iLogic). Each machine requires one-time setup: run INSTALL.bat + add
+  folder path in Inventor iLogic Configuration. Updates require only replacing the
+  .iLogicVb file — no reinstall on any machine. Toolbar button created via right-click
+  → Create Button in iLogic Browser App Rules tab.
+
+- D-258: **Dialog visual style matches Inventor dark UI — confirmed palette.**
+  Background: RGB(59, 68, 83) / #3B4453 (sampled from Inventor 2021 UI screenshot).
+  Surface cards: RGB(72, 82, 98). Accent: RGB(46, 125, 209) / #2E7DD1. Text:
+  RGB(230, 237, 243). Subtext: RGB(180, 190, 200). Green RGB(63, 185, 80) for
+  auto-read confirmed values. Amber RGB(210, 153, 34) for manual input warning.
+  Input fields: RGB(33, 38, 45). Fonts: Segoe UI 9-10pt for labels/controls,
+  Consolas 11pt Bold for part number, Segoe UI Semibold 10pt Bold for material/
+  thickness values. Light/dark toggle not feasible — Inventor 2021 does not expose
+  its current theme via iLogic API.
 
