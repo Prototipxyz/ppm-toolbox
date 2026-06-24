@@ -57,8 +57,18 @@ Sub Main()
     End Try
 
     ' ── Build upfront dialog ──────────────────────────────────────
-    Dim destFolder       As String  = ""
-    Dim bomFilePath      As String  = autoBomPath
+    ' Load last used destination folder from temp file
+    Dim lastPathFile As String = System.IO.Path.Combine(
+        System.IO.Path.GetTempPath(), "PPM_BatchExport_LastFolder.txt")
+    Dim lastFolder As String = ""
+    Try
+        If System.IO.File.Exists(lastPathFile) Then
+            lastFolder = System.IO.File.ReadAllText(lastPathFile).Trim()
+        End If
+    Catch : End Try
+
+    Dim destFolder  As String  = ""
+    Dim bomFilePath As String  = autoBomPath
     Dim includeBendLines As Boolean = True
 
     Dim dlg As New System.Windows.Forms.Form
@@ -102,8 +112,8 @@ Sub Main()
 
     Dim txtFolder As New System.Windows.Forms.TextBox
     txtFolder.Font = fSub : txtFolder.BackColor = cInput
-    txtFolder.ForeColor = cSub : txtFolder.ReadOnly = True
-    txtFolder.Text = "(nije izabran / not selected)"
+    txtFolder.ForeColor = cSub : txtFolder.ReadOnly = False
+    txtFolder.Text = If(lastFolder <> "", lastFolder, "(nije izabran / not selected)")
     txtFolder.Location = New System.Drawing.Point(20, 108)
     txtFolder.Size = New System.Drawing.Size(380, 22)
     dlg.Controls.Add(txtFolder)
@@ -221,14 +231,40 @@ Sub Main()
     dlg.AcceptButton = btnExport
     dlg.CancelButton = btnCancel
 
+    ' Pre-enable export button if last folder is valid
+    If lastFolder <> "" AndAlso System.IO.Directory.Exists(lastFolder) Then
+        destFolder = lastFolder
+        txtFolder.ForeColor = cGreen
+        btnExport.Enabled = True
+    End If
+
     AddHandler btnBrowseFolder.Click, Sub(s, e)
         Dim fbd As New System.Windows.Forms.FolderBrowserDialog
         fbd.Description = "Izaberi odredisni folder / Select destination folder"
+        ' Open at last used location or at typed path if valid
+        Dim typedPath As String = txtFolder.Text.Trim()
+        If System.IO.Directory.Exists(typedPath) Then
+            fbd.SelectedPath = typedPath
+        ElseIf lastFolder <> "" AndAlso System.IO.Directory.Exists(lastFolder) Then
+            fbd.SelectedPath = lastFolder
+        End If
         If fbd.ShowDialog() = System.Windows.Forms.DialogResult.OK Then
             destFolder = fbd.SelectedPath
             txtFolder.Text = destFolder
             txtFolder.ForeColor = cGreen
             btnExport.Enabled = True
+        End If
+    End Sub
+
+    ' Also enable export when user types/pastes a valid path directly
+    AddHandler txtFolder.TextChanged, Sub(s, e)
+        Dim typed As String = txtFolder.Text.Trim()
+        If System.IO.Directory.Exists(typed) Then
+            destFolder = typed
+            txtFolder.ForeColor = cGreen
+            btnExport.Enabled = True
+        Else
+            btnExport.Enabled = False
         End If
     End Sub
 
@@ -247,6 +283,16 @@ Sub Main()
 
     If dlg.ShowDialog() <> System.Windows.Forms.DialogResult.OK Then GoTo Cleanup
 
+    ' Read destFolder from text box in case user typed/pasted it
+    destFolder = txtFolder.Text.Trim()
+    If Not System.IO.Directory.Exists(destFolder) Then
+        ShowError("Odredisni folder ne postoji." & vbCrLf & "Destination folder does not exist.")
+        GoTo Cleanup
+    End If
+
+    ' Save last used folder for next run
+    Try : System.IO.File.WriteAllText(lastPathFile, destFolder) : Catch : End Try
+
     includeBendLines = chkBend.Checked
 
     ' ── Load BOM qty from xlsx ────────────────────────────────────
@@ -262,11 +308,32 @@ Sub Main()
         End Try
     End If
 
-    ' ── Collect sheet metal parts ─────────────────────────────────
+    ' ── Collect sheet metal parts referenced by this assembly ────────
+    ' Use ReferencedFileDescriptors to get the list of files belonging
+    ' to this assembly — avoids picking up unrelated open documents.
     Dim partMap As New System.Collections.Generic.Dictionary(Of String, Object())
+
+    ' Build a set of file paths referenced by the assembly (recursive)
+    Dim asmRefPaths As New System.Collections.Generic.HashSet(Of String)(
+        System.StringComparer.OrdinalIgnoreCase)
+    Try
+        For Each rfd As FileDescriptor In oAsmDoc.File.AllReferencedFiles
+            asmRefPaths.Add(rfd.FullFileName)
+        Next
+    Catch
+        ' AllReferencedFiles unavailable — fall back to all open documents
+    End Try
 
     For Each oDoc As Document In ThisApplication.Documents
         If Not TypeOf oDoc Is PartDocument Then Continue For
+
+        ' Filter to assembly-referenced parts only
+        Dim docPath As String = ""
+        Try : docPath = oDoc.FullFileName : Catch : Continue For : End Try
+        If asmRefPaths.Count > 0 AndAlso Not asmRefPaths.Contains(docPath) Then
+            Continue For
+        End If
+
         Dim oPart As PartDocument = Nothing
         Try : oPart = CType(oDoc, PartDocument) : Catch : Continue For : End Try
         Try
@@ -291,9 +358,7 @@ Sub Main()
             qty = qtyMap(pn.ToUpper())
         End If
 
-        Dim fileKey As String = ""
-        Try : fileKey = oPart.FullFileName.ToLower()
-        Catch : fileKey = pn.ToLower() : End Try
+        Dim fileKey As String = docPath.ToLower()
 
         If Not partMap.ContainsKey(fileKey) Then
             partMap(fileKey) = New Object() {oPart, qty, pn}
@@ -311,7 +376,8 @@ Sub Main()
     Dim nSkipped  As Integer = 0
     Dim nFailed   As Integer = 0
     Dim nQty1     As Integer = 0
-    Dim failList  As New System.Collections.Generic.List(Of String)
+    Dim failList    As New System.Collections.Generic.List(Of String)
+    Dim missingBom  As New System.Collections.Generic.List(Of String)
 
     For Each kvp In partMap
         Dim entry()  As Object = kvp.Value
@@ -321,6 +387,7 @@ Sub Main()
 
         If bomLoaded AndAlso qty = 1 AndAlso Not qtyMap.ContainsKey(pn.ToUpper()) Then
             nQty1 += 1
+            missingBom.Add(pn)
         End If
 
         Try
@@ -390,7 +457,7 @@ Sub Main()
         End Try
     Next
 
-    ShowSummary(nExported, nSkipped, nFailed, nQty1, bomLoaded, failList, destFolder)
+    ShowSummary(nExported, nSkipped, nFailed, nQty1, bomLoaded, failList, missingBom, destFolder)
 
 Cleanup:
     fUI.Dispose() : fSub.Dispose() : fBold.Dispose() : fMono.Dispose()
@@ -596,9 +663,13 @@ End Sub
 Sub ShowSummary(nExp As Integer, nSkip As Integer, nFail As Integer, _
                 nQty1 As Integer, bomLoaded As Boolean, _
                 failList As System.Collections.Generic.List(Of String), _
+                missingBom As System.Collections.Generic.List(Of String), _
                 destFolder As String)
 
-    Dim extraH As Integer = If(nFail > 0, 110, 0)
+    Dim extraH As Integer = 0
+    If nFail > 0 Then extraH += 110
+    If missingBom.Count > 0 Then extraH += 80
+
     Dim sf As New System.Windows.Forms.Form
     sf.Text = "PPM - Rezultat / Summary"
     sf.Size = New System.Drawing.Size(500, 310 + extraH)
@@ -652,6 +723,25 @@ Sub ShowSummary(nExp As Integer, nSkip As Integer, nFail As Integer, _
 
     add(mkLbl("Folder: " & destFolder,
         System.Drawing.Color.FromArgb(180, 190, 200), False)) : y += 28
+
+    ' Missing BOM parts list
+    If missingBom.Count > 0 Then
+        Dim sepM As New System.Windows.Forms.Label
+        sepM.BackColor = System.Drawing.Color.FromArgb(72, 82, 98)
+        sepM.Location = New System.Drawing.Point(20, y) : sepM.Size = New System.Drawing.Size(460, 1)
+        add(sepM) : y += 8
+        add(mkLbl("Dela nije u BOM-u (kol=1) / Parts not in BOM (qty=1):",
+            System.Drawing.Color.FromArgb(210, 153, 34), True)) : y += 20
+        Dim txtM As New System.Windows.Forms.TextBox
+        txtM.Multiline = True : txtM.ReadOnly = True
+        txtM.ScrollBars = System.Windows.Forms.ScrollBars.Vertical
+        txtM.BackColor = System.Drawing.Color.FromArgb(33, 38, 45)
+        txtM.ForeColor = System.Drawing.Color.FromArgb(210, 153, 34)
+        txtM.Font = New System.Drawing.Font("Consolas", 8)
+        txtM.Text = String.Join(vbCrLf, missingBom.ToArray())
+        txtM.Location = New System.Drawing.Point(20, y) : txtM.Size = New System.Drawing.Size(460, 50)
+        add(txtM) : y += 58
+    End If
 
     If nFail > 0 Then
         Dim sepF As New System.Windows.Forms.Label
