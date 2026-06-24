@@ -350,42 +350,18 @@ Sub Main()
                 End If
             End If
 
-            ' Activate flat pattern — required before DXF export in batch context
-            Dim flatPatternActive As Boolean = False
-            Try
-                oSMDef.EnableFlatPattern()
-                flatPatternActive = True
-            Catch exFP As Exception
-                ' Flat pattern could not be activated — part has no valid flat pattern
-                ' (e.g. non-developable surface, missing bend rules). Skip and flag.
-                nFailed += 1
-                failList.Add(pn & " - Flat pattern nije moguce aktivirati / cannot activate flat pattern: " & exFP.Message)
-                Continue For
-            End Try
+            ' Export flat pattern DXF (D-251)
+            ' WriteDataToFile handles flat pattern state internally — no pre-activation needed
+            ' This matches the proven PPM_ExportFlatPattern part-level macro pattern exactly.
+            Dim oDataIO As DataIO = oPartDoc.ComponentDefinition.DataIO
+            oDataIO.WriteDataToFile("FLAT PATTERN DXF?AcadVersion=2000", destPath)
 
-            Try
-                ' Export raw DXF (D-251) — flat pattern now active
-                Dim oDataIO As DataIO = oPartDoc.ComponentDefinition.DataIO
-                oDataIO.WriteDataToFile("FLAT PATTERN DXF?AcadVersion=2000", destPath)
+            ' Append XDATA block
+            WriteXDATA(destPath, material, thickStr)
 
-                ' Append XDATA
-                WriteXDATA(destPath, material, thickStr)
-
-                nExported += 1
-
-            Catch ex As Exception
-                nFailed += 1
-                failList.Add(pn & " - " & ex.Message)
-
-            Finally
-                ' Always return part to folded state regardless of export success/failure
-                If flatPatternActive Then
-                    Try : oSMDef.ExitFlatPattern() : Catch : End Try
-                End If
-            End Try
+            nExported += 1
 
         Catch ex As Exception
-            ' Catch-all for unexpected errors (e.g. cast failure on ComponentDefinition)
             nFailed += 1
             failList.Add(pn & " - " & ex.Message)
         End Try
