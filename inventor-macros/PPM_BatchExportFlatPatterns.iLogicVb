@@ -350,19 +350,39 @@ Sub Main()
                 End If
             End If
 
-            ' Export raw DXF (D-251) — no layer filter
-            Dim oDataIO As DataIO = oPartDoc.ComponentDefinition.DataIO
-            oDataIO.WriteDataToFile("FLAT PATTERN DXF?AcadVersion=2000", destPath)
+            ' Activate flat pattern — required before DXF export in batch context
+            Dim flatPatternActive As Boolean = False
+            Try
+                oSMDef.EnableFlatPattern()
+                flatPatternActive = True
+            Catch exFP As Exception
+                ' Flat pattern could not be activated — part has no valid flat pattern
+                ' (e.g. non-developable surface, missing bend rules). Skip and flag.
+                nFailed += 1
+                failList.Add(pn & " - Flat pattern nije moguce aktivirati / cannot activate flat pattern: " & exFP.Message)
+                Continue For
+            End Try
 
-            ' Append XDATA
-            WriteXDATA(destPath, material, thickStr)
+            Try
+                ' Export raw DXF (D-251) — flat pattern now active
+                Dim oDataIO As DataIO = oPartDoc.ComponentDefinition.DataIO
+                oDataIO.WriteDataToFile("FLAT PATTERN DXF?AcadVersion=2000", destPath)
 
-            nExported += 1
+                ' Append XDATA
+                WriteXDATA(destPath, material, thickStr)
 
-        Catch ex As Exception
-            nFailed += 1
-            failList.Add(pn & " - " & ex.Message)
-        End Try
+                nExported += 1
+
+            Catch ex As Exception
+                nFailed += 1
+                failList.Add(pn & " - " & ex.Message)
+
+            Finally
+                ' Always return part to folded state regardless of export success/failure
+                If flatPatternActive Then
+                    Try : oSMDef.ExitFlatPattern() : Catch : End Try
+                End If
+            End Try
     Next
 
     ShowSummary(nExported, nSkipped, nFailed, nQty1, bomLoaded, failList, destFolder)
