@@ -350,16 +350,32 @@ Sub Main()
                 End If
             End If
 
-            ' Export flat pattern DXF (D-251)
-            ' WriteDataToFile handles flat pattern state internally — no pre-activation needed
-            ' This matches the proven PPM_ExportFlatPattern part-level macro pattern exactly.
-            Dim oDataIO As DataIO = oPartDoc.ComponentDefinition.DataIO
-            oDataIO.WriteDataToFile("FLAT PATTERN DXF?AcadVersion=2000", destPath)
+            ' Activate the part document so WriteDataToFile works in batch context.
+            ' When parts are loaded as assembly references (not active doc),
+            ' WriteDataToFile fails with E_FAIL — activating first fixes this.
+            Try
+                oPartDoc.Activate()
+            Catch : End Try
 
-            ' Append XDATA block
-            WriteXDATA(destPath, material, thickStr)
+            Try
+                ' Export flat pattern DXF (D-251)
+                Dim oDataIO As DataIO = oPartDoc.ComponentDefinition.DataIO
+                oDataIO.WriteDataToFile("FLAT PATTERN DXF?AcadVersion=2000", destPath)
 
-            nExported += 1
+                ' Append XDATA block
+                WriteXDATA(destPath, material, thickStr)
+
+                nExported += 1
+
+            Catch ex As Exception
+                nFailed += 1
+                failList.Add(pn & " - " & ex.Message)
+
+            Finally
+                ' Reactivate the assembly — returns Inventor to assembly context
+                ' and implicitly exits any flat pattern view on the part
+                Try : oAsmDoc.Activate() : Catch : End Try
+            End Try
 
         Catch ex As Exception
             nFailed += 1
