@@ -350,12 +350,18 @@ Sub Main()
                 End If
             End If
 
-            ' Activate the part document so WriteDataToFile works in batch context.
-            ' WriteDataToFile requires the part to be the active document.
-            ' Sleep gives Inventor time to complete the document switch before export.
+            ' Activate the part and wait until Inventor confirms it is the active document.
+            ' Fixed sleep is unreliable — poll instead with a 5-second timeout.
             Try
                 oPartDoc.Activate()
-                System.Threading.Thread.Sleep(1000)
+                Dim waited As Integer = 0
+                Do While waited < 5000
+                    Try
+                        If ThisApplication.ActiveDocument Is oPartDoc Then Exit Do
+                    Catch : End Try
+                    System.Threading.Thread.Sleep(100)
+                    waited += 100
+                Loop
             Catch : End Try
 
             Try
