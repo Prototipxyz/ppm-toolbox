@@ -351,10 +351,11 @@ Sub Main()
             End If
 
             ' Activate the part document so WriteDataToFile works in batch context.
-            ' When parts are loaded as assembly references (not active doc),
-            ' WriteDataToFile fails with E_FAIL — activating first fixes this.
+            ' WriteDataToFile requires the part to be the active document.
+            ' Sleep gives Inventor time to complete the document switch before export.
             Try
                 oPartDoc.Activate()
+                System.Threading.Thread.Sleep(300)
             Catch : End Try
 
             Try
