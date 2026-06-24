@@ -309,30 +309,28 @@ Sub Main()
     End If
 
     ' ── Collect sheet metal parts referenced by this assembly ────────
-    ' Use ReferencedFileDescriptors to get the list of files belonging
-    ' to this assembly — avoids picking up unrelated open documents.
+    ' Build set of file paths belonging to this assembly using
+    ' ReferencedDocuments — safer than AllReferencedFiles in iLogic context.
     Dim partMap As New System.Collections.Generic.Dictionary(Of String, Object())
 
-    ' Build a set of file paths referenced by the assembly (recursive)
     Dim asmRefPaths As New System.Collections.Generic.HashSet(Of String)(
         System.StringComparer.OrdinalIgnoreCase)
     Try
-        For Each rfd As FileDescriptor In oAsmDoc.File.AllReferencedFiles
-            asmRefPaths.Add(rfd.FullFileName)
-        Next
-    Catch
-        ' AllReferencedFiles unavailable — fall back to all open documents
-    End Try
+        CollectReferencedPaths(oAsmDoc, asmRefPaths)
+    Catch : End Try
+
+    ' Always include the assembly file itself as a sanity reference
+    Try : asmRefPaths.Add(oAsmDoc.FullFileName) : Catch : End Try
 
     For Each oDoc As Document In ThisApplication.Documents
         If Not TypeOf oDoc Is PartDocument Then Continue For
 
-        ' Filter to assembly-referenced parts only
         Dim docPath As String = ""
         Try : docPath = oDoc.FullFileName : Catch : Continue For : End Try
-        If asmRefPaths.Count > 0 AndAlso Not asmRefPaths.Contains(docPath) Then
-            Continue For
-        End If
+
+        ' Skip if not referenced by this assembly
+        ' If reference collection failed entirely (empty), skip all — safer than no filter
+        If Not asmRefPaths.Contains(docPath) Then Continue For
 
         Dim oPart As PartDocument = Nothing
         Try : oPart = CType(oDoc, PartDocument) : Catch : Continue For : End Try
@@ -358,10 +356,8 @@ Sub Main()
             qty = qtyMap(pn.ToUpper())
         End If
 
-        Dim fileKey As String = docPath.ToLower()
-
-        If Not partMap.ContainsKey(fileKey) Then
-            partMap(fileKey) = New Object() {oPart, qty, pn}
+        If Not partMap.ContainsKey(docPath.ToLower()) Then
+            partMap(docPath.ToLower()) = New Object() {oPart, qty, pn}
         End If
     Next
 
@@ -467,6 +463,23 @@ End Sub
 ' ════════════════════════════════════════════════════════════════════
 ' SUBROUTINES
 ' ════════════════════════════════════════════════════════════════════
+
+Sub CollectReferencedPaths(oDoc As Document, _
+                           ByRef paths As System.Collections.Generic.HashSet(Of String))
+    ' Recursively collect all file paths referenced by oDoc.
+    ' Uses ReferencedDocuments which is safe and available in iLogic 2021.
+    For Each refDoc As Document In oDoc.ReferencedDocuments
+        Dim refPath As String = ""
+        Try : refPath = refDoc.FullFileName : Catch : Continue For : End Try
+        If refPath = "" Then Continue For
+        If paths.Contains(refPath) Then Continue For  ' avoid infinite loops on circular refs
+        paths.Add(refPath)
+        ' Recurse into sub-assemblies
+        If TypeOf refDoc Is AssemblyDocument Then
+            CollectReferencedPaths(refDoc, paths)
+        End If
+    Next
+End Sub
 
 Sub ReadBomXlsx(filePath As String, _
                 ByRef qtyMap As System.Collections.Generic.Dictionary(Of String, Integer))
