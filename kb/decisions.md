@@ -1086,3 +1086,22 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   Rule Directory (`C:\Prototip\iLogic`) as `PPM_ExportFlatPattern`. Launched via PPM Tools
   global form — "Assembly Batch Export Flat Pattern" button added alongside existing
   "Part Export Flat Pattern" button. Final confirmed commit: `4848c748`.
+
+## iLogic Batch Export — BOM Auto-Export (D-267)
+
+- D-267: **Inventor 2021 BOM API confirmed for iLogic — Parts Only export to xlsx.**
+  Confirmed working call sequence:
+  ```
+  Dim oBOM As BOM = oAsmDoc.ComponentDefinition.BOM
+  oBOM.PartsOnlyViewEnabled = True
+  Dim oView As BOMView = oBOM.BOMViews.Item("Parts Only")
+  oView.Export(exportPath, kMicrosoftExcelFormat)
+  ```
+  `kMicrosoftExcelFormat` is a standalone constant — NOT qualified as
+  `BOMExportFormatEnum.kMicrosoftExcelFormat` (compile error in iLogic 2021).
+  Export must delete existing file first — `oView.Export` does not overwrite cleanly.
+  Integrated into `PPM_BatchExportFlatPatterns` as first step: BOM auto-exported to
+  `AssemblyName_Parts_BOM.xlsx` in assembly folder before dialog opens. Fallback chain:
+  (1) auto-export via API → (2) scan folder for existing BOM xlsx → (3) manual picker
+  → (4) qty=1. Dialog BOM field shows green (auto-exported), amber (fallback found),
+  red (failed, no file). Final confirmed commit: `5038e5ae`.
