@@ -1030,3 +1030,59 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   automatically. One manual step per machine: Tools → iLogic → Edit iLogic Configuration
   → add C:\Prototip\iLogic to Rule Directories. Total setup time per machine: ~5 minutes.
 
+
+## iLogic Batch Export — PPM_BatchExportFlatPatterns (D-260 to D-265)
+
+- D-260: **Batch macro walk strategy: `ThisApplication.Documents` filtered by `ReferencedDocuments`.**
+  `ComponentOccurrences` API hard-crashes Inventor 2021 when assembly has broken cross-part
+  associations (native crash, not catchable .NET exception). Safe alternative: iterate
+  `ThisApplication.Documents`, filter to parts belonging to the assembly using a recursive
+  `CollectReferencedPaths` subroutine that walks `oDoc.ReferencedDocuments`. If reference
+  collection fails, parts are excluded (strict fallback) — never fall through to unfiltered
+  walk. Confirmed working on `13017522 Alat.iam` with broken cross-part association errors.
+
+- D-261: **`WriteDataToFile` requires the part to be the active document in batch context.**
+  When parts are loaded as assembly component references (not active doc), `WriteDataToFile
+  ("FLAT PATTERN DXF?AcadVersion=2000")` fails with E_FAIL (0x80004005). Fix: call
+  `oPartDoc.Activate()` then poll `ThisApplication.ActiveDocument Is oPartDoc` every 100ms
+  up to 5s timeout before calling `WriteDataToFile`. `oAsmDoc.Activate()` called in `Finally`
+  block to always return to assembly context after each part export. `WriteDataToFile` creates
+  the flat pattern automatically if none exists — no pre-activation API call needed.
+  Confirmed invalid method names: `EnableFlatPattern()` and `ExitFlatPattern()` do not exist
+  on `SheetMetalComponentDefinition` in Inventor 2021.
+
+- D-262: **Batch BOM quantities sourced from Inventor BOM Excel export (Parts Only flat view).**
+  Occurrence-walk qty counting crashes. Live BOM view API unconfirmed. Solution: user exports
+  BOM from Manage → Bill of Materials → Export (Parts Only flat view). File auto-detected by
+  scanning assembly directory for `.xlsx` files matching assembly name or containing "bom".
+  Manual browse fallback always available. Sheet name: "BOM", headers row 1, columns:
+  "Part Number" (B) and "QTY" (F). Last used destination folder persisted to
+  `%TEMP%\PPM_BatchExport_LastFolder.txt` for next run pre-fill.
+
+- D-263: **xlsx parsed as ZIP+XML — no OLEDB dependency in iLogic.**
+  `System.Data.OleDb.OleDbConnection` not available in iLogic sandbox. xlsx is a ZIP
+  containing XML. Parser uses `System.IO.Compression.ZipFile` + `System.Xml.XmlDocument`
+  to read `xl/sharedStrings.xml` and `xl/worksheets/sheet{n}.xml`, resolving sheet index
+  from `xl/workbook.xml`. Both namespaces confirmed available via `AddReference` in
+  Inventor 2021 iLogic. File copied to `%TEMP%` before reading to avoid locking.
+
+- D-264: **`ReferencedDocuments` recursive walk confirmed safe in iLogic 2021.**
+  `oDoc.ReferencedDocuments` (direct references only, not recursive) is safe to iterate
+  without crashing. Recursive walk implemented in `CollectReferencedPaths` subroutine with
+  cycle detection via `HashSet` contains-check before recursing. Confirmed working on
+  multi-level assembly with broken cross-part associations.
+
+- D-265: **DXF layer filter removed from batch macro — raw export used.**
+  Post-export layer filtering (rewriting DXF TABLES and ENTITIES sections line-by-line)
+  corrupts DXF file structure in batch context — produces orphaned TABLE/ENDSEC tokens.
+  Root cause: Python simulation of filter logic worked correctly but VB implementation
+  had off-by-one issues in section boundary detection. Resolution: batch macro exports
+  raw DXF (all layers) and appends XDATA only. Layer filtering deferred to downstream
+  estimator tool which already handles DXF parsing. Bend lines toggle UI retained in
+  dialog for future re-implementation once filter logic is validated on real files.
+
+- D-266: **`PPM_BatchExportFlatPatterns` stored at `inventor-macros/` in ppm-toolbox repo.**
+  File: `inventor-macros/PPM_BatchExportFlatPatterns.iLogicVb`. Added to same iLogic
+  Rule Directory (`C:\Prototip\iLogic`) as `PPM_ExportFlatPattern`. Launched via PPM Tools
+  global form — "Assembly Batch Export Flat Pattern" button added alongside existing
+  "Part Export Flat Pattern" button. Final confirmed commit: `4848c748`.
