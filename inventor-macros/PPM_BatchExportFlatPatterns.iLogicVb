@@ -59,7 +59,7 @@ Sub Main()
         If System.IO.File.Exists(expectedBomPath) Then
             System.IO.File.Delete(expectedBomPath)
         End If
-        oView.Export(expectedBomPath, BOMExportFormatEnum.kMicrosoftExcelFormat)
+        oView.Export(expectedBomPath, kMicrosoftExcelFormat)
         autoBomPath = expectedBomPath
         bomAutoExported = True
     Catch ex As Exception
