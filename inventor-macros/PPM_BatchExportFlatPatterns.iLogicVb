@@ -40,20 +40,42 @@ Sub Main()
     Dim asmName As String = System.IO.Path.GetFileNameWithoutExtension(asmPath)
     Dim asmDir  As String = System.IO.Path.GetDirectoryName(asmPath)
 
-    ' ── Auto-detect BOM xlsx next to assembly ────────────────────
-    Dim autoBomPath As String = ""
+    ' ── Auto-export BOM to Excel next to assembly ─────────────────
+    ' Uses Inventor BOM API: enables Parts Only view, exports to xlsx.
+    ' File saved as AssemblyName_Parts_BOM.xlsx in the assembly folder.
+    ' Falls back to auto-detect if export fails.
+    Dim autoBomPath  As String = ""
+    Dim bomAutoExported As Boolean = False
+    Dim bomExportError As String = ""
+
+    Dim expectedBomPath As String = System.IO.Path.Combine(
+        asmDir, asmName & "_Parts_BOM.xlsx")
+
     Try
-        Dim candidates() As String = System.IO.Directory.GetFiles(asmDir, "*.xlsx")
-        For Each f As String In candidates
-            Dim fn As String = System.IO.Path.GetFileNameWithoutExtension(f).ToLower()
-            Dim an As String = asmName.ToLower()
-            ' Match: starts with assembly name, or contains it, or contains "bom"
-            If fn.StartsWith(an) OrElse fn.Contains(an) OrElse fn.Contains("bom") Then
-                autoBomPath = f
-                Exit For
-            End If
-        Next
-    Catch
+        Dim oBOM As BOM = oAsmDoc.ComponentDefinition.BOM
+        oBOM.PartsOnlyViewEnabled = True
+        Dim oView As BOMView = oBOM.BOMViews.Item("Parts Only")
+        ' Delete existing file first — Export does not overwrite cleanly on all versions
+        If System.IO.File.Exists(expectedBomPath) Then
+            System.IO.File.Delete(expectedBomPath)
+        End If
+        oView.Export(expectedBomPath, BOMExportFormatEnum.kMicrosoftExcelFormat)
+        autoBomPath = expectedBomPath
+        bomAutoExported = True
+    Catch ex As Exception
+        bomExportError = ex.Message
+        ' Fallback: scan assembly folder for existing BOM xlsx
+        Try
+            Dim candidates() As String = System.IO.Directory.GetFiles(asmDir, "*.xlsx")
+            For Each f As String In candidates
+                Dim fn As String = System.IO.Path.GetFileNameWithoutExtension(f).ToLower()
+                Dim an As String = asmName.ToLower()
+                If fn.StartsWith(an) OrElse fn.Contains(an) OrElse fn.Contains("bom") Then
+                    autoBomPath = f
+                    Exit For
+                End If
+            Next
+        Catch : End Try
     End Try
 
     ' ── Build upfront dialog ──────────────────────────────────────
@@ -149,14 +171,18 @@ Sub Main()
     dlg.Controls.Add(txtBom)
 
     ' Set BOM field initial state
-    If autoBomPath <> "" Then
-        lblBom.Text = "BOM Excel (auto-detektovan / auto-detected):"
+    If bomAutoExported Then
+        lblBom.Text = "BOM Excel (auto-izvezen / auto-exported):"
         txtBom.Text = System.IO.Path.GetFileName(autoBomPath)
         txtBom.ForeColor = cGreen
+    ElseIf autoBomPath <> "" Then
+        lblBom.Text = "BOM Excel (BOM export nije uspio, koristi postojeci / export failed, using existing):"
+        txtBom.Text = System.IO.Path.GetFileName(autoBomPath)
+        txtBom.ForeColor = cAmber
     Else
-        lblBom.Text = "BOM Excel (opciono / optional) - za tacne kolicine / for correct quantities:"
-        txtBom.Text = "(nije pronadjen / not found - kolicine=1 / qty=1)"
-        txtBom.ForeColor = cSub
+        lblBom.Text = "BOM Excel (export nije uspio / export failed - kolicine=1):"
+        txtBom.Text = If(bomExportError <> "", bomExportError, "(nije pronadjen / not found)")
+        txtBom.ForeColor = System.Drawing.Color.FromArgb(210, 100, 100)
     End If
 
     Dim btnBrowseBom As New System.Windows.Forms.Button
@@ -169,7 +195,7 @@ Sub Main()
     dlg.Controls.Add(btnBrowseBom)
 
     Dim lblBomHint As New System.Windows.Forms.Label
-    lblBomHint.Text = "Manage > Bill of Materials > Export  (Parts Only flat view, sheet name: BOM)"
+    lblBomHint.Text = "BOM se automatski izvozi u folder sklopa. Koristite '...' za rucni odabir drugog fajla."
     lblBomHint.Font = New System.Drawing.Font("Segoe UI", 7)
     lblBomHint.ForeColor = System.Drawing.Color.FromArgb(120, 140, 160)
     lblBomHint.Location = New System.Drawing.Point(20, 200)
