@@ -117,3 +117,8 @@
 ## Estimator → PPM Integration (OQ-75)
 
 | OQ-75 | **PPM quote_lines schema gap for Estimator import.** PPM's current `quote_lines` table is structured as generic billing line items (billing_type: Hourly/Fixed/Per Unit), not part-indexed cost rows. The Estimator produces per-part cutting cost + bending cost + material cost. A PPM import screen will need a design decision on how quote_lines receive part-level cost data from the Estimator — whether as individual line items per part, rolled-up category lines (cutting total, bending total, material total), or a hybrid. Defer to PPM Phase 8 (Quotes) design. | Before PPM Phase 8 |
+
+## Batch DXF Export — resolved and deferred items
+
+| OQ-76 | **DXF layer filter in batch context.** Layer filter (keeping only IV_OUTER_PROFILE, IV_INTERIOR_PROFILES, IV_BEND, IV_BEND_DOWN) was implemented for the part-level macro but removed from the batch macro (D-265) due to DXF structure corruption. Needs a validated VB implementation tested against real DXF files before re-enabling in batch. Bend lines toggle UI is already in the batch dialog, wired to `includeBendLines` variable — just needs the filter subroutine re-validated. | Before batch macro v2 |
+| OQ-77 | **Batch macro qty from BOM: 2 parts not found in BOM on first run of `13017522 Alat.iam`.** Parts were sheet metal but not present in the Parts Only BOM export — possibly phantom/suppressed components or parts with mismatched PN strings. Summary now lists missing PNs explicitly. Root cause not investigated. | Low priority — informational |
