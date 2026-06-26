@@ -1105,3 +1105,55 @@ Specified via design discussion (clarification Q&A); not yet built/tested in a w
   (1) auto-export via API → (2) scan folder for existing BOM xlsx → (3) manual picker
   → (4) qty=1. Dialog BOM field shows green (auto-exported), amber (fallback found),
   red (failed, no file). Final confirmed commit: `5038e5ae`.
+
+D-268: INI config file controls DXF layer visibility at export time
+  `WriteDataToFile("FLAT PATTERN DXF?Configuration=path")` query string confirmed
+  working in Inventor 2021 iLogic. The config file path must be the full local path.
+  Two configs installed to `C:\PPM Cuts and Bends\iLogic\`:
+  - `PPM_FlatPattern_NoBends.ini` — IV_OUTER_PROFILE + IV_INTERIOR_PROFILES visible only
+  - `PPM_FlatPattern_WithBends.ini` — adds IV_BEND + IV_BEND_DOWN visible (blue, Color=0,0,255)
+  All other IV_ layers set Visibility=OFF in both configs. `AUTOCAD VERSION=AutoCAD 2007`.
+  `CUSTOMIZE FILE=` left blank (Design Data path does not exist past Inventor 2021 folder).
+  Visibility=OFF in INI suppresses display but does NOT prevent Inventor writing those
+  entities to the DXF file — post-processing filter still required to remove them.
+
+D-269: DXF post-processing pipeline — confirmed three-stage approach
+  After every `WriteDataToFile` export, three stages run in sequence:
+  Stage 1 (Pass 1 of FilterDxfLayers): line-by-line rename — any entity group-code-8
+    value of `IV_OUTER_PROFILE` or `IV_INTERIOR_PROFILES` replaced with `0`.
+  Stage 2 (Pass 2 of FilterDxfLayers): entity block collection — walk entity blocks,
+    collect layer name, drop block if layer starts with `IV_` and is not a bend layer
+    (or is a bend layer but `includeBendLines=False`). Structural markers (SECTION,
+    ENDSEC, TABLE, ENDTAB, BLOCK, ENDBLK, EOF, LAYER, LTYPE, etc.) always pass through.
+  Stage 3 (CleanEmptyLayers): removes LAYER TABLE entries for layers no longer used
+    in ENTITIES section, and updates the `70` group code count to match.
+  Result: no-bends export → only layer `0`; with-bends export → layer `0` + `IV_BEND`
+    + `IV_BEND_DOWN`. No other IV_ layers present in either entities or layer table.
+
+D-270: CleanEmptyLayers — pre-count required before writing
+  The LAYER TABLE `70` group code (layer count) appears BEFORE the individual LAYER
+  entries in the DXF file. A single-pass approach writes count=0 because no entries
+  have been processed yet when the count line is encountered.
+  Fix: two-pass approach — (1) scan table block and count which LAYER entries will be
+  kept, (2) write output with correct count already known.
+  Corruption symptom: AutoCAD validates count on open; count mismatch → file rejected.
+
+D-271: AcDbLayerTableRecord subclass marker is reliable layer name anchor
+  Within a LAYER table entry, group code 2 appears multiple times (e.g. after handle
+  group code 5, and after AcDbLayerTableRecord subclass marker). Only the group-code-2
+  value immediately following `AcDbLayerTableRecord` is the layer name.
+  Layer `0` has name string "0" — this looks numeric, so `Integer.TryParse` check
+  incorrectly skips it. Detection must be done via the subclass marker anchor, not
+  by testing whether the value is numeric.
+
+D-272: Single-part macro missing includeBendLines checkbox — outstanding fix
+  `PPM_ExportFlatPattern.iLogicVb` currently hardcodes `WithBends.ini` and passes
+  `True` to `FilterDxfLayers`. Both macros should have a bend lines checkbox defaulting
+  to unchecked (False). Fix pending — to be completed in Claude Code (Opus) session.
+  Default should be no bend lines for laser cutting workflow.
+
+D-273: AC1021 (AutoCAD 2007) export version confirmed target
+  INI file `AUTOCAD VERSION=AutoCAD 2007` produces AC1021 DXF header.
+  Previous config at `X:\USER\Gavrilovic\` used `AutoCAD 2004` (AC1018).
+  AC1021 is the target version for Stirg laser cutting software compatibility.
+  Note: files exported before INSTALL.bat was run still show AC1018 — expected.
