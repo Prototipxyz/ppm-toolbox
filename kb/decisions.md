@@ -1205,3 +1205,57 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   their company uses. Selection saved as org config. On subsequent tagging runs, only
   org-config ops appear in the Mark Operations dialog. User can re-run Setup at any time
   to add or remove ops from their org template.
+
+## PPM_MarkOperations — Implementation Decisions (D-281 to D-286)
+
+- D-281: **Bend detection in iLogic 2021 — three-stage cascade.**
+  `BendFeatures` property not exposed on `SheetMetalComponentDefinition` in
+  Inventor 2021 iLogic sandbox ("Public member 'BendFeatures' not found").
+  Confirmed cascade implemented:
+  Stage 1: iterate `oSMDef.Features`, count objects whose `.Type.ToString()`
+    contains "bend" (case-insensitive).
+  Stage 2: read `"Bend Count"` from `"Design Tracking Properties"` iProperty
+    set — Inventor writes this automatically when flat pattern is computed.
+  Stage 3: if both above return 0 AND `FlatPattern` exists AND `Thickness > 0`
+    -> assume bends present (`bendCount=1`, method tagged `"FP+thickness assumption"`).
+  Detection result written to `PPM_BendDetect` custom iProperty for diagnostics.
+  On Stirg test part (13017522_8.2, 3mm): stages 1 and 2 returned 0;
+  stage 3 (FP+thickness assumption) correctly flagged OP-00009.
+
+- D-282: **Weldment assembly detection — direct welds check required.**
+  `WeldmentComponentDefinition` type check alone is insufficient — parent
+  assemblies of weldment sub-assemblies also return this type, causing
+  false positives on the wrong level. Fix: cast to `WeldmentComponentDefinition`
+  then check `oWeldDef.Welds.Count > 0` — only flag as weldment if welds
+  exist directly on the active document. Confirmed working on Stirg test
+  assembly 13017522_8 (weldment sub-asm) vs 13017522 Alat (top-level plain asm).
+
+- D-283: **Weldment welding type — inform and highlight, do not pre-select.**
+  Auto-pre-selecting MIG/MAG welding was rejected — wrong default if TIG or
+  spot welding is used instead. Implemented: weldment detected -> no ops
+  auto-checked in Joining category; green notice "select welding type(s) from
+  Joining below"; JOINING category header rendered in cGreen instead of cAmber;
+  scrollPanel auto-scrolled to Joining section on dialog open. Worker selects
+  the correct welding type(s) manually with one click.
+
+- D-284: **iLogic RunRule from inside ShowDialog — unreliable in Inventor 2021.**
+  `iLogicVb.RunRule("PPM_OperationsSetup")` called from within a WinForms
+  `ShowDialog()` message loop does not reliably launch the target rule.
+  Workaround: "Vise operacija / More Ops" button uses `DialogResult.Retry`
+  as sentinel; after `ShowDialog()` returns, macro checks for Retry result
+  and shows a MessageBox directing user to run Operations Setup from the
+  PPM Tools form manually. Full in-dialog launch deferred.
+
+- D-285: **PPM Tools form button label fix — raw rule name shown instead of
+  display name.** Root cause: network `PPM Tools.xml` was missing entirely;
+  Inventor fell back to raw rule filename `PPM_OperationsSetup` as button label.
+  Fix: wrote correct XML to `X:\USER\Gavrilovic\iLogic\PPM Tools.xml`
+  explicitly via PowerShell WriteAllText. Both locations now have matching XML
+  with human-readable button names.
+
+- D-286: **PPM_MarkOperations button row layout — symmetric 20px margin.**
+  `formH = sep2Y + 1 + 20 + 34 + 20` with `If formH < 660 Then formH = 660`.
+  Three-button layout: "Vise operacija / More Ops" Size(150,34) at x=20;
+  "Odustani / Cancel" Size(150,34) at x=200;
+  "Potvrdi / Confirm" Size(170,34) at x=426 — right edge flush with
+  scroll panel at 596px.
