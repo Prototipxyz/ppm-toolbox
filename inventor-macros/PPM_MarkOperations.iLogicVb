@@ -1,0 +1,478 @@
+' PPM_MarkOperations.iLogicVb
+' Marks manufacturing operations on the active part or assembly.
+' Reads ppm_operations_config.json, shows tagged checklist,
+' writes PPM_OP_XXXXX iProperties to the document's Custom property set.
+' Auto-populate (sheet metal detection) for parts only; assemblies manual.
+
+AddReference "System.Drawing"
+AddReference "System.Windows.Forms"
+
+Sub Main()
+
+    ' ── Auto-update check ────────────────────────────────────────
+    Dim localPath   As String = "C:\PPM Cuts and Bends\iLogic\PPM_MarkOperations.iLogicVb"
+    Dim networkPath As String = "X:\USER\Gavrilović\iLogic\PPM_MarkOperations.iLogicVb"
+    Try
+        If System.IO.File.Exists(networkPath) AndAlso System.IO.File.Exists(localPath) Then
+            Dim netTime   As DateTime = System.IO.File.GetLastWriteTime(networkPath)
+            Dim localTime As DateTime = System.IO.File.GetLastWriteTime(localPath)
+            If netTime > localTime Then
+                System.IO.File.Copy(networkPath, localPath, True)
+                System.Windows.Forms.MessageBox.Show( _
+                    "Nova verzija je instalirana." & vbCrLf & _
+                    "New version installed." & vbCrLf & vbCrLf & _
+                    "Pokrenite makro ponovo." & vbCrLf & _
+                    "Please run the macro again.", _
+                    "PPM - Azuriranje / Update", _
+                    System.Windows.Forms.MessageBoxButtons.OK, _
+                    System.Windows.Forms.MessageBoxIcon.Information)
+                Exit Sub
+            End If
+        End If
+    Catch : End Try
+    ' ─────────────────────────────────────────────────────────────
+
+    ' ── Palette (D-258) ──────────────────────────────────────────
+    Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
+    Dim cSurface As System.Drawing.Color = System.Drawing.Color.FromArgb(72, 82, 98)
+    Dim cAccent  As System.Drawing.Color = System.Drawing.Color.FromArgb(46, 125, 209)
+    Dim cText    As System.Drawing.Color = System.Drawing.Color.FromArgb(230, 237, 243)
+    Dim cSub     As System.Drawing.Color = System.Drawing.Color.FromArgb(180, 190, 200)
+    Dim cGreen   As System.Drawing.Color = System.Drawing.Color.FromArgb(63, 185, 80)
+    Dim cAmber   As System.Drawing.Color = System.Drawing.Color.FromArgb(210, 153, 34)
+
+    Dim fUI   As New System.Drawing.Font("Segoe UI", 9)
+    Dim fSub  As New System.Drawing.Font("Segoe UI", 8)
+    Dim fBold As New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+
+    ' ── Path ─────────────────────────────────────────────────────
+    Const ORG_CONFIG_PATH As String = "X:\USER\Gavrilović\iLogic\config\ppm_operations_config.json"
+
+    ' ── Guard: part or assembly only ─────────────────────────────
+    Dim isAssembly As Boolean = False
+    Dim oDoc       As Inventor.Document = Nothing
+
+    If TypeOf ThisApplication.ActiveDocument Is PartDocument Then
+        oDoc = ThisApplication.ActiveDocument
+    ElseIf TypeOf ThisApplication.ActiveDocument Is AssemblyDocument Then
+        oDoc       = ThisApplication.ActiveDocument
+        isAssembly = True
+    Else
+        ShowError("Otvori deo (.ipt) ili sklop (.iam) pre pokretanja makroa." & vbCrLf & _
+                  "Open a part (.ipt) or assembly (.iam) before running this macro.")
+        GoTo Cleanup
+    End If
+
+    ' ── Read part number ─────────────────────────────────────────
+    Dim pn As String = ""
+    Try
+        Dim oProp As Inventor.Property = _
+            oDoc.PropertySets.Item("Design Tracking Properties").Item("Part Number")
+        pn = CStr(oProp.Value).Trim()
+    Catch : End Try
+    If pn = "" Then
+        Try : pn = System.IO.Path.GetFileNameWithoutExtension(oDoc.FullFileName)
+        Catch : pn = "UNKNOWN" : End Try
+    End If
+
+    ' ── Load org config ───────────────────────────────────────────
+    ' Each entry parsed into String() {id, name, category}
+    If Not System.IO.File.Exists(ORG_CONFIG_PATH) Then
+        ShowError("Pokrenite PPM Operations Setup prvo." & vbCrLf & _
+                  "Run PPM Operations Setup first." & vbCrLf & vbCrLf & ORG_CONFIG_PATH)
+        GoTo Cleanup
+    End If
+
+    Dim orgOps As New System.Collections.Generic.List(Of String())
+    Try
+        Dim raw As String = System.IO.File.ReadAllText(ORG_CONFIG_PATH, System.Text.Encoding.UTF8)
+        ParseOrgOps(raw, orgOps)
+    Catch ex As Exception
+        ShowError("Greška pri čitanju org konfiguracije:" & vbCrLf & _
+                  "Error reading org config:" & vbCrLf & vbCrLf & ex.Message)
+        GoTo Cleanup
+    End Try
+
+    If orgOps.Count = 0 Then
+        ShowError("Org konfiguracija je prazna. Pokrenite PPM Operations Setup." & vbCrLf & _
+                  "Org config is empty. Run PPM Operations Setup.")
+        GoTo Cleanup
+    End If
+
+    ' ── Read existing PPM iProperties ────────────────────────────
+    ' Pre-check any op already written as value=1 in this document.
+    Dim existingIds As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
+    Try
+        Dim oCustom As PropertySet = oDoc.PropertySets.Item("Inventor User Defined Properties")
+        For Each op As String() In orgOps
+            Dim propName As String = "PPM_" & op(0).Replace("-", "_")
+            Try
+                If CInt(oCustom.Item(propName).Value) = 1 Then existingIds.Add(op(0))
+            Catch : End Try
+        Next
+    Catch : End Try
+
+    ' ── Auto-populate detection (parts only) ─────────────────────
+    ' Assembly auto-populate disabled in v1 — worker selects manually.
+    Dim autoDetectedIds As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
+
+    If Not isAssembly Then
+        Dim oPart As PartDocument = CType(oDoc, PartDocument)
+
+        If TypeOf oPart.ComponentDefinition Is SheetMetalComponentDefinition Then
+            Dim oSMDef As SheetMetalComponentDefinition = _
+                CType(oPart.ComponentDefinition, SheetMetalComponentDefinition)
+
+            ' Sheet metal → flag Laser Cutting (OP-00003) and Deburring (OP-00013)
+            For Each op As String() In orgOps
+                If op(0) = "OP-00003" OrElse op(0) = "OP-00013" Then
+                    autoDetectedIds.Add(op(0))
+                End If
+            Next
+
+            ' Bend features present → flag Press Brake Bending (OP-00009)
+            Try
+                If oSMDef.BendFeatures.Count > 0 Then
+                    For Each op As String() In orgOps
+                        If op(0) = "OP-00009" Then autoDetectedIds.Add(op(0)) : Exit For
+                    Next
+                End If
+            Catch : End Try
+        End If
+    End If
+
+    ' ── Compute form geometry ─────────────────────────────────────
+    ' Assembly warning row shifts the scroll panel down by 20px.
+    Dim panelTop As Integer = If(isAssembly, 122, 102)
+    Dim panelH   As Integer = 476
+    Dim sep2Y    As Integer = panelTop + panelH + 8
+    Dim formH    As Integer = sep2Y + 1 + 16 + 34 + 20
+
+    ' ── Tagging dialog ────────────────────────────────────────────
+    Dim dlg As New System.Windows.Forms.Form
+    dlg.Text            = "PPM - Označi operacije / Mark Operations"
+    dlg.Size            = New System.Drawing.Size(620, formH)
+    dlg.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
+    dlg.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    dlg.BackColor       = cBg
+    dlg.MaximizeBox     = False : dlg.MinimizeBox = False
+    dlg.AutoScaleMode   = System.Windows.Forms.AutoScaleMode.None
+
+    ' Title
+    Dim lblTitle As New System.Windows.Forms.Label
+    lblTitle.Text      = "OZNAČI OPERACIJE / MARK OPERATIONS"
+    lblTitle.Font      = New System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold)
+    lblTitle.ForeColor = cAccent
+    lblTitle.Location  = New System.Drawing.Point(20, 16)
+    lblTitle.Size      = New System.Drawing.Size(576, 20)
+    dlg.Controls.Add(lblTitle)
+
+    ' Part number — Consolas green, same pattern as single-export macro
+    Dim lblPN As New System.Windows.Forms.Label
+    lblPN.Text      = pn
+    lblPN.Font      = New System.Drawing.Font("Consolas", 11, System.Drawing.FontStyle.Bold)
+    lblPN.ForeColor = cGreen
+    lblPN.Location  = New System.Drawing.Point(20, 40)
+    lblPN.Size      = New System.Drawing.Size(576, 22)
+    dlg.Controls.Add(lblPN)
+
+    ' Document type
+    Dim lblDocType As New System.Windows.Forms.Label
+    lblDocType.Text      = If(isAssembly, "SKLOP / ASSEMBLY", "DEO / PART")
+    lblDocType.Font      = fSub
+    lblDocType.ForeColor = cSub
+    lblDocType.Location  = New System.Drawing.Point(20, 66)
+    lblDocType.Size      = New System.Drawing.Size(576, 16)
+    dlg.Controls.Add(lblDocType)
+
+    ' Assembly auto-populate notice
+    If isAssembly Then
+        Dim lblAsmNote As New System.Windows.Forms.Label
+        lblAsmNote.Text      = "Automatsko popunjavanje nije dostupno za sklopove / Auto-populate not available for assemblies"
+        lblAsmNote.Font      = New System.Drawing.Font("Segoe UI", 8)
+        lblAsmNote.ForeColor = cAmber
+        lblAsmNote.Location  = New System.Drawing.Point(20, 86)
+        lblAsmNote.Size      = New System.Drawing.Size(576, 16)
+        dlg.Controls.Add(lblAsmNote)
+    End If
+
+    ' Separator 1
+    Dim sep1 As New System.Windows.Forms.Label
+    sep1.BackColor = cSurface
+    sep1.Location  = New System.Drawing.Point(20, panelTop - 8)
+    sep1.Size      = New System.Drawing.Size(576, 1)
+    dlg.Controls.Add(sep1)
+
+    ' ── Scrollable checkbox panel ─────────────────────────────────
+    Dim scrollPanel As New System.Windows.Forms.Panel
+    scrollPanel.BackColor  = cBg
+    scrollPanel.AutoScroll = True
+    scrollPanel.Location   = New System.Drawing.Point(20, panelTop)
+    scrollPanel.Size       = New System.Drawing.Size(576, panelH)
+    dlg.Controls.Add(scrollPanel)
+
+    Dim checkBoxes   As New System.Collections.Generic.List(Of System.Windows.Forms.CheckBox)
+    Dim innerY       As Integer = 6
+    Dim lastCategory As String  = ""
+
+    For Each op As String() In orgOps
+        ' op(0)=id  op(1)=name  op(2)=category
+        If op(2) <> lastCategory Then
+            Dim lblCat As New System.Windows.Forms.Label
+            lblCat.Text      = op(2).ToUpper()
+            lblCat.Font      = New System.Drawing.Font("Segoe UI", 8, System.Drawing.FontStyle.Bold)
+            lblCat.ForeColor = cAmber
+            lblCat.BackColor = cBg
+            lblCat.Location  = New System.Drawing.Point(6, innerY)
+            lblCat.Size      = New System.Drawing.Size(548, 16)
+            scrollPanel.Controls.Add(lblCat)
+            innerY       += 20
+            lastCategory  = op(2)
+        End If
+
+        Dim isAuto       As Boolean = autoDetectedIds.Contains(op(0))
+        Dim isPreChecked As Boolean = existingIds.Contains(op(0)) OrElse isAuto
+
+        Dim chkText As String = op(0) & "   " & op(1)
+        If isAuto Then chkText &= "   [auto]"
+
+        Dim chk As New System.Windows.Forms.CheckBox
+        chk.Text      = chkText
+        chk.Font      = New System.Drawing.Font("Consolas", 9)
+        chk.ForeColor = If(isAuto, cGreen, cText)
+        chk.BackColor = cBg
+        chk.Tag       = op(0)
+        chk.Checked   = isPreChecked
+        chk.Location  = New System.Drawing.Point(14, innerY)
+        chk.Size      = New System.Drawing.Size(548, 20)
+        scrollPanel.Controls.Add(chk)
+        checkBoxes.Add(chk)
+        innerY += 22
+
+        ' Description is not stored in org config — show category as context
+        Dim lblDesc As New System.Windows.Forms.Label
+        lblDesc.Text      = op(2)
+        lblDesc.Font      = New System.Drawing.Font("Segoe UI", 7)
+        lblDesc.ForeColor = cSub
+        lblDesc.BackColor = cBg
+        lblDesc.Location  = New System.Drawing.Point(30, innerY)
+        lblDesc.Size      = New System.Drawing.Size(530, 14)
+        scrollPanel.Controls.Add(lblDesc)
+        innerY += 18
+    Next
+
+    ' Separator 2
+    Dim sep2 As New System.Windows.Forms.Label
+    sep2.BackColor = cSurface
+    sep2.Location  = New System.Drawing.Point(20, sep2Y)
+    sep2.Size      = New System.Drawing.Size(576, 1)
+    dlg.Controls.Add(sep2)
+
+    ' Cancel
+    Dim btnCancel As New System.Windows.Forms.Button
+    btnCancel.Text      = "Odustani / Cancel"
+    btnCancel.Font      = fUI
+    btnCancel.BackColor = cSurface : btnCancel.ForeColor = cSub
+    btnCancel.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnCancel.FlatAppearance.BorderColor = cSurface
+    btnCancel.Location     = New System.Drawing.Point(110, sep2Y + 14)
+    btnCancel.Size         = New System.Drawing.Size(160, 34)
+    btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel
+    dlg.Controls.Add(btnCancel)
+
+    ' Confirm
+    Dim btnConfirm As New System.Windows.Forms.Button
+    btnConfirm.Text      = "Potvrdi / Confirm"
+    btnConfirm.Font      = fBold
+    btnConfirm.BackColor = cAccent : btnConfirm.ForeColor = cText
+    btnConfirm.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnConfirm.FlatAppearance.BorderColor = cAccent
+    btnConfirm.Location     = New System.Drawing.Point(346, sep2Y + 14)
+    btnConfirm.Size         = New System.Drawing.Size(160, 34)
+    btnConfirm.DialogResult = System.Windows.Forms.DialogResult.OK
+    dlg.Controls.Add(btnConfirm)
+
+    dlg.AcceptButton = btnConfirm
+    dlg.CancelButton = btnCancel
+
+    If dlg.ShowDialog() <> System.Windows.Forms.DialogResult.OK Then GoTo Cleanup
+
+    ' ── Build selected-ids set ────────────────────────────────────
+    Dim selectedIds As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
+    For Each chk As System.Windows.Forms.CheckBox In checkBoxes
+        If chk.Checked Then selectedIds.Add(CStr(chk.Tag))
+    Next
+
+    ' ── Write iProperties ─────────────────────────────────────────
+    ' Every org operation is written: selected=1, not selected=0.
+    ' This guarantees all org op columns appear in the BOM regardless
+    ' of which ops are checked on any given part.
+    Dim nMarked As Integer = 0
+    Try
+        Dim oPropSets  As PropertySets = oDoc.PropertySets
+        Dim oCustom    As PropertySet
+        Try
+            oCustom = oPropSets.Item("Inventor User Defined Properties")
+        Catch
+            oCustom = oPropSets.Add("Inventor User Defined Properties")
+        End Try
+
+        For Each op As String() In orgOps
+            Dim propName As String  = "PPM_" & op(0).Replace("-", "_")
+            Dim propVal  As Integer = If(selectedIds.Contains(op(0)), 1, 0)
+            If propVal = 1 Then nMarked += 1
+            Try
+                oCustom.Item(propName).Value = propVal
+            Catch
+                Try : oCustom.Add(propVal, propName) : Catch : End Try
+            End Try
+        Next
+    Catch ex As Exception
+        ShowError("Greška pri pisanju iProperty-ja:" & vbCrLf & _
+                  "Error writing iProperties:" & vbCrLf & vbCrLf & ex.Message)
+        GoTo Cleanup
+    End Try
+
+    ' ── Auto-closing confirmation ─────────────────────────────────
+    ShowSavedConfirmation(nMarked)
+
+Cleanup:
+    fUI.Dispose() : fSub.Dispose() : fBold.Dispose()
+
+End Sub
+
+' ════════════════════════════════════════════════════════════════════
+' SUBROUTINES
+' ════════════════════════════════════════════════════════════════════
+
+Sub ParseOrgOps(content As String, _
+                ByRef ops As System.Collections.Generic.List(Of String()))
+    ' Parses ppm_operations_config.json operations array.
+    ' Produces String() {id, name, category} per entry.
+    Dim parts() As String = content.Split( _
+        New String() {"""id"""}, StringSplitOptions.RemoveEmptyEntries)
+    For i As Integer = 1 To parts.Length - 1
+        Dim seg As String = parts(i)
+        Dim id  As String = ExtractFirstQuotedValue(seg)
+        Dim nm  As String = ExtractJsonField(seg, "name")
+        Dim cat As String = ExtractJsonField(seg, "category")
+        If id.StartsWith("OP-") AndAlso nm <> "" Then
+            ops.Add(New String() {id, nm, cat})
+        End If
+    Next
+End Sub
+
+Function ExtractFirstQuotedValue(s As String) As String
+    Dim ci As Integer = s.IndexOf(":")
+    If ci < 0 Then Return ""
+    Dim q1 As Integer = s.IndexOf("""", ci)
+    If q1 < 0 Then Return ""
+    Dim q2 As Integer = s.IndexOf("""", q1 + 1)
+    If q2 < 0 Then Return ""
+    Return s.Substring(q1 + 1, q2 - q1 - 1)
+End Function
+
+Function ExtractJsonField(block As String, fieldName As String) As String
+    Dim key As String = """" & fieldName & """"
+    Dim ki  As Integer = block.IndexOf(key)
+    If ki < 0 Then Return ""
+    Dim ci  As Integer = block.IndexOf(":", ki + key.Length)
+    If ci < 0 Then Return ""
+    Dim q1  As Integer = block.IndexOf("""", ci + 1)
+    If q1 < 0 Then Return ""
+    Dim q2  As Integer = block.IndexOf("""", q1 + 1)
+    If q2 < 0 Then Return ""
+    Return block.Substring(q1 + 1, q2 - q1 - 1)
+End Function
+
+Sub ShowSavedConfirmation(nMarked As Integer)
+    ' Auto-closes after 2000 ms; manual OK button as fallback.
+    Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
+    Dim cSurface As System.Drawing.Color = System.Drawing.Color.FromArgb(72, 82, 98)
+    Dim cAccent  As System.Drawing.Color = System.Drawing.Color.FromArgb(46, 125, 209)
+    Dim cText    As System.Drawing.Color = System.Drawing.Color.FromArgb(230, 237, 243)
+    Dim cSub     As System.Drawing.Color = System.Drawing.Color.FromArgb(180, 190, 200)
+    Dim cGreen   As System.Drawing.Color = System.Drawing.Color.FromArgb(63, 185, 80)
+
+    Dim sf As New System.Windows.Forms.Form
+    sf.Text            = "PPM - Operacije sačuvane / Operations Saved"
+    sf.Size            = New System.Drawing.Size(380, 170)
+    sf.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
+    sf.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    sf.BackColor       = cBg : sf.MaximizeBox = False
+    sf.AutoScaleMode   = System.Windows.Forms.AutoScaleMode.None
+
+    Dim lblSaved As New System.Windows.Forms.Label
+    lblSaved.Text      = "Operacije sačuvane / Operations saved"
+    lblSaved.Font      = New System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold)
+    lblSaved.ForeColor = cGreen
+    lblSaved.Location  = New System.Drawing.Point(20, 22)
+    lblSaved.Size      = New System.Drawing.Size(340, 22)
+    sf.Controls.Add(lblSaved)
+
+    Dim lblCount As New System.Windows.Forms.Label
+    lblCount.Text      = nMarked & " operacija označeno / " & nMarked & " operations marked"
+    lblCount.Font      = New System.Drawing.Font("Segoe UI", 9)
+    lblCount.ForeColor = cSub
+    lblCount.Location  = New System.Drawing.Point(20, 48)
+    lblCount.Size      = New System.Drawing.Size(340, 18)
+    sf.Controls.Add(lblCount)
+
+    Dim sep As New System.Windows.Forms.Label
+    sep.BackColor = cSurface
+    sep.Location  = New System.Drawing.Point(20, 80)
+    sep.Size      = New System.Drawing.Size(340, 1)
+    sf.Controls.Add(sep)
+
+    Dim btnOK As New System.Windows.Forms.Button
+    btnOK.Text      = "OK"
+    btnOK.Font      = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    btnOK.BackColor = cAccent : btnOK.ForeColor = cText
+    btnOK.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnOK.FlatAppearance.BorderColor = cAccent
+    btnOK.Location     = New System.Drawing.Point(130, 94)
+    btnOK.Size         = New System.Drawing.Size(120, 32)
+    btnOK.DialogResult = System.Windows.Forms.DialogResult.OK
+    sf.Controls.Add(btnOK)
+    sf.AcceptButton = btnOK
+
+    ' System.Windows.Forms.Timer fires on the UI thread during ShowDialog's
+    ' message loop — safe to call sf.Close() directly from the tick handler.
+    Dim tmr As New System.Windows.Forms.Timer
+    tmr.Interval = 2000
+    AddHandler tmr.Tick, Sub(s, e)
+        tmr.Stop()
+        sf.Close()
+    End Sub
+    tmr.Start()
+    sf.ShowDialog()
+    tmr.Dispose()
+End Sub
+
+Sub ShowError(msg As String)
+    Dim ef As New System.Windows.Forms.Form
+    ef.Text            = "PPM - Greška / Error"
+    ef.Size            = New System.Drawing.Size(460, 200)
+    ef.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
+    ef.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    ef.BackColor       = System.Drawing.Color.FromArgb(59, 68, 83) : ef.MaximizeBox = False
+    ef.AutoScaleMode   = System.Windows.Forms.AutoScaleMode.None
+    Dim lbl As New System.Windows.Forms.Label
+    lbl.Text      = msg
+    lbl.Font      = New System.Drawing.Font("Segoe UI", 9)
+    lbl.ForeColor = System.Drawing.Color.FromArgb(210, 153, 34)
+    lbl.Location  = New System.Drawing.Point(20, 20) : lbl.Size = New System.Drawing.Size(420, 80)
+    ef.Controls.Add(lbl)
+    Dim btn As New System.Windows.Forms.Button
+    btn.Text      = "OK"
+    btn.Font      = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    btn.BackColor = System.Drawing.Color.FromArgb(46, 125, 209)
+    btn.ForeColor = System.Drawing.Color.FromArgb(230, 237, 243)
+    btn.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btn.Location  = New System.Drawing.Point(180, 134) : btn.Size = New System.Drawing.Size(100, 32)
+    btn.DialogResult = System.Windows.Forms.DialogResult.OK
+    ef.Controls.Add(btn) : ef.AcceptButton = btn : ef.ShowDialog()
+End Sub
