@@ -9,9 +9,9 @@ AddReference "System.Windows.Forms"
 
 Sub Main()
 
-    ' ?? Auto-update check ????????????????????????????????????????
+    ' ── Auto-update check ────────────────────────────────────────
     Dim localPath   As String = "C:\PPM Cuts and Bends\iLogic\PPM_MarkOperations.iLogicVb"
-    Dim networkPath As String = "X:\USER\Gavrilovic\iLogic\PPM_MarkOperations.iLogicVb"
+    Dim networkPath As String = "X:\USER\Gavrilović\iLogic\PPM_MarkOperations.iLogicVb"
     Try
         If System.IO.File.Exists(networkPath) AndAlso System.IO.File.Exists(localPath) Then
             Dim netTime   As DateTime = System.IO.File.GetLastWriteTime(networkPath)
@@ -30,9 +30,9 @@ Sub Main()
             End If
         End If
     Catch : End Try
-    ' ?????????????????????????????????????????????????????????????
+    ' ─────────────────────────────────────────────────────────────
 
-    ' ?? Palette (D-258) ??????????????????????????????????????????
+    ' ── Palette (D-258) ──────────────────────────────────────────
     Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
     Dim cSurface As System.Drawing.Color = System.Drawing.Color.FromArgb(72, 82, 98)
     Dim cAccent  As System.Drawing.Color = System.Drawing.Color.FromArgb(46, 125, 209)
@@ -45,10 +45,10 @@ Sub Main()
     Dim fSub  As New System.Drawing.Font("Segoe UI", 8)
     Dim fBold As New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
 
-    ' ?? Path ?????????????????????????????????????????????????????
-    Const ORG_CONFIG_PATH As String = "X:\USER\Gavrilovic\iLogic\config\ppm_operations_config.json"
+    ' ── Path ─────────────────────────────────────────────────────
+    Const ORG_CONFIG_PATH As String = "X:\USER\Gavrilović\iLogic\config\ppm_operations_config.json"
 
-    ' ?? Guard: part or assembly only ?????????????????????????????
+    ' ── Guard: part or assembly only ─────────────────────────────
     Dim isAssembly As Boolean = False
     Dim oDoc       As Inventor.Document = Nothing
 
@@ -63,7 +63,7 @@ Sub Main()
         GoTo Cleanup
     End If
 
-    ' ?? Read part number ?????????????????????????????????????????
+    ' ── Read part number ─────────────────────────────────────────
     Dim pn As String = ""
     Try
         Dim oProp As Inventor.Property = _
@@ -75,7 +75,7 @@ Sub Main()
         Catch : pn = "UNKNOWN" : End Try
     End If
 
-    ' ?? Load org config ???????????????????????????????????????????
+    ' ── Load org config ───────────────────────────────────────────
     ' Each entry parsed into String() {id, name, category}
     If Not System.IO.File.Exists(ORG_CONFIG_PATH) Then
         ShowError("Pokrenite PPM Operations Setup prvo." & vbCrLf & _
@@ -88,7 +88,7 @@ Sub Main()
         Dim raw As String = System.IO.File.ReadAllText(ORG_CONFIG_PATH, System.Text.Encoding.UTF8)
         ParseOrgOps(raw, orgOps)
     Catch ex As Exception
-        ShowError("Greska pri citanju org konfiguracije:" & vbCrLf & _
+        ShowError("Greška pri čitanju org konfiguracije:" & vbCrLf & _
                   "Error reading org config:" & vbCrLf & vbCrLf & ex.Message)
         GoTo Cleanup
     End Try
@@ -99,7 +99,7 @@ Sub Main()
         GoTo Cleanup
     End If
 
-    ' ?? Read existing PPM iProperties ????????????????????????????
+    ' ── Read existing PPM iProperties ────────────────────────────
     ' Pre-check any op already written as value=1 in this document.
     Dim existingIds As New System.Collections.Generic.HashSet(Of String)( _
         System.StringComparer.OrdinalIgnoreCase)
@@ -113,40 +113,49 @@ Sub Main()
         Next
     Catch : End Try
 
-    ' ?? Auto-populate detection ???????????????????????????????????
+    ' ── Auto-populate detection ───────────────────────────────────
     Dim autoDetectedIds As New System.Collections.Generic.HashSet(Of String)( _
         System.StringComparer.OrdinalIgnoreCase)
-    Dim isWeldment As Boolean = False
+    Dim isWeldment     As Boolean = False
+    Dim configWarnings As New System.Collections.Generic.List(Of String)
 
     If Not isAssembly Then
-        ' ?? Part: sheet metal + bend detection ???????????????????
+        ' ── Part: sheet metal + bend detection ───────────────────
         Dim oPart As PartDocument = CType(oDoc, PartDocument)
 
         If TypeOf oPart.ComponentDefinition Is SheetMetalComponentDefinition Then
             Dim oSMDef As SheetMetalComponentDefinition = _
                 CType(oPart.ComponentDefinition, SheetMetalComponentDefinition)
 
-            ' Sheet metal ? Laser Cutting (OP-00003) and Deburring (OP-00013)
+            ' Sheet metal → Laser Cutting (OP-00003) and Deburring (OP-00013)
             For Each op As String() In orgOps
                 If op(0) = "OP-00003" OrElse op(0) = "OP-00013" Then
                     autoDetectedIds.Add(op(0))
                 End If
             Next
 
-            ' ?? Bend detection (3-step cascade) ??????????????????
-            Dim bendCount  As Integer = 0
-            Dim bendMethod As String  = "none"
+            ' ── Bend detection (2-step cascade) ──────────────────
+            Dim bendCount    As Integer = 0
+            Dim bendMethod   As String  = "none"
+            Dim matchedNames As New System.Collections.Generic.List(Of String)
 
-            ' Step 1: iterate Features, check type name contains "bend"
+            ' Step 1: iterate Features, check name contains forming keyword (case-insensitive)
             Try
+                Dim keywords() As String = {"flange", "fold", "bend", "hem", "roll"}
                 For Each feat As Object In oSMDef.Features
                     Try
-                        If InStr(LCase(feat.Type.ToString()), "bend") > 0 Then
-                            bendCount += 1
-                        End If
+                        Dim featName As String = feat.Name
+                        Dim lName    As String = LCase(featName)
+                        For Each kw As String In keywords
+                            If InStr(lName, kw) > 0 Then
+                                matchedNames.Add(featName)
+                                Exit For
+                            End If
+                        Next
                     Catch : End Try
                 Next
-                If bendCount > 0 Then bendMethod = "Features iteration"
+                bendCount = matchedNames.Count
+                If bendCount > 0 Then bendMethod = "feature name match"
             Catch : End Try
 
             ' Step 2: "Bend Count" from Design Tracking Properties
@@ -159,30 +168,32 @@ Sub Main()
                 Catch : End Try
             End If
 
-            ' Step 3: FlatPattern + thickness assumption
-            ' If a flat pattern exists and thickness is non-zero, bends are implied.
-            ' False positive preferred over false negative for auto-flagging.
-            Dim fpExists As Boolean = False
-            Dim thk      As Double  = 0
-            Try
-                Dim fp As Object = oSMDef.FlatPattern
-                fpExists = (fp IsNot Nothing)
-            Catch : End Try
-            Try : thk = oSMDef.Thickness.ModelValue : Catch : End Try
-
-            If bendCount = 0 AndAlso fpExists AndAlso thk > 0 Then
-                bendCount = 1
-                bendMethod = "FP+thickness assumption"
-            End If
-
             If bendCount > 0 Then
                 For Each op As String() In orgOps
                     If op(0) = "OP-00009" Then autoDetectedIds.Add(op(0)) : Exit For
                 Next
+                Dim bendOpFound As Boolean = False
+                For Each op As String() In orgOps
+                    Dim nm As String = LCase(op(1))
+                    If InStr(nm, "flange") > 0 OrElse InStr(nm, "fold") > 0 OrElse InStr(nm, "bend") > 0 Then
+                        bendOpFound = True : Exit For
+                    End If
+                Next
+                If Not bendOpFound Then
+                    configWarnings.Add("Savijanje detektovano ali operacija nije u konfiguraciji / Bending detected but no matching op in org config")
+                End If
             End If
 
             ' Write detection result to PPM_BendDetect iProperty for diagnostics
-            Dim bendDebugMsg As String = "method=" & bendMethod & " count=" & bendCount
+            Dim bendDebugMsg As String
+            If matchedNames.Count > 0 Then
+                Dim nameList As String = String.Join(", ", matchedNames.ToArray())
+                bendDebugMsg = "forming: " & matchedNames.Count & " matched [" & nameList & "] → flagged"
+            ElseIf bendCount > 0 Then
+                bendDebugMsg = "forming: " & bendCount & " matched [Design Tracking Properties] → flagged"
+            Else
+                bendDebugMsg = "forming: 0 matched → not flagged"
+            End If
             Try
                 Dim oPS As PropertySets = oDoc.PropertySets
                 Dim oC  As PropertySet
@@ -193,8 +204,135 @@ Sub Main()
             Catch : End Try
         End If
 
+        ' ── Hole and thread detection ─────────────────────────────
+        Dim plainCount       As Integer = 0
+        Dim cboreCount       As Integer = 0
+        Dim unknownHoleCount As Integer = 0
+        Dim unknownTypes     As New System.Collections.Generic.Dictionary(Of Integer, Integer)
+        Dim holeDiameters    As New System.Collections.Generic.List(Of String)
+
+        Try
+            For Each h As Object In oDoc.ComponentDefinition.Features.HoleFeatures
+                Try
+                    Dim ht  As Integer = CInt(h.HoleType)
+                    Dim dia As String  = ""
+                    Try
+                        Dim dVal As Double = h.HoleDiameter.Value
+                        dia = Math.Round(dVal * 10, 1).ToString() & "mm"
+                    Catch : End Try
+                    Select Case ht
+                        Case 21505
+                            plainCount += 1
+                            If dia <> "" Then holeDiameters.Add("D" & dia)
+                        Case 21506
+                            cboreCount += 1
+                        Case Else
+                            unknownHoleCount += 1
+                            If unknownTypes.ContainsKey(ht) Then
+                                unknownTypes(ht) += 1
+                            Else
+                                unknownTypes.Add(ht, 1)
+                            End If
+                    End Select
+                Catch : End Try
+            Next
+        Catch : End Try
+
+        Dim threadCount  As Integer = 0
+        Dim threadCounts As New System.Collections.Generic.Dictionary(Of String, Integer)( _
+            System.StringComparer.OrdinalIgnoreCase)
+        Try
+            For Each t As Object In oDoc.ComponentDefinition.Features.ThreadFeatures
+                Try
+                    threadCount += 1
+                    Try
+                        Dim desig As String = t.ThreadInfo.ThreadDesignation
+                        If threadCounts.ContainsKey(desig) Then
+                            threadCounts(desig) += 1
+                        Else
+                            threadCounts.Add(desig, 1)
+                        End If
+                    Catch : End Try
+                Catch : End Try
+            Next
+        Catch : End Try
+
+        Dim totalHoles As Integer = plainCount + cboreCount + unknownHoleCount
+        If (plainCount + unknownHoleCount) > 0 Then
+            For Each op As String() In orgOps
+                If InStr(LCase(op(1)), "drill") > 0 Then autoDetectedIds.Add(op(0)) : Exit For
+            Next
+        End If
+        If cboreCount > 0 Then
+            For Each op As String() In orgOps
+                Dim nm As String = LCase(op(1))
+                If InStr(nm, "countersink") > 0 OrElse InStr(nm, "counterbor") > 0 Then
+                    autoDetectedIds.Add(op(0)) : Exit For
+                End If
+            Next
+        End If
+        If threadCount > 0 Then
+            For Each op As String() In orgOps
+                Dim nm As String = LCase(op(1))
+                If InStr(nm, "tap") > 0 OrElse InStr(nm, "thread") > 0 Then
+                    autoDetectedIds.Add(op(0)) : Exit For
+                End If
+            Next
+        End If
+
+        ' Check for unmatched detections
+        If totalHoles > 0 Then
+            Dim drillOpFound As Boolean = False
+            For Each op As String() In orgOps
+                If InStr(LCase(op(1)), "drill") > 0 Then drillOpFound = True : Exit For
+            Next
+            If Not drillOpFound Then
+                configWarnings.Add("Rupe detektovane ali operacija nije u konfiguraciji / Holes detected but no Drilling op in org config")
+            End If
+        End If
+        If threadCount > 0 Then
+            Dim tapOpFound As Boolean = False
+            For Each op As String() In orgOps
+                Dim nm As String = LCase(op(1))
+                If InStr(nm, "tap") > 0 OrElse InStr(nm, "thread") > 0 Then tapOpFound = True : Exit For
+            Next
+            If Not tapOpFound Then
+                configWarnings.Add("Navoji detektovani ali operacija nije u konfiguraciji / Threads detected but no Tapping op in org config")
+            End If
+        End If
+
+        ' Build PPM_Holes summary
+        Dim holeParts As New System.Collections.Generic.List(Of String)
+        If plainCount > 0 Then holeParts.Add(plainCount & "x plain")
+        If cboreCount > 0 Then holeParts.Add(cboreCount & "x cbore")
+        For Each kvp As System.Collections.Generic.KeyValuePair(Of Integer, Integer) In unknownTypes
+            holeParts.Add(kvp.Value & "x unknown(" & kvp.Key & ")")
+        Next
+        Dim holeMsg As String = If(holeParts.Count > 0, String.Join(", ", holeParts.ToArray()), "")
+
+        ' Build PPM_Threads summary
+        Dim threadMsg As String = ""
+        If threadCount > 0 Then
+            Dim tParts As New System.Collections.Generic.List(Of String)
+            For Each kvp As System.Collections.Generic.KeyValuePair(Of String, Integer) In threadCounts
+                tParts.Add(kvp.Key & " x" & kvp.Value)
+            Next
+            threadMsg = String.Join(", ", tParts.ToArray())
+        End If
+
+        Try
+            Dim oPS As PropertySets = oDoc.PropertySets
+            Dim oC  As PropertySet
+            Try : oC = oPS.Item("Inventor User Defined Properties")
+            Catch : oC = oPS.Add("Inventor User Defined Properties") : End Try
+            Try : oC.Item("PPM_Holes").Value = holeMsg
+            Catch : Try : oC.Add(holeMsg, "PPM_Holes") : Catch : End Try : End Try
+            Try : oC.Item("PPM_Threads").Value = threadMsg
+            Catch : Try : oC.Add(threadMsg, "PPM_Threads") : Catch : End Try : End Try
+        Catch : End Try
+
     ElseIf TypeOf oDoc.ComponentDefinition Is WeldmentComponentDefinition Then
-        ' ?? Assembly: weldment detection ??????????????????????????
+        ' ── Assembly: weldment detection ──────────────────────────
         ' Only flag as weldment if THIS document has weld features directly
         ' on it (Welds.Count > 0), not inherited from sub-assemblies.
         Dim oWeldDef  As WeldmentComponentDefinition = _
@@ -202,21 +340,31 @@ Sub Main()
         Dim weldCount As Integer = 0
         Try : weldCount = oWeldDef.Welds.Count : Catch : End Try
         If weldCount > 0 Then isWeldment = True
-        ' isWeldment = False ? plain assembly, no auto-populate
+        If isWeldment Then
+            Dim weldOpFound As Boolean = False
+            For Each op As String() In orgOps
+                If InStr(LCase(op(1)), "weld") > 0 Then weldOpFound = True : Exit For
+            Next
+            If Not weldOpFound Then
+                configWarnings.Add("Zavarena konstr. detektovana ali operacija nije u konfiguraciji / Weldment detected but no Joining op in org config")
+            End If
+        End If
+        ' isWeldment = False → plain assembly, no auto-populate
     End If
 
-    ' ?? Compute form geometry ?????????????????????????????????????
+    ' ── Compute form geometry ─────────────────────────────────────
     ' Assembly warning row shifts the scroll panel down by 20px.
     Dim panelTop As Integer = If(isAssembly, 122, 102)
     Dim panelH   As Integer = 420
     Dim sep2Y    As Integer = panelTop + panelH + 8
     Const MARGIN As Integer = 20
+    Dim btnRowY  As Integer = sep2Y + 14
     Dim formH    As Integer = sep2Y + 1 + MARGIN + 34 + MARGIN
     If formH < 660 Then formH = 660
 
-    ' ?? Tagging dialog ????????????????????????????????????????????
+    ' ── Tagging dialog ────────────────────────────────────────────
     Dim dlg As New System.Windows.Forms.Form
-    dlg.Text            = "PPM - Oznaci operacije / Mark Operations"
+    dlg.Text            = "PPM - Označi operacije / Mark Operations"
     dlg.Size            = New System.Drawing.Size(620, formH)
     dlg.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
     dlg.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
@@ -226,14 +374,14 @@ Sub Main()
 
     ' Title
     Dim lblTitle As New System.Windows.Forms.Label
-    lblTitle.Text      = "OZNACI OPERACIJE / MARK OPERATIONS"
+    lblTitle.Text      = "OZNAČI OPERACIJE / MARK OPERATIONS"
     lblTitle.Font      = New System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold)
     lblTitle.ForeColor = cAccent
     lblTitle.Location  = New System.Drawing.Point(20, 16)
     lblTitle.Size      = New System.Drawing.Size(576, 20)
     dlg.Controls.Add(lblTitle)
 
-    ' Part number - Consolas green, same pattern as single-export macro
+    ' Part number — Consolas green, same pattern as single-export macro
     Dim lblPN As New System.Windows.Forms.Label
     lblPN.Text      = pn
     lblPN.Font      = New System.Drawing.Font("Consolas", 11, System.Drawing.FontStyle.Bold)
@@ -255,7 +403,7 @@ Sub Main()
     If isAssembly Then
         Dim lblAsmNote As New System.Windows.Forms.Label
         If isWeldment Then
-            lblAsmNote.Text      = "Zavarena konstr. - izaberite tip zavarivanja / Weldment detected - select welding type(s) from Joining below"
+            lblAsmNote.Text      = "Zavarena konstr. — izaberite tip zavarivanja / Weldment detected — select welding type(s) from Joining below"
             lblAsmNote.ForeColor = cGreen
         Else
             lblAsmNote.Text      = "Automatsko popunjavanje nije dostupno za sklopove / Auto-populate not available for assemblies"
@@ -265,6 +413,7 @@ Sub Main()
         lblAsmNote.Location = New System.Drawing.Point(20, 86)
         lblAsmNote.Size     = New System.Drawing.Size(576, 16)
         dlg.Controls.Add(lblAsmNote)
+
     End If
 
     ' Separator 1
@@ -274,7 +423,7 @@ Sub Main()
     sep1.Size      = New System.Drawing.Size(576, 1)
     dlg.Controls.Add(sep1)
 
-    ' ?? Scrollable checkbox panel ?????????????????????????????????
+    ' ── Scrollable checkbox panel ─────────────────────────────────
     Dim scrollPanel As New System.Windows.Forms.Panel
     scrollPanel.BackColor  = cBg
     scrollPanel.AutoScroll = True
@@ -286,6 +435,19 @@ Sub Main()
     Dim innerY       As Integer = 6
     Dim lastCategory As String  = ""
     Dim joiningY     As Integer = 0
+
+    For Each warn As String In configWarnings
+        Dim lblWarn As New System.Windows.Forms.Label
+        lblWarn.Text      = warn
+        lblWarn.Font      = fSub
+        lblWarn.ForeColor = cAmber
+        lblWarn.BackColor = cBg
+        lblWarn.Location  = New System.Drawing.Point(6, innerY)
+        lblWarn.Size      = New System.Drawing.Size(548, 14)
+        scrollPanel.Controls.Add(lblWarn)
+        innerY += 16
+    Next
+    If configWarnings.Count > 0 Then innerY += 6
 
     For Each op As String() In orgOps
         ' op(0)=id  op(1)=name  op(2)=category
@@ -322,7 +484,7 @@ Sub Main()
         checkBoxes.Add(chk)
         innerY += 22
 
-        ' Description is not stored in org config - show category as context
+        ' Description is not stored in org config — show category as context
         Dim lblDesc As New System.Windows.Forms.Label
         lblDesc.Text      = op(2)
         lblDesc.Font      = New System.Drawing.Font("Segoe UI", 7)
@@ -345,14 +507,14 @@ Sub Main()
     sep2.Size      = New System.Drawing.Size(576, 1)
     dlg.Controls.Add(sep2)
 
-    ' More Ops shortcut - guides user to run Operations Setup separately
+    ' More Ops shortcut — guides user to run Operations Setup separately
     Dim btnSetup As New System.Windows.Forms.Button
     btnSetup.Text      = "Vise operacija / More Ops"
     btnSetup.Font      = fSub
     btnSetup.BackColor = cSurface : btnSetup.ForeColor = cSub
     btnSetup.FlatStyle = System.Windows.Forms.FlatStyle.Flat
     btnSetup.FlatAppearance.BorderColor = cSurface
-    btnSetup.Location     = New System.Drawing.Point(20, sep2Y + 14)
+    btnSetup.Location     = New System.Drawing.Point(20, btnRowY)
     btnSetup.Size         = New System.Drawing.Size(150, 34)
     btnSetup.DialogResult = System.Windows.Forms.DialogResult.Retry
     dlg.Controls.Add(btnSetup)
@@ -364,19 +526,19 @@ Sub Main()
     btnCancel.BackColor = cSurface : btnCancel.ForeColor = cSub
     btnCancel.FlatStyle = System.Windows.Forms.FlatStyle.Flat
     btnCancel.FlatAppearance.BorderColor = cSurface
-    btnCancel.Location     = New System.Drawing.Point(200, sep2Y + 14)
+    btnCancel.Location     = New System.Drawing.Point(200, btnRowY)
     btnCancel.Size         = New System.Drawing.Size(150, 34)
     btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel
     dlg.Controls.Add(btnCancel)
 
-    ' Confirm - right edge at 596px, flush with scroll panel
+    ' Confirm — right edge at 596px, flush with scroll panel
     Dim btnConfirm As New System.Windows.Forms.Button
     btnConfirm.Text      = "Potvrdi / Confirm"
     btnConfirm.Font      = fBold
     btnConfirm.BackColor = cAccent : btnConfirm.ForeColor = cText
     btnConfirm.FlatStyle = System.Windows.Forms.FlatStyle.Flat
     btnConfirm.FlatAppearance.BorderColor = cAccent
-    btnConfirm.Location     = New System.Drawing.Point(426, sep2Y + 14)
+    btnConfirm.Location     = New System.Drawing.Point(426, btnRowY)
     btnConfirm.Size         = New System.Drawing.Size(170, 34)
     btnConfirm.DialogResult = System.Windows.Forms.DialogResult.OK
     dlg.Controls.Add(btnConfirm)
@@ -396,14 +558,14 @@ Sub Main()
     End If
     If dlg.DialogResult <> System.Windows.Forms.DialogResult.OK Then GoTo Cleanup
 
-    ' ?? Build selected-ids set ????????????????????????????????????
+    ' ── Build selected-ids set ────────────────────────────────────
     Dim selectedIds As New System.Collections.Generic.HashSet(Of String)( _
         System.StringComparer.OrdinalIgnoreCase)
     For Each chk As System.Windows.Forms.CheckBox In checkBoxes
         If chk.Checked Then selectedIds.Add(CStr(chk.Tag))
     Next
 
-    ' ?? Write iProperties ?????????????????????????????????????????
+    ' ── Write iProperties ─────────────────────────────────────────
     ' Every org operation is written: selected=1, not selected=0.
     ' This guarantees all org op columns appear in the BOM regardless
     ' of which ops are checked on any given part.
@@ -428,12 +590,12 @@ Sub Main()
             End Try
         Next
     Catch ex As Exception
-        ShowError("Greska pri pisanju iProperty-ja:" & vbCrLf & _
+        ShowError("Greška pri pisanju iProperty-ja:" & vbCrLf & _
                   "Error writing iProperties:" & vbCrLf & vbCrLf & ex.Message)
         GoTo Cleanup
     End Try
 
-    ' ?? Auto-closing confirmation ?????????????????????????????????
+    ' ── Auto-closing confirmation ─────────────────────────────────
     ShowSavedConfirmation(nMarked)
 
 Cleanup:
@@ -441,9 +603,9 @@ Cleanup:
 
 End Sub
 
-' ????????????????????????????????????????????????????????????????????
+' ════════════════════════════════════════════════════════════════════
 ' SUBROUTINES
-' ????????????????????????????????????????????????????????????????????
+' ════════════════════════════════════════════════════════════════════
 
 Sub ParseOrgOps(content As String, _
                 ByRef ops As System.Collections.Generic.List(Of String()))
@@ -495,7 +657,7 @@ Sub ShowSavedConfirmation(nMarked As Integer)
     Dim cGreen   As System.Drawing.Color = System.Drawing.Color.FromArgb(63, 185, 80)
 
     Dim sf As New System.Windows.Forms.Form
-    sf.Text            = "PPM - Operacije sacuvane / Operations Saved"
+    sf.Text            = "PPM - Operacije sačuvane / Operations Saved"
     sf.Size            = New System.Drawing.Size(380, 170)
     sf.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
     sf.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
@@ -503,7 +665,7 @@ Sub ShowSavedConfirmation(nMarked As Integer)
     sf.AutoScaleMode   = System.Windows.Forms.AutoScaleMode.None
 
     Dim lblSaved As New System.Windows.Forms.Label
-    lblSaved.Text      = "Operacije sacuvane / Operations saved"
+    lblSaved.Text      = "Operacije sačuvane / Operations saved"
     lblSaved.Font      = New System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold)
     lblSaved.ForeColor = cGreen
     lblSaved.Location  = New System.Drawing.Point(20, 22)
@@ -511,7 +673,7 @@ Sub ShowSavedConfirmation(nMarked As Integer)
     sf.Controls.Add(lblSaved)
 
     Dim lblCount As New System.Windows.Forms.Label
-    lblCount.Text      = nMarked & " operacija oznaceno / " & nMarked & " operations marked"
+    lblCount.Text      = nMarked & " operacija označeno / " & nMarked & " operations marked"
     lblCount.Font      = New System.Drawing.Font("Segoe UI", 9)
     lblCount.ForeColor = cSub
     lblCount.Location  = New System.Drawing.Point(20, 48)
@@ -537,7 +699,7 @@ Sub ShowSavedConfirmation(nMarked As Integer)
     sf.AcceptButton = btnOK
 
     ' System.Windows.Forms.Timer fires on the UI thread during ShowDialog's
-    ' message loop - safe to call sf.Close() directly from the tick handler.
+    ' message loop — safe to call sf.Close() directly from the tick handler.
     Dim tmr As New System.Windows.Forms.Timer
     tmr.Interval = 2000
     AddHandler tmr.Tick, Sub(s, e)
@@ -551,7 +713,7 @@ End Sub
 
 Sub ShowError(msg As String)
     Dim ef As New System.Windows.Forms.Form
-    ef.Text            = "PPM - Greska / Error"
+    ef.Text            = "PPM - Greška / Error"
     ef.Size            = New System.Drawing.Size(460, 200)
     ef.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
     ef.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog

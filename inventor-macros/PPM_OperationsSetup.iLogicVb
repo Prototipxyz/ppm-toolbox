@@ -8,9 +8,9 @@ AddReference "System.Windows.Forms"
 
 Sub Main()
 
-    ' ?? Auto-update check ????????????????????????????????????????
+    ' ── Auto-update check ────────────────────────────────────────
     Dim localPath   As String = "C:\PPM Cuts and Bends\iLogic\PPM_OperationsSetup.iLogicVb"
-    Dim networkPath As String = "X:\USER\Gavrilovic\iLogic\PPM_OperationsSetup.iLogicVb"
+    Dim networkPath As String = "X:\USER\Gavrilović\iLogic\PPM_OperationsSetup.iLogicVb"
     Try
         If System.IO.File.Exists(networkPath) AndAlso System.IO.File.Exists(localPath) Then
             Dim netTime   As DateTime = System.IO.File.GetLastWriteTime(networkPath)
@@ -29,9 +29,9 @@ Sub Main()
             End If
         End If
     Catch : End Try
-    ' ?????????????????????????????????????????????????????????????
+    ' ─────────────────────────────────────────────────────────────
 
-    ' ?? Palette (D-258) ??????????????????????????????????????????
+    ' ── Palette (D-258) ──────────────────────────────────────────
     Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
     Dim cSurface As System.Drawing.Color = System.Drawing.Color.FromArgb(72, 82, 98)
     Dim cAccent  As System.Drawing.Color = System.Drawing.Color.FromArgb(46, 125, 209)
@@ -44,12 +44,12 @@ Sub Main()
     Dim fSub  As New System.Drawing.Font("Segoe UI", 8)
     Dim fBold As New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
 
-    ' ?? Paths ????????????????????????????????????????????????????
-    Const CONFIG_DIR      As String = "X:\USER\Gavrilovic\iLogic\config"
-    Const GLOBAL_OPS_PATH As String = "X:\USER\Gavrilovic\iLogic\config\ppm_global_operations.json"
-    Const ORG_CONFIG_PATH As String = "X:\USER\Gavrilovic\iLogic\config\ppm_operations_config.json"
+    ' ── Paths ────────────────────────────────────────────────────
+    Const CONFIG_DIR      As String = "X:\USER\Gavrilović\iLogic\config"
+    Const GLOBAL_OPS_PATH As String = "X:\USER\Gavrilović\iLogic\config\ppm_global_operations.json"
+    Const ORG_CONFIG_PATH As String = "X:\USER\Gavrilović\iLogic\config\ppm_operations_config.json"
 
-    ' ?? Ensure config directory exists ???????????????????????????
+    ' ── Ensure config directory exists ───────────────────────────
     Try
         If Not System.IO.Directory.Exists(CONFIG_DIR) Then
             System.IO.Directory.CreateDirectory(CONFIG_DIR)
@@ -60,10 +60,10 @@ Sub Main()
         GoTo Cleanup
     End Try
 
-    ' ?? Load global operations JSON ???????????????????????????????
+    ' ── Load global operations JSON ───────────────────────────────
     ' Each entry parsed into String() {id, name, category, description}
     If Not System.IO.File.Exists(GLOBAL_OPS_PATH) Then
-        ShowError("Nije pronaden globalni JSON:" & vbCrLf & _
+        ShowError("Nije pronađen globalni JSON:" & vbCrLf & _
                   "Global operations JSON not found:" & vbCrLf & vbCrLf & GLOBAL_OPS_PATH)
         GoTo Cleanup
     End If
@@ -73,7 +73,7 @@ Sub Main()
         Dim raw As String = System.IO.File.ReadAllText(GLOBAL_OPS_PATH, System.Text.Encoding.UTF8)
         ParseGlobalOps(raw, allOps)
     Catch ex As Exception
-        ShowError("Greska pri citanju globalnog JSON-a:" & vbCrLf & _
+        ShowError("Greška pri čitanju globalnog JSON-a:" & vbCrLf & _
                   "Error reading global operations JSON:" & vbCrLf & vbCrLf & ex.Message)
         GoTo Cleanup
     End Try
@@ -92,7 +92,7 @@ Sub Main()
         Return String.Compare(a(0), b(0), StringComparison.OrdinalIgnoreCase)
     End Function)
 
-    ' ?? Load existing org config for pre-selection ????????????????
+    ' ── Load existing org config for pre-selection ────────────────
     Dim preSelectedIds As New System.Collections.Generic.HashSet(Of String)( _
         System.StringComparer.OrdinalIgnoreCase)
     Dim configLoaded As Boolean = False
@@ -104,7 +104,7 @@ Sub Main()
         Catch : End Try
     End If
 
-    ' ?? Setup dialog ??????????????????????????????????????????????
+    ' ── Setup dialog ──────────────────────────────────────────────
     Dim dlg As New System.Windows.Forms.Form
     dlg.Text            = "PPM - Postavljanje operacija / Operations Setup"
     dlg.Size            = New System.Drawing.Size(620, 690)
@@ -125,7 +125,7 @@ Sub Main()
 
     ' Subtitle
     Dim lblSubtitle As New System.Windows.Forms.Label
-    lblSubtitle.Text      = "Izaberite operacije koje vasa kompanija koristi / Select operations used by your company"
+    lblSubtitle.Text      = "Izaberite operacije koje vaša kompanija koristi / Select operations used by your company"
     lblSubtitle.Font      = fSub
     lblSubtitle.ForeColor = cSub
     lblSubtitle.Location  = New System.Drawing.Point(20, 42)
@@ -138,7 +138,7 @@ Sub Main()
     lblCfgStatus.Location = New System.Drawing.Point(20, 62)
     lblCfgStatus.Size     = New System.Drawing.Size(576, 16)
     If configLoaded Then
-        lblCfgStatus.Text      = "Ucitana postojeca konfiguracija / Existing configuration loaded"
+        lblCfgStatus.Text      = "Učitana postojeća konfiguracija / Existing configuration loaded"
         lblCfgStatus.ForeColor = cGreen
     Else
         lblCfgStatus.Text      = "Nova konfiguracija / New configuration"
@@ -153,7 +153,7 @@ Sub Main()
     sep1.Size      = New System.Drawing.Size(576, 1)
     dlg.Controls.Add(sep1)
 
-    ' ?? Scrollable checkbox panel ?????????????????????????????????
+    ' ── Scrollable checkbox panel ─────────────────────────────────
     Dim scrollPanel As New System.Windows.Forms.Panel
     scrollPanel.BackColor  = cBg
     scrollPanel.AutoScroll = True
@@ -240,8 +240,8 @@ Sub Main()
 
     If dlg.ShowDialog() <> System.Windows.Forms.DialogResult.OK Then GoTo Cleanup
 
-    ' ?? Collect selected operations ???????????????????????????????
-    ' Build id?op lookup so we can retrieve name/category for JSON output.
+    ' ── Collect selected operations ───────────────────────────────
+    ' Build id→op lookup so we can retrieve name/category for JSON output.
     Dim opById As New System.Collections.Generic.Dictionary(Of String, String())( _
         System.StringComparer.OrdinalIgnoreCase)
     For Each op As String() In allOps
@@ -256,7 +256,7 @@ Sub Main()
         End If
     Next
 
-    ' ?? Write ppm_operations_config.json ?????????????????????????
+    ' ── Write ppm_operations_config.json ─────────────────────────
     Try
         Dim opLines As New System.Collections.Generic.List(Of String)
         For Each op As String() In selectedOps
@@ -278,7 +278,7 @@ Sub Main()
 
         System.IO.File.WriteAllText(ORG_CONFIG_PATH, sb.ToString(), System.Text.Encoding.UTF8)
     Catch ex As Exception
-        ShowError("Greska pri pisanju konfiguracije:" & vbCrLf & _
+        ShowError("Greška pri pisanju konfiguracije:" & vbCrLf & _
                   "Error writing org config:" & vbCrLf & vbCrLf & ex.Message)
         GoTo Cleanup
     End Try
@@ -290,9 +290,9 @@ Cleanup:
 
 End Sub
 
-' ????????????????????????????????????????????????????????????????????
+' ════════════════════════════════════════════════════════════════════
 ' SUBROUTINES
-' ????????????????????????????????????????????????????????????????????
+' ════════════════════════════════════════════════════════════════════
 
 Sub ParseGlobalOps(content As String, _
                    ByRef ops As System.Collections.Generic.List(Of String()))
@@ -357,7 +357,7 @@ Sub ShowSetupSummary(nSelected As Integer, nTotal As Integer, configPath As Stri
     Dim cGreen   As System.Drawing.Color = System.Drawing.Color.FromArgb(63, 185, 80)
 
     Dim sf As New System.Windows.Forms.Form
-    sf.Text            = "PPM - Konfiguracija sacuvana / Configuration Saved"
+    sf.Text            = "PPM - Konfiguracija sačuvana / Configuration Saved"
     sf.Size            = New System.Drawing.Size(480, 230)
     sf.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
     sf.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
@@ -365,7 +365,7 @@ Sub ShowSetupSummary(nSelected As Integer, nTotal As Integer, configPath As Stri
     sf.AutoScaleMode   = System.Windows.Forms.AutoScaleMode.None
 
     Dim lblT As New System.Windows.Forms.Label
-    lblT.Text      = "KONFIGURACIJA SACUVANA / CONFIGURATION SAVED"
+    lblT.Text      = "KONFIGURACIJA SAČUVANA / CONFIGURATION SAVED"
     lblT.Font      = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
     lblT.ForeColor = cAccent
     lblT.Location  = New System.Drawing.Point(20, 20)
@@ -419,7 +419,7 @@ End Sub
 
 Sub ShowError(msg As String)
     Dim ef As New System.Windows.Forms.Form
-    ef.Text            = "PPM - Greska / Error"
+    ef.Text            = "PPM - Greška / Error"
     ef.Size            = New System.Drawing.Size(460, 200)
     ef.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
     ef.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
