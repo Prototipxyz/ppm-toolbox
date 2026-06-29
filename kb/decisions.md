@@ -1259,3 +1259,69 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   "Odustani / Cancel" Size(150,34) at x=200;
   "Potvrdi / Confirm" Size(170,34) at x=426 — right edge flush with
   scroll panel at 596px.
+
+## PPM_MarkOperations — Further Implementation Decisions (D-287 to D-293)
+
+- D-287: **Bend detection fix — feature name matching replaces type-string matching.**
+  `oSMDef.Features` iteration with `.Type.ToString()` containing "bend" never fired —
+  Inventor 2021 type strings do not contain "bend" for sheet metal forming features.
+  Fix: match on `feat.Name` (case-insensitive) containing "Flange", "Fold", "Bend",
+  "Hem", or "Roll". Confirmed working on real Stirg parts:
+  Flat part (13017522_8.5): Face1, Face2, Corner Chamfer1, Cut1 — no match, not flagged.
+  Bent part (13017522_8.4): Contour Flange1 — matched, flagged.
+  Bent part (13017522_8.3): Contour Flange1 + Fold1 — matched, flagged.
+  Stage 3 (FP+thickness assumption) removed entirely — was false-positiving on flat parts.
+
+- D-288: **Hole and thread detection added to PPM_MarkOperations.**
+  Iterates `oDoc.ComponentDefinition.Features.HoleFeatures` and `ThreadFeatures`.
+  HoleType integer mapping confirmed in Inventor 2021 iLogic:
+    21505 = Plain / Clearance hole
+    21506 = Counterbore or Countersink
+    Any other value = Unknown (logged with integer for future identification)
+  HoleDiameter.Value works on individually-defined holes (multiply by 10 for mm).
+  ThreadInfo.ThreadDesignation works (e.g. "M4.5x0.75").
+  ThreadInfo.ThreadType works (e.g. "ISO Metric profile").
+  Writes PPM_Holes iProperty: e.g. "3x plain, 1x cbore"
+  Writes PPM_Threads iProperty: e.g. "M4.5x0.75 x1"
+  Detection runs on all part types, not just sheet metal.
+
+- D-289: **Auto-flag operations by name match, never by hardcoded ID.**
+  Initial implementation hardcoded OP-00038/OP-00039 for Drilling/Tapping — wrong
+  because org config IDs differ from global pool IDs. Fix: scan orgOps and match
+  op(1) (name field) case-insensitive contains match:
+    Holes present -> find op containing "drill"
+    Threads present -> find op containing "tap" or "thread"
+    Cbore/countersink (HoleType 21506) -> find op containing "countersink" or "counterbor"
+    Bends present -> find op containing "flange", "fold", or "bend"
+  This rule applies to ALL auto-detection in PPM_MarkOperations — never hardcode IDs.
+
+- D-290: **Config mismatch warning added to PPM_MarkOperations.**
+  When auto-detection fires for a feature type but no matching op exists in the org
+  config, an amber warning label appears at the top of the scroll panel:
+  e.g. "Rupe detektovane ali operacija nije u konfiguraciji / Holes detected but no
+  Drilling op in org config". Non-blocking — worker can still confirm. Prompts user
+  to run Operations Setup and add the missing operation.
+
+- D-291: **WeldBead API confirmed blocked in Inventor 2021 iLogic sandbox.**
+  Reflection scan on WeldBead object returns Type = System.__ComObject with only
+  base Object methods (ToString, Equals, GetHashCode, GetType). All weld-specific
+  properties (FilletSize, Length, Intermittent, StitchLength, Faces, Edges) throw
+  "Public member not found on type WeldBead". No workaround available in iLogic.
+  Only reliably accessible: Welds.Count, w.Name, w.Type (integer 100672768).
+  Consequence: weld length/size cannot be read programmatically from iLogic rules.
+
+- D-292: **Weld notes field removed from PPM_MarkOperations — no downstream consumer.**
+  A per-weld structured input and a free-text weld notes field were prototyped but
+  removed. Rationale: PPM app and Excel tracker have no field to receive this data yet.
+  Building input UI before the consumer exists creates orphaned data. Revisit when
+  PPM Phase 8 (Quotes) or Excel BOM Export macro defines a weld data schema.
+  Current state: weldment detected -> green notice -> scroll to Joining -> worker
+  selects welding type(s) manually. Clean, fast, no phantom data.
+
+- D-293: **PPM Tools global form manually reorganized by Voja into numbered workflow sections.**
+  Form now shows: 01. Operations (Choose Operations on Part/Assembly button),
+  02. Laser Cutting Export (Assembly Level Batch Export / Part Level Export buttons),
+  BOM Export Report / Kritika (placeholder, ...),
+  Settings button, Done button.
+  This manual reorganization reflects the intended CAD-to-PPM workflow order and will
+  be the template for the PPM_ExportPartData macro button placement when built.
