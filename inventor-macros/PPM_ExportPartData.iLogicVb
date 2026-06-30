@@ -628,8 +628,8 @@ End Function
 Function ColLetter(n As Integer) As String
     Dim result As String = ""
     Do While n > 0
-        Dim rem As Integer = (n - 1) Mod 26
-        result = Chr(65 + rem) & result
+        Dim remainder As Integer = (n - 1) Mod 26
+        result = Chr(65 + remainder) & result
         n = (n - 1) \ 26
     Loop
     Return result
