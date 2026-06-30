@@ -1,0 +1,123 @@
+' PPM_TestStructuredBOM.iLogicVb
+' Diagnostic only — dumps structured BOM export columns to a text file.
+' Do NOT use in production. Disposable after hierarchy investigation.
+
+AddReference "System.Windows.Forms"
+AddReference "System.Xml"
+AddReference "System.IO.Compression"
+AddReference "System.IO.Compression.FileSystem"
+
+Sub Main()
+    If Not TypeOf ThisApplication.ActiveDocument Is AssemblyDocument Then
+        System.Windows.Forms.MessageBox.Show("Open an assembly (.iam) first.", "PPM Test")
+        Exit Sub
+    End If
+
+    Dim oAsmDoc As AssemblyDocument = CType(ThisApplication.ActiveDocument, AssemblyDocument)
+    Dim asmName As String = System.IO.Path.GetFileNameWithoutExtension(oAsmDoc.FullFileName)
+    Dim oBOM As BOM = oAsmDoc.ComponentDefinition.BOM
+
+    ' Step 1 — enumerate all view names so we know what Inventor 2021 calls them
+    Dim viewList As New System.Text.StringBuilder
+    viewList.Append("BOM views found:" & vbCrLf)
+    For Each v As BOMView In oBOM.BOMViews
+        viewList.Append("  [" & v.Name & "]" & vbCrLf)
+    Next
+    System.Windows.Forms.MessageBox.Show(viewList.ToString(), "PPM Test — Step 1")
+
+    ' Step 2 — find the structured/indented view
+    Dim oView As BOMView = Nothing
+    Try : oView = oBOM.BOMViews.Item("Structured") : Catch : End Try
+    If oView Is Nothing Then
+        For Each v As BOMView In oBOM.BOMViews
+            If v.Name.ToLower() <> "parts only" Then oView = v : Exit For
+        Next
+    End If
+    If oView Is Nothing Then
+        System.Windows.Forms.MessageBox.Show("No structured view found.", "PPM Test")
+        Exit Sub
+    End If
+    System.Windows.Forms.MessageBox.Show("Using view: [" & oView.Name & "]", "PPM Test — Step 2")
+
+    ' Step 3 — export to temp xlsx
+    Dim tmpPath As String = System.IO.Path.Combine( _
+        System.IO.Path.GetTempPath(), asmName & "_TestStructBOM.xlsx")
+    If System.IO.File.Exists(tmpPath) Then System.IO.File.Delete(tmpPath)
+    oView.Export(tmpPath, kMicrosoftExcelFormat)
+    If Not System.IO.File.Exists(tmpPath) Then
+        System.Windows.Forms.MessageBox.Show("Export failed — no file created.", "PPM Test")
+        Exit Sub
+    End If
+
+    ' Step 4 — read back: shared strings + sheet1, dump all columns, rows 0-15
+    Dim sb As New System.Text.StringBuilder
+    sb.Append("Assembly: " & asmName & vbCrLf)
+    sb.Append("View: " & oView.Name & vbCrLf & vbCrLf)
+    Try
+        Using arc As System.IO.Compression.ZipArchive = _
+                System.IO.Compression.ZipFile.Open(tmpPath, _
+                System.IO.Compression.ZipArchiveMode.Read)
+
+            Dim ss As New System.Collections.Generic.List(Of String)
+            Dim ssEnt As System.IO.Compression.ZipArchiveEntry = arc.GetEntry("xl/sharedStrings.xml")
+            If ssEnt IsNot Nothing Then
+                Dim xd As New System.Xml.XmlDocument()
+                Using st As System.IO.Stream = ssEnt.Open() : xd.Load(st) : End Using
+                Dim mgr As New System.Xml.XmlNamespaceManager(xd.NameTable)
+                mgr.AddNamespace("x", "http://schemas.openxmlformats.org/spreadsheetml/2006/main")
+                For Each tn As System.Xml.XmlNode In xd.SelectNodes("//x:t", mgr)
+                    ss.Add(tn.InnerText)
+                Next
+            End If
+            sb.Append("Shared strings count: " & ss.Count & vbCrLf & vbCrLf)
+
+            Dim shEnt As System.IO.Compression.ZipArchiveEntry = arc.GetEntry("xl/worksheets/sheet1.xml")
+            If shEnt Is Nothing Then
+                sb.Append("ERROR: no sheet1.xml in exported file.")
+            Else
+                Dim xs As New System.Xml.XmlDocument()
+                Using st As System.IO.Stream = shEnt.Open() : xs.Load(st) : End Using
+                Dim xm As New System.Xml.XmlNamespaceManager(xs.NameTable)
+                xm.AddNamespace("x", "http://schemas.openxmlformats.org/spreadsheetml/2006/main")
+
+                Dim rowNum As Integer = 0
+                For Each rowNode As System.Xml.XmlNode In xs.SelectNodes("//x:row", xm)
+                    If rowNum > 15 Then Exit For
+                    Dim cells As New System.Collections.Generic.List(Of String)
+                    For Each c As System.Xml.XmlNode In rowNode.SelectNodes("x:c", xm)
+                        Dim tAttr As System.Xml.XmlAttribute = c.Attributes("t")
+                        Dim vNode As System.Xml.XmlNode = c.SelectSingleNode("x:v", xm)
+                        Dim isNode As System.Xml.XmlNode = c.SelectSingleNode("x:is/x:t", xm)
+                        Dim val As String = ""
+                        If isNode IsNot Nothing Then
+                            val = isNode.InnerText
+                        ElseIf vNode IsNot Nothing Then
+                            If tAttr IsNot Nothing AndAlso tAttr.Value = "s" Then
+                                Dim idx As Integer = 0
+                                If Integer.TryParse(vNode.InnerText, idx) AndAlso idx < ss.Count Then
+                                    val = ss(idx)
+                                End If
+                            Else
+                                val = vNode.InnerText
+                            End If
+                        End If
+                        cells.Add(val)
+                    Next
+                    Dim prefix As String = If(rowNum = 0, "HDR", "R" & rowNum.ToString("00"))
+                    sb.Append(prefix & " | " & String.Join(" | ", cells) & vbCrLf)
+                    rowNum += 1
+                Next
+            End If
+        End Using
+    Catch ex As Exception
+        sb.Append("Read error: " & ex.Message)
+    End Try
+
+    ' Step 5 — write dump to temp file and report path
+    Dim outPath As String = System.IO.Path.Combine( _
+        System.IO.Path.GetTempPath(), "PPM_TestStructBOM_dump.txt")
+    System.IO.File.WriteAllText(outPath, sb.ToString(), System.Text.Encoding.UTF8)
+    System.Windows.Forms.MessageBox.Show( _
+        "Dump written to:" & vbCrLf & outPath & vbCrLf & vbCrLf & _
+        "Open it and paste findings back.", "PPM Test — Done")
+End Sub
