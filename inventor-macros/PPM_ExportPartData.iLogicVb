@@ -292,92 +292,93 @@ Sub Main()
     ' Part 2: assembly walk, iProperty reads, xlsx sheets 1-2
     ' ════════════════════════════════════════════════════════════════
 
-    ' ── Get BOM quantities via export + re-read ──────────────────
-    Dim qtyMap As New System.Collections.Generic.Dictionary(Of String, Integer)( _
-        System.StringComparer.OrdinalIgnoreCase)
-    Try
-        Dim oBOM As BOM = oAsmDoc.ComponentDefinition.BOM
-        oBOM.PartsOnlyViewEnabled = True
-        Dim oView As BOMView = oBOM.BOMViews.Item("Parts Only")
-        Dim tmpBomPath As String = System.IO.Path.Combine( _
-            System.IO.Path.GetTempPath(), asmName & "_PPM_TmpBOM.xlsx")
-        If System.IO.File.Exists(tmpBomPath) Then System.IO.File.Delete(tmpBomPath)
-        oView.Export(tmpBomPath, kMicrosoftExcelFormat)
-        If System.IO.File.Exists(tmpBomPath) Then
-            ReadBomQty(tmpBomPath, qtyMap)
-            Try : System.IO.File.Delete(tmpBomPath) : Catch : End Try
-        End If
-    Catch : End Try
+    ' ── Parse structured BOM (primary data skeleton) ─────────────
+    Dim bomRows As System.Collections.Generic.List(Of Object()) = _
+        ParseStructuredBom(oAsmDoc, asmName)
 
-    ' ── Collect document data ─────────────────────────────────────
-    ' partRows entry: {level, pn, desc, qty, docType, material,
-    '                  thickMM, bendCount, ppmHoles, ppmThreads, opFlags}
-    ' asmRows  entry: {level, pn, desc, qty, docType, opFlags}
-    Dim partRows As New System.Collections.Generic.List(Of Object())
-    Dim asmRows  As New System.Collections.Generic.List(Of Object())
-    Dim seenPaths As New System.Collections.Generic.HashSet(Of String)( _
+    ' ── Build enrichment map: pn → {docType, material, thickMM,
+    '    bendCount, ppmHoles, ppmThreads, opFlags} from open docs
+    Dim enrichMap As New System.Collections.Generic.Dictionary(Of String, Object())( _
         System.StringComparer.OrdinalIgnoreCase)
-
+    Dim seenEnrich As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
     For Each oDoc As Document In ThisApplication.Documents
         Dim docPath As String = ""
         Try : docPath = oDoc.FullFileName : Catch : Continue For : End Try
         If Not asmRefPaths.Contains(docPath) Then Continue For
-        If seenPaths.Contains(docPath) Then Continue For
-        seenPaths.Add(docPath)
-
-        Dim pn   As String = ReadDTP(oDoc, "Part Number")
-        Dim desc As String = ReadDTP(oDoc, "Description")
-        If pn = "" Then
-            Try : pn = System.IO.Path.GetFileNameWithoutExtension(docPath) : Catch : End Try
+        Dim ePn As String = ReadDTP(oDoc, "Part Number")
+        If ePn = "" Then
+            Try : ePn = System.IO.Path.GetFileNameWithoutExtension(docPath) : Catch : End Try
         End If
-
-        Dim qty As Integer = 1
-        If qtyMap.ContainsKey(pn) Then qty = qtyMap(pn)
-
+        If ePn = "" OrElse seenEnrich.Contains(ePn) Then Continue For
+        seenEnrich.Add(ePn)
+        Dim eOpFlags As New System.Collections.Generic.Dictionary(Of String, Integer)( _
+            System.StringComparer.OrdinalIgnoreCase)
+        For Each op As String() In orgOps
+            Dim flagVal As Integer = 0
+            Try : flagVal = CInt(ReadCustomProp(oDoc, "PPM_" & op(0).Replace("-", "_"))) : Catch : End Try
+            eOpFlags(op(0)) = flagVal
+        Next
         If TypeOf oDoc Is PartDocument Then
-            Dim oPart    As PartDocument = CType(oDoc, PartDocument)
+            Dim oPart As PartDocument = CType(oDoc, PartDocument)
             Dim material  As String  = ""
             Dim thickMM   As Double  = 0
             Dim bendCount As Integer = 0
-
             Try : material = oPart.ComponentDefinition.Material.Name : Catch : End Try
-
             If TypeOf oPart.ComponentDefinition Is SheetMetalComponentDefinition Then
                 Dim oSM As SheetMetalComponentDefinition = _
                     CType(oPart.ComponentDefinition, SheetMetalComponentDefinition)
                 Try : thickMM = oSM.Thickness.ModelValue * 10 : Catch : End Try
                 bendCount = GetBendCount(oSM, oDoc)
             End If
-
-            Dim ppmHoles   As String = ReadCustomProp(oDoc, "PPM_Holes")
-            Dim ppmThreads As String = ReadCustomProp(oDoc, "PPM_Threads")
-            Dim opFlags As New System.Collections.Generic.Dictionary(Of String, Integer)( _
-                System.StringComparer.OrdinalIgnoreCase)
-            For Each op As String() In orgOps
-                Dim flagVal As Integer = 0
-                Try : flagVal = CInt(ReadCustomProp(oDoc, "PPM_" & op(0).Replace("-", "_"))) : Catch : End Try
-                opFlags(op(0)) = flagVal
-            Next
-
-            partRows.Add(New Object() {1, pn, desc, qty, "Part", material, _
-                thickMM, bendCount, ppmHoles, ppmThreads, opFlags})
-
+            enrichMap(ePn) = New Object() {"Part", material, thickMM, bendCount, _
+                ReadCustomProp(oDoc, "PPM_Holes"), ReadCustomProp(oDoc, "PPM_Threads"), eOpFlags}
         ElseIf TypeOf oDoc Is AssemblyDocument Then
-            Dim docType As String = "Mech Assy"
+            Dim eDocType As String = "Mech Assy"
             Try
                 If TypeOf CType(oDoc, AssemblyDocument).ComponentDefinition _
-                    Is WeldmentComponentDefinition Then docType = "Weld Assy"
+                    Is WeldmentComponentDefinition Then eDocType = "Weld Assy"
             Catch : End Try
+            enrichMap(ePn) = New Object() {eDocType, "", 0.0, 0, "", "", eOpFlags}
+        End If
+    Next
 
-            Dim opFlags As New System.Collections.Generic.Dictionary(Of String, Integer)( _
-                System.StringComparer.OrdinalIgnoreCase)
-            For Each op As String() In orgOps
-                Dim flagVal As Integer = 0
-                Try : flagVal = CInt(ReadCustomProp(oDoc, "PPM_" & op(0).Replace("-", "_"))) : Catch : End Try
-                opFlags(op(0)) = flagVal
-            Next
+    ' ── Build partRows / asmRows from BOM + enrichment ───────────
+    ' partRows: {level, pn, desc, qty, docType, material, thickMM,
+    '            bendCount, ppmHoles, ppmThreads, opFlags, itemStr}
+    ' asmRows:  {level, pn, desc, qty, docType, opFlags, itemStr}
+    Dim partRows As New System.Collections.Generic.List(Of Object())
+    Dim asmRows  As New System.Collections.Generic.List(Of Object())
 
-            asmRows.Add(New Object() {1, pn, desc, qty, docType, opFlags})
+    For Each bomRow As Object() In bomRows
+        Dim itemStr   As String  = CStr(bomRow(0))
+        Dim bLevel    As Integer = CInt(bomRow(1))
+        Dim bPn       As String  = CStr(bomRow(2))
+        Dim bDesc     As String  = CStr(bomRow(3))
+        Dim bQty      As Integer = CInt(bomRow(4))
+        Dim docType   As String  = "Part"
+        Dim material  As String  = ""
+        Dim thickMM   As Double  = 0.0
+        Dim bendCount As Integer = 0
+        Dim ppmHoles  As String  = ""
+        Dim ppmThreads As String = ""
+        Dim opFlags As New System.Collections.Generic.Dictionary(Of String, Integer)( _
+            System.StringComparer.OrdinalIgnoreCase)
+        If enrichMap.ContainsKey(bPn) Then
+            Dim e As Object() = enrichMap(bPn)
+            docType    = CStr(e(0))
+            material   = CStr(e(1))
+            thickMM    = CDbl(e(2))
+            bendCount  = CInt(e(3))
+            ppmHoles   = CStr(e(4))
+            ppmThreads = CStr(e(5))
+            opFlags    = CType(e(6), System.Collections.Generic.Dictionary(Of String, Integer))
+        End If
+        If docType = "Part" Then
+            partRows.Add(New Object() {bLevel, bPn, bDesc, bQty, docType, material, _
+                thickMM, bendCount, ppmHoles, ppmThreads, opFlags, itemStr})
+        Else
+            asmRows.Add(New Object() {bLevel, bPn, bDesc, bQty, docType, opFlags, itemStr})
         End If
     Next
 
@@ -533,16 +534,35 @@ Function GetBendCount(oSM As SheetMetalComponentDefinition, oDoc As Document) As
     Return 0
 End Function
 
-Sub ReadBomQty(xlsxPath As String, _
-        qtyMap As System.Collections.Generic.Dictionary(Of String, Integer))
+' Returns list of BOM rows: {itemStr, level, pn, desc, qty}
+' Exports the [Structured] BOM view and reads it back with column-name matching.
+Function ParseStructuredBom(oAsmDoc As AssemblyDocument, asmName As String) _
+        As System.Collections.Generic.List(Of Object())
+    Dim result As New System.Collections.Generic.List(Of Object())
     Try
+        Dim oBOM As BOM = oAsmDoc.ComponentDefinition.BOM
+        Try : oBOM.StructuredViewEnabled = True : Catch : End Try
+        Dim oView As BOMView = Nothing
+        Try : oView = oBOM.BOMViews.Item("Structured") : Catch : End Try
+        If oView Is Nothing Then
+            For Each v As BOMView In oBOM.BOMViews
+                If v.Name.ToLower() <> "parts only" Then oView = v : Exit For
+            Next
+        End If
+        If oView Is Nothing Then Return result
+
+        Dim tmpPath As String = System.IO.Path.Combine( _
+            System.IO.Path.GetTempPath(), asmName & "_PPM_StructBOM.xlsx")
+        If System.IO.File.Exists(tmpPath) Then System.IO.File.Delete(tmpPath)
+        oView.Export(tmpPath, kMicrosoftExcelFormat)
+        If Not System.IO.File.Exists(tmpPath) Then Return result
+
         Using arc As System.IO.Compression.ZipArchive = _
-            System.IO.Compression.ZipFile.Open(xlsxPath, _
+            System.IO.Compression.ZipFile.Open(tmpPath, _
             System.IO.Compression.ZipArchiveMode.Read)
 
             Dim ss As New System.Collections.Generic.List(Of String)
-            Dim ssEnt As System.IO.Compression.ZipArchiveEntry = _
-                arc.GetEntry("xl/sharedStrings.xml")
+            Dim ssEnt As System.IO.Compression.ZipArchiveEntry = arc.GetEntry("xl/sharedStrings.xml")
             If ssEnt IsNot Nothing Then
                 Dim xd As New System.Xml.XmlDocument()
                 Using st As System.IO.Stream = ssEnt.Open() : xd.Load(st) : End Using
@@ -553,69 +573,86 @@ Sub ReadBomQty(xlsxPath As String, _
                 Next
             End If
 
-            Dim shEnt As System.IO.Compression.ZipArchiveEntry = _
-                arc.GetEntry("xl/worksheets/sheet1.xml")
-            If shEnt Is Nothing Then Return
+            Dim shEnt As System.IO.Compression.ZipArchiveEntry = arc.GetEntry("xl/worksheets/sheet1.xml")
+            If shEnt Is Nothing Then Return result
             Dim xs As New System.Xml.XmlDocument()
             Using st As System.IO.Stream = shEnt.Open() : xs.Load(st) : End Using
             Dim xm As New System.Xml.XmlNamespaceManager(xs.NameTable)
             xm.AddNamespace("x", "http://schemas.openxmlformats.org/spreadsheetml/2006/main")
 
-            Dim pnCol As Integer = -1 : Dim qtyCol As Integer = -1
+            Dim itemCol As Integer = -1, pnCol As Integer = -1
+            Dim descCol As Integer = -1, qtyCol As Integer = -1
             Dim firstRow As Boolean = True
+
             For Each rowNode As System.Xml.XmlNode In xs.SelectNodes("//x:row", xm)
                 Dim cellVals As New System.Collections.Generic.Dictionary(Of Integer, String)
                 For Each c As System.Xml.XmlNode In rowNode.SelectNodes("x:c", xm)
-                    Dim rAttr As System.Xml.XmlAttribute = c.Attributes("r")
-                    If rAttr Is Nothing Then Continue For
-                    Dim letters As New System.Text.StringBuilder
-                    For Each ch As Char In rAttr.Value
-                        If Char.IsLetter(ch) Then letters.Append(ch) Else Exit For
-                    Next
-                    Dim colNum As Integer = ColLetterToNum(letters.ToString())
-                    Dim tAttr As System.Xml.XmlAttribute = c.Attributes("t")
-                    Dim isS As Boolean = (tAttr IsNot Nothing AndAlso tAttr.Value = "s")
-                    Dim vNode As System.Xml.XmlNode = c.SelectSingleNode("x:v", xm)
-                    If vNode IsNot Nothing Then
-                        If isS Then
-                            Dim idx As Integer = 0
-                            If Integer.TryParse(vNode.InnerText, idx) AndAlso _
-                               idx >= 0 AndAlso idx < ss.Count Then
-                                cellVals(colNum) = ss(idx)
-                            End If
-                        Else
-                            cellVals(colNum) = vNode.InnerText
-                        End If
-                    End If
+                    Dim cn As Integer = GetCellColNum(c)
+                    If cn < 0 Then Continue For
+                    cellVals(cn) = GetCellValue(c, ss, xm)
                 Next
                 If firstRow Then
                     firstRow = False
                     For Each kv As System.Collections.Generic.KeyValuePair(Of Integer, String) _
                             In cellVals
                         Dim h As String = kv.Value.ToLower().Trim()
-                        If h = "part number" OrElse h = "part_number" Then pnCol = kv.Key
-                        If h = "qty" OrElse h = "quantity" Then qtyCol = kv.Key
+                        Select Case h
+                            Case "item", "item number" : itemCol = kv.Key
+                            Case "part number", "partnumber" : pnCol = kv.Key
+                            Case "description" : descCol = kv.Key
+                            Case "qty", "quantity" : qtyCol = kv.Key
+                        End Select
                     Next
                 Else
-                    Dim pnVal As String = ""
-                    Dim qtyVal As Integer = 1
-                    If pnCol >= 0 AndAlso cellVals.ContainsKey(pnCol) Then _
-                        pnVal = cellVals(pnCol).Trim()
+                    If itemCol < 0 Then Continue For
+                    Dim itemStr As String = If(cellVals.ContainsKey(itemCol), cellVals(itemCol), "")
+                    If itemStr = "" Then Continue For
+                    Dim bPn   As String  = If(pnCol  >= 0 AndAlso cellVals.ContainsKey(pnCol),  cellVals(pnCol),  "")
+                    Dim bDesc As String  = If(descCol >= 0 AndAlso cellVals.ContainsKey(descCol), cellVals(descCol), "")
+                    Dim bQty  As Integer = 1
                     If qtyCol >= 0 AndAlso cellVals.ContainsKey(qtyCol) Then
-                        Try : qtyVal = CInt(cellVals(qtyCol)) : Catch : End Try
+                        Try : bQty = CInt(cellVals(qtyCol)) : Catch : End Try
                     End If
-                    If pnVal <> "" Then
-                        If Not qtyMap.ContainsKey(pnVal) Then
-                            qtyMap(pnVal) = qtyVal
-                        Else
-                            qtyMap(pnVal) += qtyVal
-                        End If
-                    End If
+                    Dim dotCount As Integer = itemStr.Split("."c).Length - 1
+                    result.Add(New Object() {itemStr, dotCount + 1, bPn, bDesc, bQty})
                 End If
             Next
         End Using
+        Try : System.IO.File.Delete(tmpPath) : Catch : End Try
     Catch : End Try
-End Sub
+    Return result
+End Function
+
+Function GetCellColNum(c As System.Xml.XmlNode) As Integer
+    Dim rAttr As System.Xml.XmlAttribute = c.Attributes("r")
+    If rAttr Is Nothing Then Return -1
+    Dim letters As New System.Text.StringBuilder
+    For Each ch As Char In rAttr.Value
+        If Char.IsLetter(ch) Then letters.Append(ch) Else Exit For
+    Next
+    If letters.Length = 0 Then Return -1
+    Return ColLetterToNum(letters.ToString())
+End Function
+
+Function GetCellValue(c As System.Xml.XmlNode, _
+        ss As System.Collections.Generic.List(Of String), _
+        xm As System.Xml.XmlNamespaceManager) As String
+    Dim tAttr  As System.Xml.XmlAttribute = c.Attributes("t")
+    Dim isNode As System.Xml.XmlNode = c.SelectSingleNode("x:is/x:t", xm)
+    Dim vNode  As System.Xml.XmlNode = c.SelectSingleNode("x:v", xm)
+    If isNode IsNot Nothing Then Return isNode.InnerText
+    If vNode IsNot Nothing Then
+        If tAttr IsNot Nothing AndAlso tAttr.Value = "s" Then
+            Dim idx As Integer = 0
+            If Integer.TryParse(vNode.InnerText, idx) AndAlso idx >= 0 AndAlso idx < ss.Count Then
+                Return ss(idx)
+            End If
+        Else
+            Return vNode.InnerText
+        End If
+    End If
+    Return ""
+End Function
 
 Function ColLetterToNum(col As String) As Integer
     Dim n As Integer = 0
@@ -671,10 +708,12 @@ Sub WriteXlsx(xlsxPath As String, asmName As String, _
         SsAdd(CStr(row(4)), ss, ssIdx) : SsAdd(CStr(row(5)), ss, ssIdx)
         If CStr(row(8)) <> "" Then SsAdd(CStr(row(8)), ss, ssIdx)
         If CStr(row(9)) <> "" Then SsAdd(CStr(row(9)), ss, ssIdx)
+        If CStr(row(11)) <> "" Then SsAdd(CStr(row(11)), ss, ssIdx)
     Next
     For Each row As Object() In asmRows
         SsAdd(CStr(row(1)), ss, ssIdx) : SsAdd(CStr(row(2)), ss, ssIdx)
         SsAdd(CStr(row(4)), ss, ssIdx)
+        If CStr(row(6)) <> "" Then SsAdd(CStr(row(6)), ss, ssIdx)
     Next
 
     Using archive As System.IO.Compression.ZipArchive = _
@@ -791,7 +830,7 @@ Function BuildPartsSheet(orgOps As System.Collections.Generic.List(Of String()),
     sb.Append("<pane state=""frozen"" ySplit=""1"" topLeftCell=""A2"" activePane=""bottomLeft""/>")
     sb.Append("</sheetView></sheetViews><sheetData>")
 
-    Dim fixedH() As String = {"Level","Part Number","Description","Qty","Type", _
+    Dim fixedH() As String = {"Item","Level","Part Number","Description","Qty","Type", _
         "Material","Thickness (mm)","Bends","PPM_Holes","PPM_Threads"}
     Dim col As Integer = 1
     sb.Append("<row r=""1"">")
@@ -811,6 +850,7 @@ Function BuildPartsSheet(orgOps As System.Collections.Generic.List(Of String()),
     For Each row As Object() In rows
         col = 1
         sb.Append("<row r=""" & rn & """>")
+        SCell(sb, col, rn, CStr(row(11)), ssIdx) : col += 1
         NCell(sb, col, rn, CInt(row(0))) : col += 1
         SCell(sb, col, rn, CStr(row(1)), ssIdx) : col += 1
         SCell(sb, col, rn, CStr(row(2)), ssIdx) : col += 1
@@ -855,7 +895,7 @@ Function BuildAsmsSheet(orgOps As System.Collections.Generic.List(Of String()), 
     sb.Append("<pane state=""frozen"" ySplit=""1"" topLeftCell=""A2"" activePane=""bottomLeft""/>")
     sb.Append("</sheetView></sheetViews><sheetData>")
 
-    Dim fixedH() As String = {"Level","Part Number","Description","Qty","Type"}
+    Dim fixedH() As String = {"Item","Level","Part Number","Description","Qty","Type"}
     Dim col As Integer = 1
     sb.Append("<row r=""1"">")
     For Each h As String In fixedH
@@ -878,6 +918,7 @@ Function BuildAsmsSheet(orgOps As System.Collections.Generic.List(Of String()), 
         Dim rAttr  As String  = If(isWeld, " s=""2"" customFormat=""1""", "")
         Dim cs     As Integer = If(isWeld, 2, 0)
         sb.Append("<row r=""" & rn & """" & rAttr & ">")
+        SCellS(sb, col, rn, CStr(row(6)), ssIdx, cs) : col += 1
         NCellS(sb, col, rn, CInt(row(0)), cs) : col += 1
         SCellS(sb, col, rn, CStr(row(1)), ssIdx, cs) : col += 1
         SCellS(sb, col, rn, CStr(row(2)), ssIdx, cs) : col += 1
@@ -1007,30 +1048,42 @@ Function BuildReportSheet(asmName As String, _
 
     sb.Append("<row r=""" & rn & """/>") : rn += 1
 
-    ' Op summary
-    ' OPEN ITEM: % denominator = partRows.Count (all parts in BOM).
-    ' No "eligible parts" filter exists in the current data model — see open items below.
+    ' OPERATION COMPLETION table
+    ' REQ = parts in BOM with this op flagged 1. DONE = 0 until manual post-export fill.
     sb.Append("<row r=""" & rn & """>")
-    RICell(sb, 1, rn, "Operacija / Operation", 1)
-    RICell(sb, 2, rn, "Delova sa op / Parts w/ op", 1)
-    RICell(sb, 3, rn, "% od ukupnog / % of total", 1)
+    RICell(sb, 1, rn, "OPERACIJE / OPERATION COMPLETION", 1)
     sb.Append("</row>") : rn += 1
 
-    Dim totalParts As Integer = partRows.Count
+    sb.Append("<row r=""" & rn & """>")
+    RICell(sb, 1, rn, "Op.ID", 1)
+    RICell(sb, 2, rn, "Operacija / Operation", 1)
+    RICell(sb, 3, rn, "Kategorija / Category", 1)
+    RICell(sb, 4, rn, "REQ " & Chr(10003), 1)
+    RICell(sb, 5, rn, "DONE " & Chr(10003), 1)
+    RICell(sb, 6, rn, "% Komplet / Completion %", 1)
+    RICell(sb, 7, rn, "Status", 1)
+    RICell(sb, 8, rn, "Notes", 1)
+    sb.Append("</row>") : rn += 1
+
     For Each op As String() In orgOps
-        Dim cnt As Integer = 0
+        Dim req     As Integer = 0
+        Dim doneVal As Integer = 0  ' placeholder — replace with real DONE lookup when wired
         For Each row As Object() In partRows
             Dim opf As System.Collections.Generic.Dictionary(Of String, Integer) = _
                 CType(row(10), System.Collections.Generic.Dictionary(Of String, Integer))
-            If opf.ContainsKey(op(0)) AndAlso opf(op(0)) = 1 Then cnt += 1
+            If opf.ContainsKey(op(0)) AndAlso opf(op(0)) = 1 Then req += 1
         Next
-        Dim pct As String = If(totalParts > 0, _
-            (cnt * 100.0 / totalParts).ToString("0.0", _
-            System.Globalization.CultureInfo.InvariantCulture) & "%", "—")
+        Dim pct As String = If(req > 0, _
+            (doneVal * 100.0 / req).ToString("0.0", _
+            System.Globalization.CultureInfo.InvariantCulture) & "%", "N/A")
         sb.Append("<row r=""" & rn & """>")
-        RICell(sb, 1, rn, op(1), 0)
-        sb.Append("<c r=""B" & rn & """><v>") : sb.Append(cnt) : sb.Append("</v></c>")
-        RICell(sb, 3, rn, pct, 0)
+        RICell(sb, 1, rn, op(0), 0)
+        RICell(sb, 2, rn, op(1), 0)
+        RICell(sb, 3, rn, op(2), 0)
+        sb.Append("<c r=""D" & rn & """><v>") : sb.Append(req) : sb.Append("</v></c>")
+        sb.Append("<c r=""E" & rn & """><v>") : sb.Append(doneVal) : sb.Append("</v></c>")
+        RICell(sb, 6, rn, pct, 0)
+        RICell(sb, 7, rn, "—", 0)
         sb.Append("</row>") : rn += 1
     Next
 
@@ -1147,10 +1200,43 @@ Function BuildBomFlatSheet(orgOps As System.Collections.Generic.List(Of String()
     Next
     sb.Append("</row>")
 
-    ' OPEN ITEM: Item = sequential 1-based row index, not BOM hierarchy item number.
+    ' Deduplicate by PN: first occurrence wins for all fields except Qty (sum) and
+    ' op flags (max — 1 if any occurrence has 1). New opFlags dict to avoid mutating partRows.
+    Dim flatMap As New System.Collections.Generic.Dictionary(Of String, Object())( _
+        System.StringComparer.OrdinalIgnoreCase)
+    Dim flatOrder As New System.Collections.Generic.List(Of String)
+    For Each row As Object() In partRows
+        Dim fpn As String = CStr(row(1))
+        If Not flatMap.ContainsKey(fpn) Then
+            Dim srcOpf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+                CType(row(10), System.Collections.Generic.Dictionary(Of String, Integer))
+            Dim newOpf As New System.Collections.Generic.Dictionary(Of String, Integer)( _
+                System.StringComparer.OrdinalIgnoreCase)
+            For Each op As String() In orgOps
+                Dim v As Integer = 0
+                If srcOpf.ContainsKey(op(0)) Then v = srcOpf(op(0))
+                newOpf(op(0)) = v
+            Next
+            flatMap(fpn) = New Object() {row(0), row(1), row(2), row(3), row(4), _
+                row(5), row(6), row(7), row(8), row(9), newOpf, row(11)}
+            flatOrder.Add(fpn)
+        Else
+            Dim fx As Object() = flatMap(fpn)
+            fx(3) = CInt(fx(3)) + CInt(row(3))
+            Dim fxOpf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+                CType(fx(10), System.Collections.Generic.Dictionary(Of String, Integer))
+            Dim rOpf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+                CType(row(10), System.Collections.Generic.Dictionary(Of String, Integer))
+            For Each op As String() In orgOps
+                If rOpf.ContainsKey(op(0)) AndAlso rOpf(op(0)) > 0 Then fxOpf(op(0)) = 1
+            Next
+        End If
+    Next
+
     Dim rn   As Integer = 2
     Dim item As Integer = 1
-    For Each row As Object() In partRows
+    For Each fpn As String In flatOrder
+        Dim row As Object() = flatMap(fpn)
         col = 1
         sb.Append("<row r=""" & rn & """>")
         NCell(sb, col, rn, item) : col += 1
@@ -1170,7 +1256,9 @@ Function BuildBomFlatSheet(orgOps As System.Collections.Generic.List(Of String()
         For Each op As String() In orgOps
             Dim v As Integer = 0
             If opf.ContainsKey(op(0)) Then v = opf(op(0))
-            NCell(sb, col, rn, v) : col += 1
+            If v = 1 Then SCell(sb, col, rn, "✓", ssIdx) _
+            Else sb.Append("<c r=""" & ColLetter(col) & rn & """/>")
+            col += 1
         Next
         sb.Append("</row>")
         rn += 1 : item += 1
