@@ -1325,3 +1325,27 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   Settings button, Done button.
   This manual reorganization reflects the intended CAD-to-PPM workflow order and will
   be the template for the PPM_ExportPartData macro button placement when built.
+
+## PPM_ExportPartData Build Session — Workflow & Layout Decisions (D-294 to D-296)
+
+- D-294: **Three-location file model formalized for iLogic macro development.**
+  `C:\Users\zavarivanje\inventor-macros` is the sole git-tracked dev location (clone of
+  `ppm-toolbox`) — the only location Claude Code or any editor should write to.
+  `C:\PPM Cuts and Bends\iLogic\` (local deployment mirror) and `X:\USER\Gavrilović\iLogic\`
+  (network deployment, production) are copy-only targets, never edited directly. After any
+  macro build/edit lands in the git clone, the finished `.iLogicVb` file is copied to both
+  deployment paths. Matches the macro's own existing auto-update check (compares network vs.
+  local timestamps, expects local to catch up) — formalizes existing implicit behavior rather
+  than changing it.
+
+- D-295: **PPM_ExportPartData REQ/DONE column layout — single block, not paired.**
+  PARTS and ASSEMBLIES sheets place all REQ columns first (one per org op, in org-op order),
+  then all DONE columns in the same order, rather than adjacent REQ/DONE pairs per op.
+  Headers: `[Op Name] REQ` / `[Op Name] DONE`. Rationale: 60 ops × paired columns = ~130-column
+  sheet, unusable; block layout keeps REQ columns scannable together and DONE columns together
+  for manual fill-in.
+
+- D-296: **PPM_ExportPartData pre-scan runs before dialog opens.**
+  Assembly walk for part/assembly counts (no iProperty reads, ~0.5s) executes before the export
+  dialog is shown, displaying live counts rather than placeholder "---". Consistent with batch
+  macro's pattern of showing real data in the dialog where feasible.
