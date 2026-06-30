@@ -1349,3 +1349,53 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   Assembly walk for part/assembly counts (no iProperty reads, ~0.5s) executes before the export
   dialog is shown, displaying live counts rather than placeholder "---". Consistent with batch
   macro's pattern of showing real data in the dialog where feasible.
+
+## PPM_ExportPartData Real-World Test & Architecture Revision (D-297 to D-299)
+
+- D-297: **Compile bug found via real Inventor test: `rem` is a reserved VB keyword.**
+  Part 3 build used `Dim rem As Integer` in `ColLetter` function — `rem` collides with the
+  legacy `Rem` (comment) statement, causing "Identifier expected" / "Expression expected"
+  compile errors in Inventor 2021's iLogic editor. Fixed by renaming to `remainder`. A
+  follow-up grep for other reserved-word-as-identifier risks (`Date`, `Error`, `Print`, `Mid`,
+  `Left`, `Right`, `Set`, `Type`, `Class`, `Name`, `Object`) found no further hits. Confirms
+  chat-based code review cannot catch this class of bug — only compiling in the real Inventor
+  iLogic environment surfaces reserved-keyword collisions.
+
+- D-298: **PPM_ExportPartData data-collection strategy revised: native structured BOM export
+  as skeleton, replacing flat `ThisApplication.Documents` walk.** Real test on `13017522
+  Alat.iam` via disposable diagnostic macro `PPM_TestStructuredBOM.iLogicVb` confirmed
+  Inventor's `[Structured]` BOM view (distinct from `[Parts Only]`, found via
+  `oBOM.BOMViews.Item("Structured")`) exports genuine multi-level hierarchy through its `Item`
+  column (e.g. `"9"`, `"9.1"`, `"9.2"` — dot-count = nesting depth, confirmed against known
+  sub-assembly `13017522_8` with children `8.1`-`8.5`). This resolves OQ-79 (Level hardcoded to
+  1): Level is now derived from Item-string dot-count rather than hardcoded. Architecture:
+  export structured view to temp xlsx → parse with column-name-matching (not fixed index, since
+  real data showed row-to-row column-count variance from `*Varies*` thumbnail values shifting
+  subsequent cells) → use as row skeleton → enrich each row via existing per-document iProperty
+  reads (material, thickness, bends, op flags) matched by Part Number → BOM_FLAT becomes a true
+  PN-deduplicated rollup (qty summed across all occurrences) computed from the same enriched
+  dataset, eliminating any need for cross-sheet formula/VBA linking since both PARTS and
+  BOM_FLAT derive from one in-memory source per export run.
+
+- D-299: **PPM_ExportPartData REPORT sheet reformatted to match existing GST tracker pattern,
+  resolving OQ-78.** Reference file `PPM_Tracker_Stirg_v2_final.xlsx` REPORT tab already
+  implements the correct denominator interpretation: "Completion % = DONE ✓ / REQ ✓ count per
+  op", not coverage-over-all-parts. PPM_ExportPartData's REPORT sheet is being rebuilt to match:
+  header block (Project/Client/Date), SUMMARY block, then OPERATION COMPLETION table
+  (Op.ID | Operation | Category | REQ ✓ | DONE ✓ | Completion % | Status | Notes). DONE will
+  read 0 for all ops until a separate DONE-marking workflow exists (manual Excel fill-in
+  post-export) — Completion % showing 0%/N/A at export time is expected, not a defect.
+  Additionally: checkmarks (✓) standardized as visual indicator on every sheet including
+  BOM_FLAT (previously 1/0 numeric on BOM_FLAT only) for consistency.
+
+- D-300: **Thumbnails explicitly deferred to v2.** Structured BOM export's Thumbnail column
+  returns only the literal string `*Varies*` or blank — no actual image data — confirming
+  thumbnail embedding requires a separate OOXML drawing-relationship implementation, out of
+  scope for the current build.
+
+- D-301: **Dev/deploy copy step automated — Claude Code copies on every write, not on request.**
+  Standing instruction as of this session: after every file write/edit to the git clone
+  (`C:\Users\zavarivanje\inventor-macros\`), Claude Code copies the result to the local
+  deployment path (`C:\PPM Cuts and Bends\iLogic\`) automatically as the final step of the
+  edit, without being asked each time. Removes manual copy-paste friction from the dev loop
+  while preserving D-294's git-as-source-of-truth model.
