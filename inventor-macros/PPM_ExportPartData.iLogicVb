@@ -1,0 +1,1252 @@
+' PPM_ExportPartData.iLogicVb
+' Exports a structured Excel BOM with all PPM data from the active assembly.
+' Four sheets: PARTS, ASSEMBLIES, REPORT, BOM_FLAT
+' Assembly walk: ThisApplication.Documents + CollectReferencedPaths (crash-safe)
+' xlsx: ZIP+XML via System.IO.Compression — no OLEDB dependency
+
+AddReference "System.Drawing"
+AddReference "System.Windows.Forms"
+AddReference "System.Xml"
+AddReference "System.IO.Compression"
+AddReference "System.IO.Compression.FileSystem"
+
+Sub Main()
+
+    ' ── Auto-update check ────────────────────────────────────────
+    Dim localPath   As String = "C:\PPM Cuts and Bends\iLogic\PPM_ExportPartData.iLogicVb"
+    Dim networkPath As String = "X:\USER\Gavrilović\iLogic\PPM_ExportPartData.iLogicVb"
+    Try
+        If System.IO.File.Exists(networkPath) AndAlso System.IO.File.Exists(localPath) Then
+            Dim netTime   As DateTime = System.IO.File.GetLastWriteTime(networkPath)
+            Dim localTime As DateTime = System.IO.File.GetLastWriteTime(localPath)
+            If netTime > localTime Then
+                System.IO.File.Copy(networkPath, localPath, True)
+                System.Windows.Forms.MessageBox.Show( _
+                    "Nova verzija je instalirana." & vbCrLf & _
+                    "New version installed." & vbCrLf & vbCrLf & _
+                    "Pokrenite makro ponovo." & vbCrLf & _
+                    "Please run the macro again.", _
+                    "PPM - Azuriranje / Update", _
+                    System.Windows.Forms.MessageBoxButtons.OK, _
+                    System.Windows.Forms.MessageBoxIcon.Information)
+                Exit Sub
+            End If
+        End If
+    Catch : End Try
+    ' ─────────────────────────────────────────────────────────────
+
+    ' ── Palette (D-258) ──────────────────────────────────────────
+    Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
+    Dim cSurface As System.Drawing.Color = System.Drawing.Color.FromArgb(72, 82, 98)
+    Dim cAccent  As System.Drawing.Color = System.Drawing.Color.FromArgb(46, 125, 209)
+    Dim cText    As System.Drawing.Color = System.Drawing.Color.FromArgb(230, 237, 243)
+    Dim cSub     As System.Drawing.Color = System.Drawing.Color.FromArgb(180, 190, 200)
+    Dim cGreen   As System.Drawing.Color = System.Drawing.Color.FromArgb(63, 185, 80)
+    Dim cAmber   As System.Drawing.Color = System.Drawing.Color.FromArgb(210, 153, 34)
+    Dim cInput   As System.Drawing.Color = System.Drawing.Color.FromArgb(33, 38, 45)
+
+    Dim fUI   As New System.Drawing.Font("Segoe UI", 9)
+    Dim fSub  As New System.Drawing.Font("Segoe UI", 8)
+    Dim fBold As New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    Dim fMono As New System.Drawing.Font("Consolas", 10, System.Drawing.FontStyle.Bold)
+
+    ' ── Guard: assembly only ──────────────────────────────────────
+    If Not TypeOf ThisApplication.ActiveDocument Is AssemblyDocument Then
+        ShowError("Otvori sklop (.iam) pre pokretanja makroa." & vbCrLf & _
+                  "Open an assembly (.iam) before running this macro.")
+        GoTo Cleanup
+    End If
+
+    Dim oAsmDoc As AssemblyDocument = CType(ThisApplication.ActiveDocument, AssemblyDocument)
+    Dim asmPath As String = oAsmDoc.FullFileName
+    Dim asmName As String = System.IO.Path.GetFileNameWithoutExtension(asmPath)
+
+    ' ── Load org config ───────────────────────────────────────────
+    Const ORG_CONFIG_PATH As String = _
+        "X:\USER\Gavrilović\iLogic\config\ppm_operations_config.json"
+
+    If Not System.IO.File.Exists(ORG_CONFIG_PATH) Then
+        ShowError("Pokrenite PPM Operations Setup prvo." & vbCrLf & _
+                  "Run PPM Operations Setup first." & vbCrLf & vbCrLf & ORG_CONFIG_PATH)
+        GoTo Cleanup
+    End If
+
+    Dim orgOps As New System.Collections.Generic.List(Of String())
+    Try
+        Dim raw As String = System.IO.File.ReadAllText( _
+            ORG_CONFIG_PATH, System.Text.Encoding.UTF8)
+        ParseOrgOps(raw, orgOps)
+    Catch ex As Exception
+        ShowError("Greška pri čitanju org konfiguracije:" & vbCrLf & _
+                  "Error reading org config:" & vbCrLf & vbCrLf & ex.Message)
+        GoTo Cleanup
+    End Try
+
+    If orgOps.Count = 0 Then
+        ShowError("Org konfiguracija je prazna. Pokrenite PPM Operations Setup." & vbCrLf & _
+                  "Org config is empty. Run PPM Operations Setup.")
+        GoTo Cleanup
+    End If
+
+    ' ── Pre-scan: collect referenced paths ───────────────────────
+    ' CollectReferencedPaths walks ReferencedDocuments recursively —
+    ' never touches ComponentOccurrences (crash-safe on broken cross-refs).
+    Dim asmRefPaths As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
+    Try
+        CollectReferencedPaths(oAsmDoc, asmRefPaths)
+    Catch : End Try
+
+    Dim preScanParts As Integer = 0
+    Dim preScanAsms  As Integer = 0
+
+    For Each oDoc As Document In ThisApplication.Documents
+        Dim docPath As String = ""
+        Try : docPath = oDoc.FullFileName : Catch : Continue For : End Try
+        If Not asmRefPaths.Contains(docPath) Then Continue For
+        If TypeOf oDoc Is PartDocument Then
+            preScanParts += 1
+        ElseIf TypeOf oDoc Is AssemblyDocument Then
+            preScanAsms += 1
+        End If
+    Next
+
+    ' ── Load last used folder ─────────────────────────────────────
+    Dim lastPathFile As String = System.IO.Path.Combine( _
+        System.IO.Path.GetTempPath(), "PPM_ExportPartData_LastFolder.txt")
+    Dim lastFolder As String = ""
+    Try
+        If System.IO.File.Exists(lastPathFile) Then
+            lastFolder = System.IO.File.ReadAllText(lastPathFile).Trim()
+            If Not System.IO.Directory.Exists(lastFolder) Then lastFolder = ""
+        End If
+    Catch : End Try
+
+    Dim destFolder As String = lastFolder
+    Dim xlsxName   As String = asmName & "_PPM_BOM.xlsx"
+
+    ' ── Dialog ───────────────────────────────────────────────────
+    Dim dlg As New System.Windows.Forms.Form
+    dlg.Text            = "PPM - BOM Export"
+    dlg.Size            = New System.Drawing.Size(560, 316)
+    dlg.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
+    dlg.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    dlg.MaximizeBox     = False : dlg.MinimizeBox = False
+    dlg.BackColor       = cBg
+    dlg.AutoScaleMode   = System.Windows.Forms.AutoScaleMode.None
+
+    Dim lblTitle As New System.Windows.Forms.Label
+    lblTitle.Text      = "PPM BOM EXPORT"
+    lblTitle.Font      = New System.Drawing.Font("Segoe UI", 10, _
+        System.Drawing.FontStyle.Bold)
+    lblTitle.ForeColor = cAccent
+    lblTitle.Location  = New System.Drawing.Point(20, 18)
+    lblTitle.Size      = New System.Drawing.Size(520, 22)
+    dlg.Controls.Add(lblTitle)
+
+    Dim lblAsm As New System.Windows.Forms.Label
+    lblAsm.Text      = asmName
+    lblAsm.Font      = fMono
+    lblAsm.ForeColor = cGreen
+    lblAsm.Location  = New System.Drawing.Point(20, 44)
+    lblAsm.Size      = New System.Drawing.Size(520, 20)
+    dlg.Controls.Add(lblAsm)
+
+    Dim lblInfo As New System.Windows.Forms.Label
+    lblInfo.Text      = preScanParts & " delova / " & preScanParts & " parts,   " & _
+                        preScanAsms  & " sklopova / " & preScanAsms & " assemblies"
+    lblInfo.Font      = fSub
+    lblInfo.ForeColor = cSub
+    lblInfo.Location  = New System.Drawing.Point(20, 68)
+    lblInfo.Size      = New System.Drawing.Size(520, 18)
+    dlg.Controls.Add(lblInfo)
+
+    Dim sep1 As New System.Windows.Forms.Label
+    sep1.BackColor = cSurface
+    sep1.Location  = New System.Drawing.Point(20, 96)
+    sep1.Size      = New System.Drawing.Size(520, 1)
+    dlg.Controls.Add(sep1)
+
+    Dim lblFolder As New System.Windows.Forms.Label
+    lblFolder.Text      = "Odredisni folder / Destination folder:"
+    lblFolder.Font      = fUI : lblFolder.ForeColor = cSub
+    lblFolder.Location  = New System.Drawing.Point(20, 108)
+    lblFolder.Size      = New System.Drawing.Size(300, 18)
+    dlg.Controls.Add(lblFolder)
+
+    Dim txtFolder As New System.Windows.Forms.TextBox
+    txtFolder.Font      = fSub
+    txtFolder.BackColor = cInput
+    txtFolder.ForeColor = If(destFolder <> "", cGreen, cSub)
+    txtFolder.Text      = If(destFolder <> "", destFolder, "(nije izabran / not selected)")
+    txtFolder.Location  = New System.Drawing.Point(20, 128)
+    txtFolder.Size      = New System.Drawing.Size(392, 22)
+    dlg.Controls.Add(txtFolder)
+
+    Dim btnBrowse As New System.Windows.Forms.Button
+    btnBrowse.Text      = "..."
+    btnBrowse.Font      = fBold
+    btnBrowse.BackColor = cSurface : btnBrowse.ForeColor = cText
+    btnBrowse.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnBrowse.FlatAppearance.BorderColor = cAccent
+    btnBrowse.Location  = New System.Drawing.Point(420, 127)
+    btnBrowse.Size      = New System.Drawing.Size(120, 24)
+    dlg.Controls.Add(btnBrowse)
+
+    Dim lblFile As New System.Windows.Forms.Label
+    lblFile.Text      = "Ime fajla / File name:"
+    lblFile.Font      = fUI : lblFile.ForeColor = cSub
+    lblFile.Location  = New System.Drawing.Point(20, 162)
+    lblFile.Size      = New System.Drawing.Size(300, 18)
+    dlg.Controls.Add(lblFile)
+
+    Dim txtFile As New System.Windows.Forms.TextBox
+    txtFile.Font      = fSub
+    txtFile.BackColor = cInput
+    txtFile.ForeColor = cText
+    txtFile.Text      = xlsxName
+    txtFile.Location  = New System.Drawing.Point(20, 182)
+    txtFile.Size      = New System.Drawing.Size(520, 22)
+    dlg.Controls.Add(txtFile)
+
+    Dim sep2 As New System.Windows.Forms.Label
+    sep2.BackColor = cSurface
+    sep2.Location  = New System.Drawing.Point(20, 220)
+    sep2.Size      = New System.Drawing.Size(520, 1)
+    dlg.Controls.Add(sep2)
+
+    Dim btnCancel As New System.Windows.Forms.Button
+    btnCancel.Text      = "Odustani / Cancel"
+    btnCancel.Font      = fUI
+    btnCancel.BackColor = cSurface : btnCancel.ForeColor = cSub
+    btnCancel.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnCancel.FlatAppearance.BorderColor = cSurface
+    btnCancel.Location     = New System.Drawing.Point(180, 238)
+    btnCancel.Size         = New System.Drawing.Size(150, 34)
+    btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel
+    dlg.Controls.Add(btnCancel)
+
+    Dim btnConfirm As New System.Windows.Forms.Button
+    btnConfirm.Text      = "Potvrdi / Confirm"
+    btnConfirm.Font      = fBold
+    btnConfirm.BackColor = cAccent : btnConfirm.ForeColor = cText
+    btnConfirm.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnConfirm.FlatAppearance.BorderColor = cAccent
+    btnConfirm.Location     = New System.Drawing.Point(370, 238)
+    btnConfirm.Size         = New System.Drawing.Size(170, 34)
+    btnConfirm.DialogResult = System.Windows.Forms.DialogResult.OK
+    btnConfirm.Enabled      = (destFolder <> "")
+    dlg.Controls.Add(btnConfirm)
+
+    dlg.AcceptButton = btnConfirm
+    dlg.CancelButton = btnCancel
+
+    AddHandler btnBrowse.Click, Sub(s, e)
+        Dim fbd As New System.Windows.Forms.FolderBrowserDialog
+        fbd.Description = "Izaberi odredisni folder / Select destination folder"
+        Dim typed As String = txtFolder.Text.Trim()
+        If System.IO.Directory.Exists(typed) Then
+            fbd.SelectedPath = typed
+        ElseIf lastFolder <> "" Then
+            fbd.SelectedPath = lastFolder
+        End If
+        If fbd.ShowDialog() = System.Windows.Forms.DialogResult.OK Then
+            destFolder          = fbd.SelectedPath
+            txtFolder.Text      = destFolder
+            txtFolder.ForeColor = cGreen
+            btnConfirm.Enabled  = True
+        End If
+    End Sub
+
+    AddHandler txtFolder.TextChanged, Sub(s, e)
+        Dim typed As String = txtFolder.Text.Trim()
+        If System.IO.Directory.Exists(typed) Then
+            destFolder          = typed
+            txtFolder.ForeColor = cGreen
+            btnConfirm.Enabled  = True
+        Else
+            btnConfirm.Enabled = False
+        End If
+    End Sub
+
+    dlg.ShowDialog()
+    If dlg.DialogResult <> System.Windows.Forms.DialogResult.OK Then GoTo Cleanup
+
+    destFolder = txtFolder.Text.Trim()
+    xlsxName   = txtFile.Text.Trim()
+    If xlsxName = ""                            Then xlsxName = asmName & "_PPM_BOM.xlsx"
+    If Not xlsxName.ToLower().EndsWith(".xlsx") Then xlsxName &= ".xlsx"
+
+    If Not System.IO.Directory.Exists(destFolder) Then
+        ShowError("Odredisni folder ne postoji." & vbCrLf & _
+                  "Destination folder does not exist.")
+        GoTo Cleanup
+    End If
+
+    Try : System.IO.File.WriteAllText(lastPathFile, destFolder) : Catch : End Try
+
+    Dim xlsxPath As String = System.IO.Path.Combine(destFolder, xlsxName)
+
+    ' ════════════════════════════════════════════════════════════════
+    ' PART 1 END — commit checkpoint
+    ' Part 2: assembly walk, iProperty reads, xlsx sheets 1-2
+    ' ════════════════════════════════════════════════════════════════
+
+    ' ── Get BOM quantities via export + re-read ──────────────────
+    Dim qtyMap As New System.Collections.Generic.Dictionary(Of String, Integer)( _
+        System.StringComparer.OrdinalIgnoreCase)
+    Try
+        Dim oBOM As BOM = oAsmDoc.ComponentDefinition.BOM
+        oBOM.PartsOnlyViewEnabled = True
+        Dim oView As BOMView = oBOM.BOMViews.Item("Parts Only")
+        Dim tmpBomPath As String = System.IO.Path.Combine( _
+            System.IO.Path.GetTempPath(), asmName & "_PPM_TmpBOM.xlsx")
+        If System.IO.File.Exists(tmpBomPath) Then System.IO.File.Delete(tmpBomPath)
+        oView.Export(tmpBomPath, kMicrosoftExcelFormat)
+        If System.IO.File.Exists(tmpBomPath) Then
+            ReadBomQty(tmpBomPath, qtyMap)
+            Try : System.IO.File.Delete(tmpBomPath) : Catch : End Try
+        End If
+    Catch : End Try
+
+    ' ── Collect document data ─────────────────────────────────────
+    ' partRows entry: {level, pn, desc, qty, docType, material,
+    '                  thickMM, bendCount, ppmHoles, ppmThreads, opFlags}
+    ' asmRows  entry: {level, pn, desc, qty, docType, opFlags}
+    Dim partRows As New System.Collections.Generic.List(Of Object())
+    Dim asmRows  As New System.Collections.Generic.List(Of Object())
+    Dim seenPaths As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
+
+    For Each oDoc As Document In ThisApplication.Documents
+        Dim docPath As String = ""
+        Try : docPath = oDoc.FullFileName : Catch : Continue For : End Try
+        If Not asmRefPaths.Contains(docPath) Then Continue For
+        If seenPaths.Contains(docPath) Then Continue For
+        seenPaths.Add(docPath)
+
+        Dim pn   As String = ReadDTP(oDoc, "Part Number")
+        Dim desc As String = ReadDTP(oDoc, "Description")
+        If pn = "" Then
+            Try : pn = System.IO.Path.GetFileNameWithoutExtension(docPath) : Catch : End Try
+        End If
+
+        Dim qty As Integer = 1
+        If qtyMap.ContainsKey(pn) Then qty = qtyMap(pn)
+
+        If TypeOf oDoc Is PartDocument Then
+            Dim oPart    As PartDocument = CType(oDoc, PartDocument)
+            Dim material  As String  = ""
+            Dim thickMM   As Double  = 0
+            Dim bendCount As Integer = 0
+
+            Try : material = oPart.ComponentDefinition.Material.Name : Catch : End Try
+
+            If TypeOf oPart.ComponentDefinition Is SheetMetalComponentDefinition Then
+                Dim oSM As SheetMetalComponentDefinition = _
+                    CType(oPart.ComponentDefinition, SheetMetalComponentDefinition)
+                Try : thickMM = oSM.Thickness.ModelValue * 10 : Catch : End Try
+                bendCount = GetBendCount(oSM, oDoc)
+            End If
+
+            Dim ppmHoles   As String = ReadCustomProp(oDoc, "PPM_Holes")
+            Dim ppmThreads As String = ReadCustomProp(oDoc, "PPM_Threads")
+            Dim opFlags As New System.Collections.Generic.Dictionary(Of String, Integer)( _
+                System.StringComparer.OrdinalIgnoreCase)
+            For Each op As String() In orgOps
+                Dim flagVal As Integer = 0
+                Try : flagVal = CInt(ReadCustomProp(oDoc, "PPM_" & op(0).Replace("-", "_"))) : Catch : End Try
+                opFlags(op(0)) = flagVal
+            Next
+
+            partRows.Add(New Object() {1, pn, desc, qty, "Part", material, _
+                thickMM, bendCount, ppmHoles, ppmThreads, opFlags})
+
+        ElseIf TypeOf oDoc Is AssemblyDocument Then
+            Dim docType As String = "Mech Assy"
+            Try
+                If TypeOf CType(oDoc, AssemblyDocument).ComponentDefinition _
+                    Is WeldmentComponentDefinition Then docType = "Weld Assy"
+            Catch : End Try
+
+            Dim opFlags As New System.Collections.Generic.Dictionary(Of String, Integer)( _
+                System.StringComparer.OrdinalIgnoreCase)
+            For Each op As String() In orgOps
+                Dim flagVal As Integer = 0
+                Try : flagVal = CInt(ReadCustomProp(oDoc, "PPM_" & op(0).Replace("-", "_"))) : Catch : End Try
+                opFlags(op(0)) = flagVal
+            Next
+
+            asmRows.Add(New Object() {1, pn, desc, qty, docType, opFlags})
+        End If
+    Next
+
+    If partRows.Count = 0 AndAlso asmRows.Count = 0 Then
+        ShowError("Nisu pronađeni delovi ni sklopovi u aktivnom sklopu." & vbCrLf & _
+                  "No parts or assemblies found in the active assembly.")
+        GoTo Cleanup
+    End If
+
+    ' ── Write xlsx ───────────────────────────────────────────────
+    If System.IO.File.Exists(xlsxPath) Then
+        Try : System.IO.File.Delete(xlsxPath) : Catch : End Try
+    End If
+    Try
+        WriteXlsx(xlsxPath, asmName, orgOps, partRows, asmRows)
+    Catch ex As Exception
+        ShowError("Greška pri pisanju xlsx fajla:" & vbCrLf & _
+                  "Error writing xlsx file:" & vbCrLf & vbCrLf & ex.Message)
+        GoTo Cleanup
+    End Try
+
+    ' ════════════════════════════════════════════════════════════════
+    ' PART 2 END — commit checkpoint
+    ' Part 3: sheets 3-4, summary dialog
+    ' ════════════════════════════════════════════════════════════════
+
+    ShowSummaryDialog(partRows.Count, asmRows.Count, xlsxPath)
+
+Cleanup:
+    fUI.Dispose() : fSub.Dispose() : fBold.Dispose() : fMono.Dispose()
+
+End Sub
+
+' ════════════════════════════════════════════════════════════════════
+' SUBROUTINES — Part 1
+' ════════════════════════════════════════════════════════════════════
+
+Sub CollectReferencedPaths(oDoc As Document, _
+        ByRef paths As System.Collections.Generic.HashSet(Of String))
+    For Each refDoc As Document In oDoc.ReferencedDocuments
+        Dim refPath As String = ""
+        Try : refPath = refDoc.FullFileName : Catch : Continue For : End Try
+        If refPath = "" OrElse paths.Contains(refPath) Then Continue For
+        paths.Add(refPath)
+        If TypeOf refDoc Is AssemblyDocument Then
+            CollectReferencedPaths(refDoc, paths)
+        End If
+    Next
+End Sub
+
+Sub ParseOrgOps(content As String, _
+        ByRef ops As System.Collections.Generic.List(Of String()))
+    Dim parts() As String = content.Split( _
+        New String() {"""id"""}, StringSplitOptions.RemoveEmptyEntries)
+    For i As Integer = 1 To parts.Length - 1
+        Dim seg As String = parts(i)
+        Dim id  As String = ExtractFirstQuotedValue(seg)
+        Dim nm  As String = ExtractJsonField(seg, "name")
+        Dim cat As String = ExtractJsonField(seg, "category")
+        If id.StartsWith("OP-") AndAlso nm <> "" Then
+            ops.Add(New String() {id, nm, cat})
+        End If
+    Next
+End Sub
+
+Function ExtractFirstQuotedValue(s As String) As String
+    Dim ci As Integer = s.IndexOf(":")
+    If ci < 0 Then Return ""
+    Dim q1 As Integer = s.IndexOf("""", ci)
+    If q1 < 0 Then Return ""
+    Dim q2 As Integer = s.IndexOf("""", q1 + 1)
+    If q2 < 0 Then Return ""
+    Return s.Substring(q1 + 1, q2 - q1 - 1)
+End Function
+
+Function ExtractJsonField(block As String, fieldName As String) As String
+    Dim key As String = """" & fieldName & """"
+    Dim ki  As Integer = block.IndexOf(key)
+    If ki < 0 Then Return ""
+    Dim ci  As Integer = block.IndexOf(":", ki + key.Length)
+    If ci < 0 Then Return ""
+    Dim q1  As Integer = block.IndexOf("""", ci + 1)
+    If q1 < 0 Then Return ""
+    Dim q2  As Integer = block.IndexOf("""", q1 + 1)
+    If q2 < 0 Then Return ""
+    Return block.Substring(q1 + 1, q2 - q1 - 1)
+End Function
+
+Sub ShowError(msg As String)
+    Dim ef As New System.Windows.Forms.Form
+    ef.Text            = "PPM - Greška / Error"
+    ef.Size            = New System.Drawing.Size(460, 200)
+    ef.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
+    ef.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    ef.BackColor       = System.Drawing.Color.FromArgb(59, 68, 83)
+    ef.MaximizeBox     = False : ef.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
+    Dim lbl As New System.Windows.Forms.Label
+    lbl.Text      = msg
+    lbl.Font      = New System.Drawing.Font("Segoe UI", 9)
+    lbl.ForeColor = System.Drawing.Color.FromArgb(210, 153, 34)
+    lbl.Location  = New System.Drawing.Point(20, 20)
+    lbl.Size      = New System.Drawing.Size(420, 80)
+    ef.Controls.Add(lbl)
+    Dim btn As New System.Windows.Forms.Button
+    btn.Text      = "OK"
+    btn.Font      = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    btn.BackColor = System.Drawing.Color.FromArgb(46, 125, 209)
+    btn.ForeColor = System.Drawing.Color.FromArgb(230, 237, 243)
+    btn.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btn.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(46, 125, 209)
+    btn.Location     = New System.Drawing.Point(180, 134)
+    btn.Size         = New System.Drawing.Size(100, 32)
+    btn.DialogResult = System.Windows.Forms.DialogResult.OK
+    ef.Controls.Add(btn) : ef.AcceptButton = btn : ef.ShowDialog()
+End Sub
+
+' ════════════════════════════════════════════════════════════════
+' Part 2 Helpers — property reads, bend detection, xlsx write
+' ════════════════════════════════════════════════════════════════
+
+Function ReadDTP(oDoc As Document, propName As String) As String
+    Try
+        Return CStr(oDoc.PropertySets.Item("Design Tracking Properties"). _
+            Item(propName).Value).Trim()
+    Catch : Return "" : End Try
+End Function
+
+Function ReadCustomProp(oDoc As Document, propName As String) As String
+    Try
+        Return CStr(oDoc.PropertySets.Item("Inventor User Defined Properties"). _
+            Item(propName).Value).Trim()
+    Catch : Return "" : End Try
+End Function
+
+Function GetBendCount(oSM As SheetMetalComponentDefinition, oDoc As Document) As Integer
+    Dim n As Integer = 0
+    Try
+        For Each feat As Object In oSM.Features
+            Try
+                If InStr(LCase(feat.Type.ToString()), "bend") > 0 Then n += 1
+            Catch : End Try
+        Next
+    Catch : End Try
+    If n > 0 Then Return n
+    Try : n = CInt(oDoc.PropertySets.Item("Design Tracking Properties"). _
+        Item("Bend Count").Value) : Catch : End Try
+    If n > 0 Then Return n
+    Dim hasFP As Boolean = False
+    Try : hasFP = (oSM.FlatPattern IsNot Nothing) : Catch : End Try
+    Dim thk As Double = 0
+    Try : thk = oSM.Thickness.ModelValue : Catch : End Try
+    If hasFP AndAlso thk > 0 Then Return 1
+    Return 0
+End Function
+
+Sub ReadBomQty(xlsxPath As String, _
+        qtyMap As System.Collections.Generic.Dictionary(Of String, Integer))
+    Try
+        Using arc As System.IO.Compression.ZipArchive = _
+            System.IO.Compression.ZipFile.Open(xlsxPath, _
+            System.IO.Compression.ZipArchiveMode.Read)
+
+            Dim ss As New System.Collections.Generic.List(Of String)
+            Dim ssEnt As System.IO.Compression.ZipArchiveEntry = _
+                arc.GetEntry("xl/sharedStrings.xml")
+            If ssEnt IsNot Nothing Then
+                Dim xd As New System.Xml.XmlDocument()
+                Using st As System.IO.Stream = ssEnt.Open() : xd.Load(st) : End Using
+                Dim mgr As New System.Xml.XmlNamespaceManager(xd.NameTable)
+                mgr.AddNamespace("x", "http://schemas.openxmlformats.org/spreadsheetml/2006/main")
+                For Each t As System.Xml.XmlNode In xd.SelectNodes("//x:t", mgr)
+                    ss.Add(t.InnerText)
+                Next
+            End If
+
+            Dim shEnt As System.IO.Compression.ZipArchiveEntry = _
+                arc.GetEntry("xl/worksheets/sheet1.xml")
+            If shEnt Is Nothing Then Return
+            Dim xs As New System.Xml.XmlDocument()
+            Using st As System.IO.Stream = shEnt.Open() : xs.Load(st) : End Using
+            Dim xm As New System.Xml.XmlNamespaceManager(xs.NameTable)
+            xm.AddNamespace("x", "http://schemas.openxmlformats.org/spreadsheetml/2006/main")
+
+            Dim pnCol As Integer = -1 : Dim qtyCol As Integer = -1
+            Dim firstRow As Boolean = True
+            For Each rowNode As System.Xml.XmlNode In xs.SelectNodes("//x:row", xm)
+                Dim cellVals As New System.Collections.Generic.Dictionary(Of Integer, String)
+                For Each c As System.Xml.XmlNode In rowNode.SelectNodes("x:c", xm)
+                    Dim rAttr As System.Xml.XmlAttribute = c.Attributes("r")
+                    If rAttr Is Nothing Then Continue For
+                    Dim letters As New System.Text.StringBuilder
+                    For Each ch As Char In rAttr.Value
+                        If Char.IsLetter(ch) Then letters.Append(ch) Else Exit For
+                    Next
+                    Dim colNum As Integer = ColLetterToNum(letters.ToString())
+                    Dim tAttr As System.Xml.XmlAttribute = c.Attributes("t")
+                    Dim isS As Boolean = (tAttr IsNot Nothing AndAlso tAttr.Value = "s")
+                    Dim vNode As System.Xml.XmlNode = c.SelectSingleNode("x:v", xm)
+                    If vNode IsNot Nothing Then
+                        If isS Then
+                            Dim idx As Integer = 0
+                            If Integer.TryParse(vNode.InnerText, idx) AndAlso _
+                               idx >= 0 AndAlso idx < ss.Count Then
+                                cellVals(colNum) = ss(idx)
+                            End If
+                        Else
+                            cellVals(colNum) = vNode.InnerText
+                        End If
+                    End If
+                Next
+                If firstRow Then
+                    firstRow = False
+                    For Each kv As System.Collections.Generic.KeyValuePair(Of Integer, String) _
+                            In cellVals
+                        Dim h As String = kv.Value.ToLower().Trim()
+                        If h = "part number" OrElse h = "part_number" Then pnCol = kv.Key
+                        If h = "qty" OrElse h = "quantity" Then qtyCol = kv.Key
+                    Next
+                Else
+                    Dim pnVal As String = ""
+                    Dim qtyVal As Integer = 1
+                    If pnCol >= 0 AndAlso cellVals.ContainsKey(pnCol) Then _
+                        pnVal = cellVals(pnCol).Trim()
+                    If qtyCol >= 0 AndAlso cellVals.ContainsKey(qtyCol) Then
+                        Try : qtyVal = CInt(cellVals(qtyCol)) : Catch : End Try
+                    End If
+                    If pnVal <> "" Then
+                        If Not qtyMap.ContainsKey(pnVal) Then
+                            qtyMap(pnVal) = qtyVal
+                        Else
+                            qtyMap(pnVal) += qtyVal
+                        End If
+                    End If
+                End If
+            Next
+        End Using
+    Catch : End Try
+End Sub
+
+Function ColLetterToNum(col As String) As Integer
+    Dim n As Integer = 0
+    For Each ch As Char In col.ToUpper()
+        n = n * 26 + (AscW(ch) - 64)
+    Next
+    Return n
+End Function
+
+Function ColLetter(n As Integer) As String
+    Dim result As String = ""
+    Do While n > 0
+        Dim rem As Integer = (n - 1) Mod 26
+        result = Chr(65 + rem) & result
+        n = (n - 1) \ 26
+    Loop
+    Return result
+End Function
+
+Function SsAdd(v As String, ss As System.Collections.Generic.List(Of String), _
+               ssIdx As System.Collections.Generic.Dictionary(Of String, Integer)) As Integer
+    If ssIdx.ContainsKey(v) Then Return ssIdx(v)
+    Dim i As Integer = ss.Count
+    ss.Add(v) : ssIdx(v) = i
+    Return i
+End Function
+
+Sub WriteXlsx(xlsxPath As String, asmName As String, _
+        orgOps As System.Collections.Generic.List(Of String()), _
+        partRows As System.Collections.Generic.List(Of Object()), _
+        asmRows  As System.Collections.Generic.List(Of Object()))
+
+    Dim ss    As New System.Collections.Generic.List(Of String)
+    Dim ssIdx As New System.Collections.Generic.Dictionary(Of String, Integer)( _
+        System.StringComparer.Ordinal)
+
+    SsAdd("Level", ss, ssIdx)          : SsAdd("Part Number", ss, ssIdx)
+    SsAdd("Description", ss, ssIdx)    : SsAdd("Qty", ss, ssIdx)
+    SsAdd("Type", ss, ssIdx)           : SsAdd("Material", ss, ssIdx)
+    SsAdd("Thickness (mm)", ss, ssIdx) : SsAdd("Bends", ss, ssIdx)
+    SsAdd("PPM_Holes", ss, ssIdx)      : SsAdd("PPM_Threads", ss, ssIdx)
+    For Each op As String() In orgOps
+        SsAdd(op(1) & " REQ?",  ss, ssIdx)
+        SsAdd(op(1) & " DONE?", ss, ssIdx)
+        SsAdd(op(1),             ss, ssIdx)
+    Next
+    SsAdd("✓",         ss, ssIdx)
+    SsAdd("Item",      ss, ssIdx)
+    SsAdd("QTY",       ss, ssIdx)
+    SsAdd("Thickness", ss, ssIdx)
+    For Each row As Object() In partRows
+        SsAdd(CStr(row(1)), ss, ssIdx) : SsAdd(CStr(row(2)), ss, ssIdx)
+        SsAdd(CStr(row(4)), ss, ssIdx) : SsAdd(CStr(row(5)), ss, ssIdx)
+        If CStr(row(8)) <> "" Then SsAdd(CStr(row(8)), ss, ssIdx)
+        If CStr(row(9)) <> "" Then SsAdd(CStr(row(9)), ss, ssIdx)
+    Next
+    For Each row As Object() In asmRows
+        SsAdd(CStr(row(1)), ss, ssIdx) : SsAdd(CStr(row(2)), ss, ssIdx)
+        SsAdd(CStr(row(4)), ss, ssIdx)
+    Next
+
+    Using archive As System.IO.Compression.ZipArchive = _
+        System.IO.Compression.ZipFile.Open(xlsxPath, _
+        System.IO.Compression.ZipArchiveMode.Create)
+
+        WriteZipEntry(archive, "[Content_Types].xml", _
+            "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>" & _
+            "<Types xmlns=""http://schemas.openxmlformats.org/package/2006/content-types"">" & _
+            "<Default Extension=""rels"" ContentType=""application/vnd.openxmlformats-package.relationships+xml""/>" & _
+            "<Default Extension=""xml"" ContentType=""application/xml""/>" & _
+            "<Override PartName=""/xl/workbook.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml""/>" & _
+            "<Override PartName=""/xl/worksheets/sheet1.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+            "<Override PartName=""/xl/worksheets/sheet2.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+            "<Override PartName=""/xl/worksheets/sheet3.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+            "<Override PartName=""/xl/worksheets/sheet4.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+            "<Override PartName=""/xl/sharedStrings.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml""/>" & _
+            "<Override PartName=""/xl/styles.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml""/>" & _
+            "</Types>")
+
+        WriteZipEntry(archive, "_rels/.rels", _
+            "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>" & _
+            "<Relationships xmlns=""http://schemas.openxmlformats.org/package/2006/relationships"">" & _
+            "<Relationship Id=""rId1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"" Target=""xl/workbook.xml""/>" & _
+            "</Relationships>")
+
+        WriteZipEntry(archive, "xl/_rels/workbook.xml.rels", _
+            "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>" & _
+            "<Relationships xmlns=""http://schemas.openxmlformats.org/package/2006/relationships"">" & _
+            "<Relationship Id=""rId1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet1.xml""/>" & _
+            "<Relationship Id=""rId2"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet2.xml""/>" & _
+            "<Relationship Id=""rId3"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet3.xml""/>" & _
+            "<Relationship Id=""rId4"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet4.xml""/>" & _
+            "<Relationship Id=""rId5"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"" Target=""sharedStrings.xml""/>" & _
+            "<Relationship Id=""rId6"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"" Target=""styles.xml""/>" & _
+            "</Relationships>")
+
+        WriteZipEntry(archive, "xl/workbook.xml", _
+            "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>" & _
+            "<workbook xmlns=""http://schemas.openxmlformats.org/spreadsheetml/2006/main"" " & _
+            "xmlns:r=""http://schemas.openxmlformats.org/officeDocument/2006/relationships"">" & _
+            "<sheets>" & _
+            "<sheet name=""PARTS"" sheetId=""1"" r:id=""rId1""/>" & _
+            "<sheet name=""ASSEMBLIES"" sheetId=""2"" r:id=""rId2""/>" & _
+            "<sheet name=""REPORT"" sheetId=""3"" r:id=""rId3""/>" & _
+            "<sheet name=""BOM_FLAT"" sheetId=""4"" r:id=""rId4""/>" & _
+            "</sheets></workbook>")
+
+        WriteZipEntry(archive, "xl/styles.xml", BuildStylesXml())
+
+        Dim sbSS As New System.Text.StringBuilder
+        sbSS.Append("<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>")
+        sbSS.Append("<sst xmlns=""http://schemas.openxmlformats.org/spreadsheetml/2006/main"" count=""")
+        sbSS.Append(ss.Count) : sbSS.Append(""" uniqueCount=""")
+        sbSS.Append(ss.Count) : sbSS.Append(""">")
+        For Each sv As String In ss
+            sbSS.Append("<si><t xml:space=""preserve"">")
+            sbSS.Append(XmlEsc(sv)) : sbSS.Append("</t></si>")
+        Next
+        sbSS.Append("</sst>")
+        WriteZipEntry(archive, "xl/sharedStrings.xml", sbSS.ToString())
+
+        WriteZipEntry(archive, "xl/worksheets/sheet1.xml", _
+            BuildPartsSheet(orgOps, partRows, ssIdx))
+        WriteZipEntry(archive, "xl/worksheets/sheet2.xml", _
+            BuildAsmsSheet(orgOps, asmRows, ssIdx))
+        WriteZipEntry(archive, "xl/worksheets/sheet3.xml", _
+            BuildReportSheet(asmName, orgOps, partRows, asmRows))
+        WriteZipEntry(archive, "xl/worksheets/sheet4.xml", _
+            BuildBomFlatSheet(orgOps, partRows, ssIdx))
+    End Using
+End Sub
+
+Sub WriteZipEntry(archive As System.IO.Compression.ZipArchive, _
+        entryName As String, content As String)
+    Dim entry As System.IO.Compression.ZipArchiveEntry = _
+        archive.CreateEntry(entryName, System.IO.Compression.CompressionLevel.Optimal)
+    Using s As System.IO.Stream = entry.Open()
+        Dim b() As Byte = System.Text.Encoding.UTF8.GetBytes(content)
+        s.Write(b, 0, b.Length)
+    End Using
+End Sub
+
+Function XmlEsc(sv As String) As String
+    Return sv.Replace("&", "&amp;").Replace("<", "&lt;"). _
+              Replace(">", "&gt;").Replace("""", "&quot;")
+End Function
+
+Function BuildStylesXml() As String
+    Return "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>" & _
+        "<styleSheet xmlns=""http://schemas.openxmlformats.org/spreadsheetml/2006/main"">" & _
+        "<fonts count=""2""><font><sz val=""10""/><name val=""Calibri""/></font>" & _
+        "<font><b/><sz val=""10""/><name val=""Calibri""/></font></fonts>" & _
+        "<fills count=""3""><fill><patternFill patternType=""none""/></fill>" & _
+        "<fill><patternFill patternType=""gray125""/></fill>" & _
+        "<fill><patternFill patternType=""solid""><fgColor rgb=""FFD29922""/></patternFill></fill></fills>" & _
+        "<borders count=""1""><border><left/><right/><top/><bottom/><diagonal/></border></borders>" & _
+        "<cellStyleXfs count=""1""><xf numFmtId=""0"" fontId=""0"" fillId=""0"" borderId=""0""/></cellStyleXfs>" & _
+        "<cellXfs count=""3"">" & _
+        "<xf numFmtId=""0"" fontId=""0"" fillId=""0"" borderId=""0"" xfId=""0""/>" & _
+        "<xf numFmtId=""0"" fontId=""1"" fillId=""0"" borderId=""0"" xfId=""0""/>" & _
+        "<xf numFmtId=""0"" fontId=""0"" fillId=""2"" borderId=""0"" xfId=""0""/>" & _
+        "</cellXfs></styleSheet>"
+End Function
+
+Function BuildPartsSheet(orgOps As System.Collections.Generic.List(Of String()), _
+        rows As System.Collections.Generic.List(Of Object()), _
+        ssIdx As System.Collections.Generic.Dictionary(Of String, Integer)) As String
+
+    Dim sb As New System.Text.StringBuilder
+    sb.Append("<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>")
+    sb.Append("<worksheet xmlns=""http://schemas.openxmlformats.org/spreadsheetml/2006/main"">")
+    sb.Append("<sheetViews><sheetView workbookViewId=""0"">")
+    sb.Append("<pane state=""frozen"" ySplit=""1"" topLeftCell=""A2"" activePane=""bottomLeft""/>")
+    sb.Append("</sheetView></sheetViews><sheetData>")
+
+    Dim fixedH() As String = {"Level","Part Number","Description","Qty","Type", _
+        "Material","Thickness (mm)","Bends","PPM_Holes","PPM_Threads"}
+    Dim col As Integer = 1
+    sb.Append("<row r=""1"">")
+    For Each h As String In fixedH
+        sb.Append("<c r=""" & ColLetter(col) & "1"" t=""s"" s=""1""><v>")
+        sb.Append(ssIdx(h)) : sb.Append("</v></c>") : col += 1
+    Next
+    For Each op As String() In orgOps
+        sb.Append("<c r=""" & ColLetter(col) & "1"" t=""s"" s=""1""><v>")
+        sb.Append(ssIdx(op(1) & " REQ?")) : sb.Append("</v></c>") : col += 1
+        sb.Append("<c r=""" & ColLetter(col) & "1"" t=""s"" s=""1""><v>")
+        sb.Append(ssIdx(op(1) & " DONE?")) : sb.Append("</v></c>") : col += 1
+    Next
+    sb.Append("</row>")
+
+    Dim rn As Integer = 2
+    For Each row As Object() In rows
+        col = 1
+        sb.Append("<row r=""" & rn & """>")
+        NCell(sb, col, rn, CInt(row(0))) : col += 1
+        SCell(sb, col, rn, CStr(row(1)), ssIdx) : col += 1
+        SCell(sb, col, rn, CStr(row(2)), ssIdx) : col += 1
+        NCell(sb, col, rn, CInt(row(3))) : col += 1
+        SCell(sb, col, rn, CStr(row(4)), ssIdx) : col += 1
+        SCell(sb, col, rn, CStr(row(5)), ssIdx) : col += 1
+        Dim thk As Double = CDbl(row(6))
+        If thk > 0 Then
+            DCell(sb, col, rn, thk)
+        Else
+            sb.Append("<c r=""" & ColLetter(col) & rn & """/>")
+        End If
+        col += 1
+        NCell(sb, col, rn, CInt(row(7))) : col += 1
+        SCell(sb, col, rn, CStr(row(8)), ssIdx) : col += 1
+        SCell(sb, col, rn, CStr(row(9)), ssIdx) : col += 1
+        Dim opf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+            CType(row(10), System.Collections.Generic.Dictionary(Of String, Integer))
+        For Each op As String() In orgOps
+            Dim v As Integer = 0
+            If opf.ContainsKey(op(0)) Then v = opf(op(0))
+            If v = 1 Then SCell(sb, col, rn, "✓", ssIdx) _
+            Else sb.Append("<c r=""" & ColLetter(col) & rn & """/>")
+            col += 1
+            sb.Append("<c r=""" & ColLetter(col) & rn & """/>") : col += 1
+        Next
+        sb.Append("</row>")
+        rn += 1
+    Next
+    sb.Append("</sheetData></worksheet>")
+    Return sb.ToString()
+End Function
+
+Function BuildAsmsSheet(orgOps As System.Collections.Generic.List(Of String()), _
+        rows As System.Collections.Generic.List(Of Object()), _
+        ssIdx As System.Collections.Generic.Dictionary(Of String, Integer)) As String
+
+    Dim sb As New System.Text.StringBuilder
+    sb.Append("<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>")
+    sb.Append("<worksheet xmlns=""http://schemas.openxmlformats.org/spreadsheetml/2006/main"">")
+    sb.Append("<sheetViews><sheetView workbookViewId=""0"">")
+    sb.Append("<pane state=""frozen"" ySplit=""1"" topLeftCell=""A2"" activePane=""bottomLeft""/>")
+    sb.Append("</sheetView></sheetViews><sheetData>")
+
+    Dim fixedH() As String = {"Level","Part Number","Description","Qty","Type"}
+    Dim col As Integer = 1
+    sb.Append("<row r=""1"">")
+    For Each h As String In fixedH
+        sb.Append("<c r=""" & ColLetter(col) & "1"" t=""s"" s=""1""><v>")
+        sb.Append(ssIdx(h)) : sb.Append("</v></c>") : col += 1
+    Next
+    For Each op As String() In orgOps
+        sb.Append("<c r=""" & ColLetter(col) & "1"" t=""s"" s=""1""><v>")
+        sb.Append(ssIdx(op(1) & " REQ?")) : sb.Append("</v></c>") : col += 1
+        sb.Append("<c r=""" & ColLetter(col) & "1"" t=""s"" s=""1""><v>")
+        sb.Append(ssIdx(op(1) & " DONE?")) : sb.Append("</v></c>") : col += 1
+    Next
+    sb.Append("</row>")
+
+    Dim rn As Integer = 2
+    For Each row As Object() In rows
+        col = 1
+        Dim dtype  As String  = CStr(row(4))
+        Dim isWeld As Boolean = (dtype = "Weld Assy")
+        Dim rAttr  As String  = If(isWeld, " s=""2"" customFormat=""1""", "")
+        Dim cs     As Integer = If(isWeld, 2, 0)
+        sb.Append("<row r=""" & rn & """" & rAttr & ">")
+        NCellS(sb, col, rn, CInt(row(0)), cs) : col += 1
+        SCellS(sb, col, rn, CStr(row(1)), ssIdx, cs) : col += 1
+        SCellS(sb, col, rn, CStr(row(2)), ssIdx, cs) : col += 1
+        NCellS(sb, col, rn, CInt(row(3)), cs) : col += 1
+        SCellS(sb, col, rn, dtype, ssIdx, cs) : col += 1
+        Dim opf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+            CType(row(5), System.Collections.Generic.Dictionary(Of String, Integer))
+        For Each op As String() In orgOps
+            Dim v As Integer = 0
+            If opf.ContainsKey(op(0)) Then v = opf(op(0))
+            If v = 1 Then SCellS(sb, col, rn, "✓", ssIdx, cs) _
+            Else sb.Append("<c r=""" & ColLetter(col) & rn & """" & _
+                If(cs > 0, " s=""" & cs & """", "") & "/>")
+            col += 1
+            sb.Append("<c r=""" & ColLetter(col) & rn & """" & _
+                If(cs > 0, " s=""" & cs & """", "") & "/>") : col += 1
+        Next
+        sb.Append("</row>")
+        rn += 1
+    Next
+    sb.Append("</sheetData></worksheet>")
+    Return sb.ToString()
+End Function
+
+Sub SCell(sb As System.Text.StringBuilder, col As Integer, rn As Integer, _
+        val As String, ssIdx As System.Collections.Generic.Dictionary(Of String, Integer))
+    If val = "" OrElse Not ssIdx.ContainsKey(val) Then
+        sb.Append("<c r=""" & ColLetter(col) & rn & """/>")
+    Else
+        sb.Append("<c r=""" & ColLetter(col) & rn & """ t=""s""><v>")
+        sb.Append(ssIdx(val)) : sb.Append("</v></c>")
+    End If
+End Sub
+
+Sub NCell(sb As System.Text.StringBuilder, col As Integer, rn As Integer, val As Integer)
+    sb.Append("<c r=""" & ColLetter(col) & rn & """><v>")
+    sb.Append(val) : sb.Append("</v></c>")
+End Sub
+
+Sub DCell(sb As System.Text.StringBuilder, col As Integer, rn As Integer, val As Double)
+    sb.Append("<c r=""" & ColLetter(col) & rn & """><v>")
+    sb.Append(val.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))
+    sb.Append("</v></c>")
+End Sub
+
+Sub SCellS(sb As System.Text.StringBuilder, col As Integer, rn As Integer, _
+        val As String, ssIdx As System.Collections.Generic.Dictionary(Of String, Integer), _
+        style As Integer)
+    Dim sa As String = If(style > 0, " s=""" & style & """", "")
+    If val = "" OrElse Not ssIdx.ContainsKey(val) Then
+        sb.Append("<c r=""" & ColLetter(col) & rn & """" & sa & "/>")
+    Else
+        sb.Append("<c r=""" & ColLetter(col) & rn & """" & sa & " t=""s""><v>")
+        sb.Append(ssIdx(val)) : sb.Append("</v></c>")
+    End If
+End Sub
+
+Sub NCellS(sb As System.Text.StringBuilder, col As Integer, rn As Integer, _
+        val As Integer, style As Integer)
+    Dim sa As String = If(style > 0, " s=""" & style & """", "")
+    sb.Append("<c r=""" & ColLetter(col) & rn & """" & sa & "><v>")
+    sb.Append(val) : sb.Append("</v></c>")
+End Sub
+
+Function EmptySheet() As String
+    Return "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>" & _
+        "<worksheet xmlns=""http://schemas.openxmlformats.org/spreadsheetml/2006/main"">" & _
+        "<sheetData/></worksheet>"
+End Function
+
+' ════════════════════════════════════════════════════════════════
+' Inline-string cell helpers (REPORT sheet uses t="inlineStr")
+' ════════════════════════════════════════════════════════════════
+
+Sub RICell(sb As System.Text.StringBuilder, col As Integer, rn As Integer, _
+        val As String, bold As Integer)
+    Dim sa As String = If(bold = 1, " s=""1""", "")
+    sb.Append("<c r=""" & ColLetter(col) & rn & """" & sa & " t=""inlineStr""><is><t>")
+    sb.Append(XmlEsc(val)) : sb.Append("</t></is></c>")
+End Sub
+
+Sub RICellS(sb As System.Text.StringBuilder, col As Integer, rn As Integer, _
+        val As String, style As Integer)
+    sb.Append("<c r=""" & ColLetter(col) & rn & """ s=""" & style & """ t=""inlineStr""><is><t>")
+    sb.Append(XmlEsc(val)) : sb.Append("</t></is></c>")
+End Sub
+
+Sub RIRow2(sb As System.Text.StringBuilder, rn As Integer, label As String, num As Integer)
+    sb.Append("<row r=""" & rn & """>")
+    RICell(sb, 1, rn, label, 0)
+    sb.Append("<c r=""B" & rn & """><v>") : sb.Append(num) : sb.Append("</v></c>")
+    sb.Append("</row>")
+End Sub
+
+' ════════════════════════════════════════════════════════════════
+' REPORT sheet (sheet3)
+' ════════════════════════════════════════════════════════════════
+
+Function BuildReportSheet(asmName As String, _
+        orgOps As System.Collections.Generic.List(Of String()), _
+        partRows As System.Collections.Generic.List(Of Object()), _
+        asmRows  As System.Collections.Generic.List(Of Object())) As String
+
+    Dim sb As New System.Text.StringBuilder
+    Dim rn As Integer = 1
+    Dim ts As String = DateTime.Now.ToString("yyyy-MM-dd HH:mm", _
+        System.Globalization.CultureInfo.InvariantCulture)
+
+    sb.Append("<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>")
+    sb.Append("<worksheet xmlns=""http://schemas.openxmlformats.org/spreadsheetml/2006/main"">")
+    sb.Append("<sheetData>")
+
+    ' Title + timestamp
+    sb.Append("<row r=""" & rn & """>")
+    RICell(sb, 1, rn, asmName & "  —  REPORT", 1)
+    sb.Append("</row>") : rn += 1
+
+    sb.Append("<row r=""" & rn & """>")
+    RICell(sb, 1, rn, "Exportovano / Exported: " & ts, 0)
+    sb.Append("</row>") : rn += 1
+
+    sb.Append("<row r=""" & rn & """/>") : rn += 1
+
+    ' Counts
+    RIRow2(sb, rn, "Ukupno delova / Total unique parts:", partRows.Count) : rn += 1
+    RIRow2(sb, rn, "Ukupno sklopova / Total assemblies:", asmRows.Count) : rn += 1
+
+    sb.Append("<row r=""" & rn & """/>") : rn += 1
+
+    ' Op summary
+    ' OPEN ITEM: % denominator = partRows.Count (all parts in BOM).
+    ' No "eligible parts" filter exists in the current data model — see open items below.
+    sb.Append("<row r=""" & rn & """>")
+    RICell(sb, 1, rn, "Operacija / Operation", 1)
+    RICell(sb, 2, rn, "Delova sa op / Parts w/ op", 1)
+    RICell(sb, 3, rn, "% od ukupnog / % of total", 1)
+    sb.Append("</row>") : rn += 1
+
+    Dim totalParts As Integer = partRows.Count
+    For Each op As String() In orgOps
+        Dim cnt As Integer = 0
+        For Each row As Object() In partRows
+            Dim opf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+                CType(row(10), System.Collections.Generic.Dictionary(Of String, Integer))
+            If opf.ContainsKey(op(0)) AndAlso opf(op(0)) = 1 Then cnt += 1
+        Next
+        Dim pct As String = If(totalParts > 0, _
+            (cnt * 100.0 / totalParts).ToString("0.0", _
+            System.Globalization.CultureInfo.InvariantCulture) & "%", "—")
+        sb.Append("<row r=""" & rn & """>")
+        RICell(sb, 1, rn, op(1), 0)
+        sb.Append("<c r=""B" & rn & """><v>") : sb.Append(cnt) : sb.Append("</v></c>")
+        RICell(sb, 3, rn, pct, 0)
+        sb.Append("</row>") : rn += 1
+    Next
+
+    sb.Append("<row r=""" & rn & """/>") : rn += 1
+
+    ' Weld assemblies list
+    Dim weldRows As New System.Collections.Generic.List(Of Object())
+    For Each row As Object() In asmRows
+        If CStr(row(4)) = "Weld Assy" Then weldRows.Add(row)
+    Next
+
+    sb.Append("<row r=""" & rn & """>")
+    RICell(sb, 1, rn, "Zavarivački sklopovi / Weld Assemblies: " & weldRows.Count, 1)
+    sb.Append("</row>") : rn += 1
+
+    If weldRows.Count > 0 Then
+        sb.Append("<row r=""" & rn & """>")
+        RICell(sb, 1, rn, "Part Number", 1) : RICell(sb, 2, rn, "Description", 1)
+        Dim hc As Integer = 3
+        For Each op As String() In orgOps
+            RICell(sb, hc, rn, op(1), 1) : hc += 1
+        Next
+        sb.Append("</row>") : rn += 1
+
+        For Each row As Object() In weldRows
+            sb.Append("<row r=""" & rn & """>")
+            RICell(sb, 1, rn, CStr(row(1)), 0)
+            RICell(sb, 2, rn, CStr(row(2)), 0)
+            Dim dc As Integer = 3
+            Dim opf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+                CType(row(5), System.Collections.Generic.Dictionary(Of String, Integer))
+            For Each op As String() In orgOps
+                Dim v As Integer = 0
+                If opf.ContainsKey(op(0)) Then v = opf(op(0))
+                RICell(sb, dc, rn, If(v = 1, "1", "0"), 0) : dc += 1
+            Next
+            sb.Append("</row>") : rn += 1
+        Next
+    End If
+
+    sb.Append("<row r=""" & rn & """/>") : rn += 1
+
+    ' Zero-ops items — amber fill (style 2)
+    Dim zeroRows As New System.Collections.Generic.List(Of String())
+    For Each row As Object() In partRows
+        Dim opf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+            CType(row(10), System.Collections.Generic.Dictionary(Of String, Integer))
+        Dim hasOp As Boolean = False
+        For Each op As String() In orgOps
+            If opf.ContainsKey(op(0)) AndAlso opf(op(0)) = 1 Then hasOp = True : Exit For
+        Next
+        If Not hasOp Then zeroRows.Add(New String() {CStr(row(1)), CStr(row(2)), "Part"})
+    Next
+    For Each row As Object() In asmRows
+        Dim opf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+            CType(row(5), System.Collections.Generic.Dictionary(Of String, Integer))
+        Dim hasOp As Boolean = False
+        For Each op As String() In orgOps
+            If opf.ContainsKey(op(0)) AndAlso opf(op(0)) = 1 Then hasOp = True : Exit For
+        Next
+        If Not hasOp Then zeroRows.Add(New String() {CStr(row(1)), CStr(row(2)), CStr(row(4))})
+    Next
+
+    sb.Append("<row r=""" & rn & """>")
+    RICell(sb, 1, rn, "Bez operacija / Zero ops: " & zeroRows.Count, 1)
+    sb.Append("</row>") : rn += 1
+
+    If zeroRows.Count > 0 Then
+        sb.Append("<row r=""" & rn & """>")
+        RICell(sb, 1, rn, "Part Number", 1)
+        RICell(sb, 2, rn, "Description", 1)
+        RICell(sb, 3, rn, "Type", 1)
+        sb.Append("</row>") : rn += 1
+        For Each row As String() In zeroRows
+            sb.Append("<row r=""" & rn & """>")
+            RICellS(sb, 1, rn, row(0), 2)
+            RICellS(sb, 2, rn, row(1), 2)
+            RICellS(sb, 3, rn, row(2), 2)
+            sb.Append("</row>") : rn += 1
+        Next
+    End If
+
+    sb.Append("</sheetData></worksheet>")
+    Return sb.ToString()
+End Function
+
+' ════════════════════════════════════════════════════════════════
+' BOM_FLAT sheet (sheet4)
+' ════════════════════════════════════════════════════════════════
+
+Function BuildBomFlatSheet(orgOps As System.Collections.Generic.List(Of String()), _
+        partRows As System.Collections.Generic.List(Of Object()), _
+        ssIdx As System.Collections.Generic.Dictionary(Of String, Integer)) As String
+
+    Dim sb As New System.Text.StringBuilder
+    sb.Append("<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>")
+    sb.Append("<worksheet xmlns=""http://schemas.openxmlformats.org/spreadsheetml/2006/main"">")
+    sb.Append("<sheetViews><sheetView workbookViewId=""0"">")
+    sb.Append("<pane state=""frozen"" ySplit=""1"" topLeftCell=""A2"" activePane=""bottomLeft""/>")
+    sb.Append("</sheetView></sheetViews><sheetData>")
+
+    ' Fixed headers — case matches ImportBOM VBA case-insensitive lookup (D-247)
+    Dim fixedH() As String = {"Item","Part Number","Description","QTY", _
+        "Material","Thickness","Bends","PPM_Holes","PPM_Threads"}
+    Dim col As Integer = 1
+    sb.Append("<row r=""1"">")
+    For Each h As String In fixedH
+        sb.Append("<c r=""" & ColLetter(col) & "1"" t=""s"" s=""1""><v>")
+        sb.Append(ssIdx(h)) : sb.Append("</v></c>") : col += 1
+    Next
+    For Each op As String() In orgOps
+        sb.Append("<c r=""" & ColLetter(col) & "1"" t=""s"" s=""1""><v>")
+        sb.Append(ssIdx(op(1))) : sb.Append("</v></c>") : col += 1
+    Next
+    sb.Append("</row>")
+
+    ' OPEN ITEM: Item = sequential 1-based row index, not BOM hierarchy item number.
+    Dim rn   As Integer = 2
+    Dim item As Integer = 1
+    For Each row As Object() In partRows
+        col = 1
+        sb.Append("<row r=""" & rn & """>")
+        NCell(sb, col, rn, item) : col += 1
+        SCell(sb, col, rn, CStr(row(1)), ssIdx) : col += 1
+        SCell(sb, col, rn, CStr(row(2)), ssIdx) : col += 1
+        NCell(sb, col, rn, CInt(row(3))) : col += 1
+        SCell(sb, col, rn, CStr(row(5)), ssIdx) : col += 1
+        Dim thk As Double = CDbl(row(6))
+        If thk > 0 Then DCell(sb, col, rn, thk) _
+        Else sb.Append("<c r=""" & ColLetter(col) & rn & """/>")
+        col += 1
+        NCell(sb, col, rn, CInt(row(7))) : col += 1
+        SCell(sb, col, rn, CStr(row(8)), ssIdx) : col += 1
+        SCell(sb, col, rn, CStr(row(9)), ssIdx) : col += 1
+        Dim opf As System.Collections.Generic.Dictionary(Of String, Integer) = _
+            CType(row(10), System.Collections.Generic.Dictionary(Of String, Integer))
+        For Each op As String() In orgOps
+            Dim v As Integer = 0
+            If opf.ContainsKey(op(0)) Then v = opf(op(0))
+            NCell(sb, col, rn, v) : col += 1
+        Next
+        sb.Append("</row>")
+        rn += 1 : item += 1
+    Next
+
+    sb.Append("</sheetData></worksheet>")
+    Return sb.ToString()
+End Function
+
+' ════════════════════════════════════════════════════════════════
+' Summary dialog — auto-closes after 3000 ms
+' ════════════════════════════════════════════════════════════════
+
+Sub ShowSummaryDialog(nParts As Integer, nAsms As Integer, xlsxPath As String)
+    Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
+    Dim cSurface As System.Drawing.Color = System.Drawing.Color.FromArgb(72, 82, 98)
+    Dim cAccent  As System.Drawing.Color = System.Drawing.Color.FromArgb(46, 125, 209)
+    Dim cText    As System.Drawing.Color = System.Drawing.Color.FromArgb(230, 237, 243)
+    Dim cGreen   As System.Drawing.Color = System.Drawing.Color.FromArgb(63, 185, 80)
+    Dim fUI   As New System.Drawing.Font("Segoe UI", 9)
+    Dim fBold As New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+
+    Dim dlg As New System.Windows.Forms.Form
+    dlg.Text            = "PPM - BOM Export"
+    dlg.Size            = New System.Drawing.Size(520, 200)
+    dlg.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
+    dlg.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    dlg.MaximizeBox     = False : dlg.MinimizeBox = False
+    dlg.BackColor       = cBg
+    dlg.AutoScaleMode   = System.Windows.Forms.AutoScaleMode.None
+
+    Dim lblTitle As New System.Windows.Forms.Label
+    lblTitle.Text      = "PPM BOM EXPORT"
+    lblTitle.Font      = New System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold)
+    lblTitle.ForeColor = cAccent
+    lblTitle.Location  = New System.Drawing.Point(20, 18)
+    lblTitle.Size      = New System.Drawing.Size(480, 22)
+    dlg.Controls.Add(lblTitle)
+
+    Dim fname As String = System.IO.Path.GetFileName(xlsxPath)
+    Dim lblMsg As New System.Windows.Forms.Label
+    lblMsg.Text      = "Exportovano / Exported: " & nParts & " delova / parts,  " & _
+                       nAsms & " sklopova / assemblies" & vbCrLf & fname
+    lblMsg.Font      = fUI
+    lblMsg.ForeColor = cGreen
+    lblMsg.Location  = New System.Drawing.Point(20, 48)
+    lblMsg.Size      = New System.Drawing.Size(480, 40)
+    dlg.Controls.Add(lblMsg)
+
+    Dim sep As New System.Windows.Forms.Label
+    sep.BackColor = cSurface
+    sep.Location  = New System.Drawing.Point(20, 96)
+    sep.Size      = New System.Drawing.Size(480, 1)
+    dlg.Controls.Add(sep)
+
+    Dim btnOK As New System.Windows.Forms.Button
+    btnOK.Text      = "OK"
+    btnOK.Font      = fBold
+    btnOK.BackColor = cAccent : btnOK.ForeColor = cText
+    btnOK.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnOK.FlatAppearance.BorderColor = cAccent
+    btnOK.Location     = New System.Drawing.Point(200, 114)
+    btnOK.Size         = New System.Drawing.Size(120, 34)
+    btnOK.DialogResult = System.Windows.Forms.DialogResult.OK
+    dlg.Controls.Add(btnOK)
+    dlg.AcceptButton = btnOK
+
+    Dim tmr As New System.Windows.Forms.Timer
+    tmr.Interval = 3000
+    AddHandler tmr.Tick, Sub(s, e)
+        tmr.Stop()
+        dlg.Close()
+    End Sub
+    tmr.Start()
+
+    dlg.ShowDialog()
+    tmr.Stop() : tmr.Dispose()
+    fUI.Dispose() : fBold.Dispose()
+End Sub
