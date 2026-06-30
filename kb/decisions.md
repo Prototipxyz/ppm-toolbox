@@ -1399,3 +1399,41 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   deployment path (`C:\PPM Cuts and Bends\iLogic\`) automatically as the final step of the
   edit, without being asked each time. Removes manual copy-paste friction from the dev loop
   while preserving D-294's git-as-source-of-truth model.
+
+## PPM_ExportPartData Part 4 — First Real End-to-End Run (D-302 to D-305)
+
+- D-302: **Confirmed: Inventor's `[Structured]` BOM view's `Item` column produces correct,
+  usable multi-level hierarchy in production.** First successful end-to-end run on `13017522
+  Alat.iam` confirmed `Item` values like `"9"`, `"9.1"`-`"9.5"` correctly resolve to Level 1
+  and Level 2 respectively via dot-count derivation (D-298's design). PARTS sheet now reflects
+  true assembly nesting instead of the previous hardcoded Level=1 (closes OQ-79 for real,
+  verified in production, not just diagnostic test).
+
+- D-303: **Bug found and fixed: `Chr()` throws `ArgumentException` for Unicode code points above
+  255 in iLogic's VB runtime.** `BuildReportSheet` used `Chr(10003)` (✓ checkmark) for REQ/DONE
+  column headers, causing "Procedure call or argument is not valid" at xlsx-write time. VB's
+  legacy `Chr()` is ANSI/ASCII-range-limited; `ChrW()` is the Unicode-safe equivalent and must
+  be used for any character code point above 255. Localized via temporary per-sheet diagnostic
+  Try/Catch wrapping in `WriteXlsx` (isolated the failure to `BuildReportSheet` specifically,
+  since sheets 1/2/4 use literal "✓" string characters directly rather than `Chr()`). Fixed by
+  replacing `Chr(10003)` with `ChrW(10003)`. New standing rule: any future `Chr()` usage for
+  non-ASCII characters in this codebase must use `ChrW()`.
+
+- D-304: **Critical data-integrity bug found: enrichment map silently overwrites on Part Number
+  collision across different document types.** Real-world case on `13017522 Alat.iam`: a Part
+  document and a Weld Assembly document both carry the literal Part Number `13017522_8`. The
+  original `enrichMap` (keyed by PN string only) let whichever document was enumerated last by
+  `ThisApplication.Documents` silently overwrite the other's Type/material/enrichment data —
+  no error, no warning, wrong data in the export. This is a CAD data-quality problem (duplicate
+  PN across different document types is itself a user/process error), not solely a macro bug,
+  but the macro must never silently produce incorrect output from it.
+
+- D-305: **PN collision handling = hard stop, not silent resolution.** Fixed: enrichment loop now
+  detects when an incoming document's Type differs from an already-mapped PN's Type, adds the PN
+  to a `collisionPns` list, and does NOT overwrite the existing entry. After the full enrichment
+  pass, if any collisions were found, the macro shows a bilingual error listing every colliding
+  PN ("Duplicate Part Number found across different document types — fix in CAD before
+  exporting") and aborts before writing any xlsx file via `GoTo Cleanup`. No partial/corrupt
+  export is ever produced. This establishes a standing principle for the macro suite: data
+  integrity conflicts are surfaced loudly and block export, never silently resolved by
+  last-write-wins.

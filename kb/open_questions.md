@@ -131,3 +131,16 @@
 ## PPM_ExportPartData Part 4 Rebuild — New Open Item
 
 | OQ-80 | **Structured BOM row enrichment match-by-PN may miss purchased/closed-document parts.** D-298's architecture enriches structured-BOM rows by matching Part Number against currently-open `ThisApplication.Documents`. If a part referenced in the BOM isn't open in the current Inventor session (e.g. purchased components, suppressed parts), enrichment fields (material, thickness, bends, op flags) will be blank rather than erroring — confirm this degrades gracefully in practice and doesn't silently drop rows entirely. | Verify during Part 4 testing |
+
+## PPM_ExportPartData Part 4 — Post-Production-Test Status (resolves OQ-79, OQ-80; updates OQ-78)
+
+OQ-79: **RESOLVED.** Confirmed working in production via D-302 — real Level derivation verified on `13017522 Alat.iam` end-to-end run, not just diagnostic test. No longer open.
+
+OQ-80: **RESOLVED — degrades gracefully.** Production run confirmed enrichment falls back to defaults (blank material/thickness/etc, Type="Part") when no document match is found, rather than dropping rows or erroring. No silent row loss observed.
+
+OQ-78 remains open pending the Part 5 REPORT restructure below (Completion % formula itself is correct per D-299, but display scope — hiding zero-REQ ops — has not yet been implemented).
+
+## PPM_ExportPartData Part 5 — Scoped for Next Session (sheet restructure)
+
+| OQ-81 | **Sheet structure simplification requested.** Current 4-sheet layout (PARTS, ASSEMBLIES, REPORT, BOM_FLAT) to be replaced with: (1) a single Structured BOM sheet carrying full hierarchy (Item/Level, replacing PARTS+ASSEMBLIES) plus a new project-wide total-qty-per-PN column at the top/assembly level, (2) a separate, independently-generated flat parts-only BOM_FLAT sheet (same enrichment data, different aggregation — no Excel formula-linking between sheets per explicit decision, both sheets generated from one in-memory dataset per export run, matching the existing PARTS/BOM_FLAT no-drift principle). Thumbnails remain explicitly deferred (confirmed again this session, consistent with D-300). | Next session |
+| OQ-82 | **REPORT sheet simplifications requested.** (1) Hide operations with REQ=0 entirely from the OPERATION COMPLETION table — only list operations actually required by at least one part. (2) Add a GST-tracker-style overall project summary block (Total PNs, parts/weld-assembly counts, similar shape to existing SUMMARY block already partially implemented per D-299). (3) Remove the per-operation column block from the REPORT's weld-assemblies list — list weld assemblies as PN/Description only, no inline op-flag columns (this was carried over from the original brief but does not match current intent). | Next session |
