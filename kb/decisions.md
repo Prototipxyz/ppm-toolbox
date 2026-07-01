@@ -1508,3 +1508,64 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   feed one shared Estimator, the consuming tool defines the input contract and
   each Toolbox conforms to it — avoids the format spec being tied to one CAD
   platform's conventions and needing rework as new Toolboxes are added.
+
+## Weld Rate Table — Schema, Data, and Calculation Model (D-312 to D-317)
+
+- D-312: **Weld rate table lookup key is `(material_group, joint_type, throat_class,
+  process, position)` — not `(material, process)` alone.** Confirmed empirically:
+  SS304 MAG FW z2 PB = 65 cm/min vs S355 MAG FW a4 PB = 20 cm/min — a 3× speed
+  difference driven by throat size, not material group. Material affects filler/gas
+  selection but not travel speed as strongly as throat class does within a process.
+  Throat classes: small (a1–a3 / leg ≤4mm), medium (a4–a5 / leg 5–7mm), large
+  (a6+ / leg ≥8mm). BW entries keyed by joint_type only (no throat class — prep
+  geometry captured in throat_note for reference).
+
+- D-313: **Weld rate table v1.0 built and committed to ppm-toolbox as
+  `kb/weld_rate_table.json` (14 entries, version 1.0.0).** 9 entries confirmed
+  from real Stirg WPS RP documents; 5 placeholder entries flagged per D-195
+  convention (same calibration-needed pattern as `Stirg_Operacije_Norms.xlsx`).
+  Confirmed anchor points by source:
+  - RP 47/22: Al 5754 TIG 141 FW a3 PB → 5–6 cm/min
+  - RP 50/22: Al 5754 MIG 131 BW PB → 30 cm/min
+  - RP 22/15: SS 304 TIG 141 FW PB → 6–7.5 cm/min
+  - WPS 12/24: SS 304 MAG 135 FW z2 PB → 65 cm/min
+  - WPS 20/25: SS 304 MAG 135 FW a3 PB → 70 cm/min
+  - WPS 22/25: SS 316Ti MAG 135 BW 1/2V PA → 80 cm/min
+  - RP 02/25: S355 MAG 135 FW a4 PB → 20 cm/min
+  - RP 01/25 pass 1: S355 MAG 135 BW V PA → 24 cm/min
+  - RP 01/25 pass 2: S355 MAG 135 BW V PA → 28.1 cm/min
+  Placeholder entries: Al TIG FW PA (derived), Al TIG FW medium PB, Al TIG BW PB,
+  Al MIG FW PB, S355 MAG FW medium PB.
+
+- D-314: **Deposition rate formula confirmed for MAG/MIG entries:
+  `deposition_g_per_m = π(d/2)² × wire_feed_mm_per_min × 7.85 / speed_cm_per_min × 100`**
+  (result in g/m of weld length; 7.85 = steel density g/cm³; same formula
+  implicit in Stirg's own WPS heat-input Excel cell `=(0.8×I×V×60)/(1000×speed)`).
+  TIG deposition is not computable from the rate table — TIG rod is hand-fed and
+  not metered on any confirmed RP document. TIG consumable cost requires a manual
+  input field in the Estimator (rod diameter + estimated rods-per-metre), treated
+  as a separate configurable constant rather than a derived value.
+
+- D-315: **Arc-on efficiency factor lives in the Estimator UI as an editable
+  per-job field, not baked into the rate table.** Travel speed in the rate table
+  is pure arc-on speed only. Defaults: TIG 35%, MIG/MAG 45% — industry-standard
+  starting points. User overrides per job based on assembly complexity (simple
+  bracket vs complex multi-joint tank are genuinely different). Calibrate defaults
+  from real job time logs post-launch, same D-195/OQ-72 pattern as norm hours.
+
+- D-316: **WPS rate table has no per-client dimension — Stirg's internal RP
+  documents are the authoritative source regardless of which client the WPS was
+  originally written for.** Stadler-formatted WPS forms (WPS 20/25, 22/25, 12/24)
+  contain Stirg's own production RP speed data; the client name on the header is
+  the end-customer for traceability, not an indication that the speed data is
+  client-specific. One flat rate table per process/material/joint/position
+  combination is correct. Resolves OQ-85.
+
+- D-317: **`weld_rate_table.json` is the Estimator's weld costing rate library,
+  parallel in role to `presets.json` for laser cutting.** Same versioning
+  convention (version field, generated date), same confirmed/placeholder
+  distinction. Consumed by the Estimator to look up travel speed + deposition
+  rate per bead (from Bead Report input), combined with arc-on efficiency (D-315)
+  and welder hourly rate (from org settings) to produce time and consumable cost
+  per weld bead. File location: `kb/weld_rate_table.json` in ppm-toolbox repo;
+  will move to Estimator app bundle once Estimator weld costing module is built.

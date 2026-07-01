@@ -152,3 +152,13 @@ OQ-78 remains open pending the Part 5 REPORT restructure below (Completion % for
 | OQ-85 | Whether the WPS/weld rate table needs a per-client dimension (Stadler/GST/Siemens/Winkler may specify different WPS terms) or is one Stirg-internal standard applied regardless of client. Undecided — affects rate table schema; decide before WPS data is structured, since adding a dimension after the fact means migrating data, not just appending rows. | Before WPS table schema locked |
 | OQ-86 | Estimator product naming — scope now extends beyond "Cuts and Bends" to include weld costing (D-308/D-309). Whether this warrants a rename or stays under the existing name with welding folded in is undecided. Cosmetic, low priority. | Low priority |
 | OQ-87 | Whether the Bead Report can be triggered from iLogic (`AssemblyWeldBeadReportCmd` ControlDefinition) and whether doing so still throws the Report Location modal dialog, or can run silently/scriptably. All Bead Report data collected so far (D-306/D-307) came from manual Tools-menu runs, not iLogic automation. Determines whether Bead Report generation can become a one-click macro step or stays a manual-click-then-parse two-step workflow. | Before Bead Report automation attempted |
+
+## Weld Rate Table — Resolved Items (OQ-83, OQ-85)
+
+OQ-83: **RESOLVED 2026-07-01.** WPS documents parsed across all material groups.
+Rate table built from 9 confirmed Stirg WPS RP anchor points + 5 placeholders
+flagged per D-195 convention. See D-312 to D-317. File: `kb/weld_rate_table.json`.
+
+OQ-85: **RESOLVED 2026-07-01.** No per-client dimension needed on the weld rate
+table. Stirg's RP speed data is internally consistent regardless of which client's
+WPS form it appears on. Single flat table confirmed. See D-316.
