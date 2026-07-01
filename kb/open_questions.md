@@ -174,3 +174,9 @@ OQ-87 remains open — Bead Report iLogic automation (`AssemblyWeldBeadReportCmd
 not yet tested. Needs live Inventor session, no documents needed.
 
 | OQ-88 | **CS MAG thin fillet RP not found.** WPS 07/24 and WPS 89/24 (S355 MAG 135 FW a2/a3 PB) not locatable. CS-MAG-FW-MD-PB entry remains analytically extrapolated at ~36 cm/min (D-319). Upgrade to confirmed when document is found or real job is timed. | Low priority — extrapolation is defensible |
+
+## Send to Estimator / OQ-87 Resolution
+
+OQ-87: **RESOLVED 2026-07-01.** AssemblyWeldBeadReportCmd confirmed executable
+from iLogic — fires two modal dialogs (subassembly checkbox + file save location).
+Both handled via SendKeys in Send to Estimator sequential context. See D-329.

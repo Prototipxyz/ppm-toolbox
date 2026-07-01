@@ -1649,3 +1649,41 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   Complexity class and reposition count are always auto-suggested from bead
   data and presented as one-click confirm-or-override fields, never silently
   applied without user visibility.
+
+## Send to Estimator — Job Package Feature (D-325 to D-329)
+
+- D-325: **"Send to Estimator" is a new button on the Global Form, last position
+  before Settings, alongside all existing macro buttons — does not replace any
+  of them.** It chains all export steps sequentially in one click: operations
+  warning → destination picker → batch DXF export → BOM export → Weld Bead
+  Report → manifest.json → completion summary. Spec: `kb/specs/send-to-estimator.md`.
+
+- D-326: **Job Package folder structure confirmed:**
+  `JobPackage_[AssemblyPN]_[YYYYMMDD]/` containing `manifest.json`,
+  `bom/StructuredBOM.xlsx`, `dxf/[all flat pattern DXFs]`,
+  `weld/WeldBeadReport.xls`. Flat folder per output type, not a ZIP —
+  Estimator reads the folder directly. ZIP manually for email if needed.
+  `manifest.json` written last; `package_complete: false` if sequence
+  aborted — Estimator treats incomplete packages as a warning state.
+
+- D-327: **Job Package save destination defaults to assembly parent folder,
+  user-overridable.** Destination picker shows pre-filled path, free-text
+  paste accepted, browse button `[...]` available. Last-used path remembered
+  per Inventor session (not persisted across sessions). Package name
+  auto-generated as `JobPackage_[PN]_[YYYYMMDD]`, not user-editable.
+
+- D-328: **PPM_ExportPartData in Job Package mode produces 3 sheets only:
+  PARTS, ASSEMBLIES, BOM_FLAT. No REPORT sheet.** Implemented via a
+  `JobPackageMode As Boolean` parameter — suppresses REPORT sheet generation,
+  no other behavior change. Existing individual Export Part Data button
+  behavior unchanged (still produces all sheets).
+
+- D-329: **OQ-87 resolved. AssemblyWeldBeadReportCmd confirmed executable
+  from iLogic (live test by Voja, 2026-07-01).** Two modal dialogs fire:
+  (1) "Include All Subassemblies" checkbox + Next, (2) Report Location file
+  save dialog. Both handled via `SendKeys` in the sequential Send to Estimator
+  context — no competing windows open mid-sequence, making SendKeys reliable
+  here where it would be fragile in a standalone context. Sleep timings:
+  800ms before each SendKeys call (conservative; tune if needed on Stirg machine).
+  Weld Bead Report step skipped silently if assembly is not a weldment;
+  noted as `weld_report: null` in manifest.
