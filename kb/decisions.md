@@ -1687,3 +1687,24 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   800ms before each SendKeys call (conservative; tune if needed on Stirg machine).
   Weld Bead Report step skipped silently if assembly is not a weldment;
   noted as `weld_report: null` in manifest.
+
+## Groove Weld Length Derivation — V-Groove Formula (D-330)
+
+- D-330: **Groove weld cross-section formulas confirmed for all prep types used
+  at Stirg. Length = Volume ÷ cross_section_area in all cases (D-307 method).**
+  Prep type is selected by the user in the Estimator (one dropdown per groove bead
+  or per assembly default); formula applied automatically:
+  - **Square butt (gap fill):** `area = gap_mm × plate_thickness_mm`
+    Confirmed exact: Groove Weld 1 (2mm gap × 3mm plate = 6mm², D-307).
+  - **Full V-groove (2×45° symmetric chamfer, no root face):**
+    `area = plate_thickness_mm²`
+    Derivation: each chamfer = right triangle (height=t, base=t×tan45°=t),
+    two sides: area = 2×(0.5×t×t) = t². For 3mm plate: 9mm². Resolved OQ-84 —
+    no Inventor measurement needed; standard chamfer assumption confirmed by Voja
+    as the correct prep model for Stirg's beveled groove welds.
+  - **Half-V groove (one side chamfered only):**
+    `area = 0.5 × plate_thickness_mm²`
+    Derived from full V-groove formula by symmetry. Not yet validated against
+    a real bead — flag as extrapolated until confirmed.
+  No other prep types currently in use at Stirg. If new types arise, extend
+  the formula table rather than replacing it.

@@ -180,3 +180,9 @@ not yet tested. Needs live Inventor session, no documents needed.
 OQ-87: **RESOLVED 2026-07-01.** AssemblyWeldBeadReportCmd confirmed executable
 from iLogic — fires two modal dialogs (subassembly checkbox + file save location).
 Both handled via SendKeys in Send to Estimator sequential context. See D-329.
+
+OQ-84: **RESOLVED 2026-07-01.** V-groove cross-section formula confirmed:
+`area = thickness²` for full 2×45° symmetric chamfer. Length = Volume ÷ area.
+No Inventor measurement needed — standard chamfer assumption confirmed by Voja.
+Square-gap formula already confirmed (D-307). Half-V extrapolated by symmetry.
+See D-330.
