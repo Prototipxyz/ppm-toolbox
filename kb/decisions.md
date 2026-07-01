@@ -1607,3 +1607,45 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   estimated total cost ~73 EUR at 25 EUR/h welder rate. All three bead types handled:
   fillet (direct length), groove (volume-derived length, D-307), cosmetic (direct
   length). Calculation logic validated as ready for Estimator implementation.
+
+## Weld Manipulation Time Model (D-322 to D-324)
+
+- D-322: **Full weld time model = three buckets: Setup + Repositioning + Arc-on.**
+  Pure arc-time estimates undercharge by ~2.5× on real assemblies because
+  setup and manipulation represent ~59% of total weld time independent of weld
+  length. Formula: `Total_time = T_setup + (N_repositions × T_per_reposition)
+  + (T_arc_on ÷ arc_on_efficiency)`. All three buckets are separate — folding
+  manipulation into arc-on efficiency produces wrong results (overcharges small
+  assemblies, undercharges large ones).
+
+- D-323: **Manipulation model placeholder values — all editable in Estimator
+  Settings, calibrate from real timed jobs (D-195 convention):**
+  Setup times by auto-suggested complexity class:
+  - Simple   (≤5 beads, 0 groove welds):          20 min [PLACEHOLDER]
+  - Standard (6–20 beads, groove ratio <30%):      45 min [PLACEHOLDER]
+  - Complex  (>20 beads or groove ratio ≥30%):     90 min [PLACEHOLDER]
+  Reposition times:
+  - Without crane (assembly mass ≤30kg):            5 min [PLACEHOLDER]
+  - With crane    (assembly mass  >30kg):           25 min [PLACEHOLDER]
+  Crane threshold: 30kg (EU manual handling guideline).
+  Reposition count heuristic (user-editable suggestion):
+  - ≤5 beads → 1 reposition
+  - 6–15 beads → 2 repositions
+  - 16–30 beads → 3 repositions
+  - >30 beads → 4 repositions
+  Arc-on efficiency (auto-selected from avg bead length, not user-editable):
+  - avg bead <150mm → 30% (many short beads, high start/stop overhead)
+  - avg bead 150–400mm → 38%
+  - avg bead 400–800mm → 42%
+  - avg bead >800mm → 45% (long continuous runs)
+
+- D-324: **Crane flag is automatic if assembly mass is known; manual fallback
+  if not.** Mass source priority: (1) Job Package iProperty from
+  PPM_ExportPartData pipeline (fully automatic), (2) manual entry field in
+  Estimator UI (single number). Assembly mass is not in the Bead Report — it
+  must come from the BOM/iProperties pipeline or user input. The Estimator
+  never blocks on a missing mass — if not provided, crane defaults to False
+  with a visible warning ("Mass not provided — crane requirement not evaluated").
+  Complexity class and reposition count are always auto-suggested from bead
+  data and presented as one-click confirm-or-override fields, never silently
+  applied without user visibility.
