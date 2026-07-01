@@ -162,3 +162,15 @@ flagged per D-195 convention. See D-312 to D-317. File: `kb/weld_rate_table.json
 OQ-85: **RESOLVED 2026-07-01.** No per-client dimension needed on the weld rate
 table. Stirg's RP speed data is internally consistent regardless of which client's
 WPS form it appears on. Single flat table confirmed. See D-316.
+
+## Weld Rate Table v1.1.0 Session (2026-07-01 continued)
+
+OQ-84 remains open — bevel/V-groove cross-section formula not yet validated. Needs
+one manual edge-length measurement in Inventor on a bevel-prep groove weld, same
+method as the square-gap-fill validation (D-307). No documents needed — 30-second
+Inventor task.
+
+OQ-87 remains open — Bead Report iLogic automation (`AssemblyWeldBeadReportCmd`)
+not yet tested. Needs live Inventor session, no documents needed.
+
+| OQ-88 | **CS MAG thin fillet RP not found.** WPS 07/24 and WPS 89/24 (S355 MAG 135 FW a2/a3 PB) not locatable. CS-MAG-FW-MD-PB entry remains analytically extrapolated at ~36 cm/min (D-319). Upgrade to confirmed when document is found or real job is timed. | Low priority — extrapolation is defensible |

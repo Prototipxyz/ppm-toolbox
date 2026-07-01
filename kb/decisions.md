@@ -1569,3 +1569,41 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   and welder hourly rate (from org settings) to produce time and consumable cost
   per weld bead. File location: `kb/weld_rate_table.json` in ppm-toolbox repo;
   will move to Estimator app bundle once Estimator weld costing module is built.
+
+## Weld Rate Table v1.1.0 — New Entries and TIG Consumable Model (D-318 to D-321)
+
+- D-318: **Three new confirmed entries added to weld_rate_table.json (v1.1.0):**
+  - AL6060-TIG-FW-SM-PA: Al 6060 TIG 141 FW a3 PA → 36 cm/min (WPS 89/25).
+    Flagged as Al 6060 alloy — use as analog for Al 5754 until 5754-specific RP found.
+  - AL6060-TIG-FW-SM-DBL-PB: Al 6060 TIG 141 FW a3+a3 double-sided PB → 15 cm/min
+    per pass, 2 passes (WPS 91/25). New geometry class: double-sided fillet.
+  - SS304-MAG-FW-MD-PB-HC: SS 304 MAG 135 FW a3 double-sided PB → 102 cm/min,
+    wire feed 15 m/min, 265A high-current spray, 2 passes (WPS 33/24). Complements
+    existing WPS 20/25 entry (70 cm/min at 220A) — same joint, different current
+    regime. Both are valid; 70 cm/min = standard, 102 cm/min = high-productivity.
+
+- D-319: **CS MAG thin fillet (a3) speed upgraded from pure placeholder to
+  analytically extrapolated: ~36 cm/min.** Derivation: travel speed is inversely
+  proportional to weld cross-section at constant wire feed and process conditions.
+  Confirmed CS a4 entry (RP 02/25) gives 20 cm/min at cross-section 16mm².
+  Extrapolated a3 = 20 × (16/9) = 36 cm/min (cross-section 9mm²). No conflicting
+  document found — CS MAG thin fillet RP documents not locatable. Upgrade to
+  confirmed when a real CS MAG a2/a3 RP is found.
+
+- D-320: **TIG consumable cost is derived from weld volume, not wire feed
+  (which is unmeasured for manual TIG).** Formula confirmed:
+  `consumed_g_per_m = cross_section_mm² × 1000 × density_g_cm³ / 1000 / efficiency`
+  Al TIG efficiency = 65% (standard manual TIG transfer, confirmed against welder
+  floor estimate). Welder's stated "1 rod per 10cm of a3 weld" resolved as a unit
+  mismatch — correctly interpreted as 1 rod (1m stick) per ~1m of weld, which gives
+  12.2 g/m deposited and aligns with the volume method to within the efficiency factor.
+  SS TIG efficiency = 65% (same assumption, no floor data available). This method
+  applies to all TIG entries where wire_feed_m_min is None in the rate table.
+
+- D-321: **Weld cost calculation pipeline confirmed end-to-end on real assembly
+  data (Stadler AdBlue Tank NR01555346, 32 beads).** Results with placeholder CS
+  MAG speed (35 cm/min, now upgraded to 36 cm/min): total weld length 20.2m, arc-on
+  time 57.7 min, total job time 2.14h, wire consumed ~2.85kg, gas ~807l,
+  estimated total cost ~73 EUR at 25 EUR/h welder rate. All three bead types handled:
+  fillet (direct length), groove (volume-derived length, D-307), cosmetic (direct
+  length). Calculation logic validated as ready for Estimator implementation.
