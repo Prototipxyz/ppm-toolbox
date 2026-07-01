@@ -1708,3 +1708,63 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
     a real bead — flag as extrapolated until confirmed.
   No other prep types currently in use at Stirg. If new types arise, extend
   the formula table rather than replacing it.
+
+## DXF Export Layer Filter — Pipeline Reality Check & Redesign (D-331 to D-335)
+
+- D-331: **D-269/D-270/D-271 were design intent, never implemented — superseded.**
+  Direct code inspection (both `PPM_ExportFlatPattern.iLogicVb` and
+  `PPM_BatchExportFlatPatterns.iLogicVb`) confirms `FilterDxfLayers` in both files
+  is byte-for-byte identical and implements Stage 1 only (line-by-line rename of
+  `IV_OUTER_PROFILE`/`IV_INTERIOR_PROFILES` to layer `0`). No `CleanEmptyLayers`
+  function exists in either file. The 3-stage pipeline described in D-269-D-271
+  (rename -> drop non-bend IV_ blocks -> clean layer table) was never built as
+  documented; those entries described a plan, not a validated result.
+
+- D-332: **`CleanEmptyLayers` existed once, broke AutoCAD/laser-software file-open
+  compatibility, and was manually removed by Voja. Hard constraint, not a style
+  preference: no future fix may re-edit the `TABLES`/`LAYER` section of exported
+  DXFs.** Layer table entries referencing zero entities in `ENTITIES` are harmless
+  and may remain in the table. The corruption cause was almost certainly the `70`
+  group-code layer-count mismatch (D-270's two-pass requirement) being handled
+  incorrectly in the removed implementation — not layer-table editing in general,
+  but rebuilding it is not worth the risk given a working non-table-editing
+  alternative exists (D-334).
+
+- D-333: **Confirmed with real INI (`PPM_FlatPattern_WithBends.ini`) and real DXF
+  output: `Visibility=OFF` does not suppress entity export for `IV_ARC_CENTERS`
+  or `IV_TANGENT`.** Both layers are correctly set `Visibility=OFF` in the INI's
+  `[FLATPATTERN LAYER OPTIONS]` section, yet the exported DXF still contained live
+  `POINT` entities on `IV_ARC_CENTERS` and `LINE` entities on `IV_TANGENT`. This
+  upgrades D-268's note from theoretical to directly evidenced.
+
+- D-334: **New `FilterDxfLayers` design: entity-block whitelist, scoped strictly to
+  the `ENTITIES` section, never touches `TABLES`.** Replaces the old rename-only
+  Stage 1 in both macros. Logic:
+  - Pass through `HEADER`/`CLASSES`/`TABLES`/`BLOCKS`/`OBJECTS` unchanged.
+  - Inside `ENTITIES`, parse entity blocks (each starts at a `0` group-code line +
+    entity type name, runs to the next `0` group-code line or `ENDSEC`).
+  - Layer `IV_OUTER_PROFILE` or `IV_INTERIOR_PROFILES` -> rewrite group code `8`
+    to `0`, keep block.
+  - Layer `0` -> keep as-is.
+  - Layer `IV_BEND`/`IV_BEND_DOWN` -> keep only if `includeBendLines=True`, else drop.
+  - Any other layer, **including any unrecognized `IV_*` layer** -> drop the entire
+    block. Permissive-drop by design (confirmed by Voja) rather than an enumerated
+    blacklist, so layers not individually tested (e.g. `IV_TOOL_CENTER`,
+    `IV_FEATURE_PROFILES`) are covered without requiring per-layer validation.
+  - No `TABLES`/`LAYER` edits, no `70` count changes (per D-332).
+  - Known untested edge case: `POLYLINE` entities have `VERTEX`/`SEQEND` child
+    blocks with no layer code of their own — must be grouped and kept/dropped with
+    their parent `POLYLINE`, not evaluated independently. Flagged for Claude Code
+    implementation; Inventor flat-pattern exports are expected to be
+    `LINE`/`ARC`/`CIRCLE`/`POINT`/`LWPOLYLINE` only, so this may never trigger.
+
+- D-335: **Fix scope confirmed: both macros get the new `FilterDxfLayers`. Batch
+  macro's `chkBend` default (`Checked=True`) confirmed intentional by Voja, stays
+  unchanged.** Single-part macro (`PPM_ExportFlatPattern.iLogicVb`) gets a new
+  `chkBend` checkbox, default unchecked (`False`, per original D-272 intent — no
+  prior deployed default to preserve here), wired identically to the batch macro's
+  `iniPath` selection + `FilterDxfLayers(destPath, includeBendLines)` call. Single-part
+  dialog also gets resized/relaid-out (current `Size(460,350)` clips the Export/Cancel
+  buttons — bottom edge at y=318 vs. ~35-40px of required window chrome margin);
+  reuse the batch macro's proven proportions rather than a minimal patch. Implementation
+  assigned to a Claude Code session, both macros in one pass.

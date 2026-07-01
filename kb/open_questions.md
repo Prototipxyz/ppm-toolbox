@@ -186,3 +186,10 @@ OQ-84: **RESOLVED 2026-07-01.** V-groove cross-section formula confirmed:
 No Inventor measurement needed — standard chamfer assumption confirmed by Voja.
 Square-gap formula already confirmed (D-307). Half-V extrapolated by symmetry.
 See D-330.
+
+## DXF Export Layer Filter Redesign — New Open Questions (OQ-89 to OQ-92)
+
+| OQ-89 | New `FilterDxfLayers` (D-334) has an untested edge case: `POLYLINE` entities' `VERTEX`/`SEQEND` children have no layer code of their own and must be grouped with their parent block rather than evaluated independently. Inventor flat-pattern exports are expected to only produce `LINE`/`ARC`/`CIRCLE`/`POINT`/`LWPOLYLINE`, so this may never trigger — needs verification once the new filter is live on a real export. | Verify after Claude Code implementation lands |
+| OQ-90 | Whether `IV_*` layers other than the two directly confirmed leakers (`IV_ARC_CENTERS`, `IV_TANGENT` — D-333) also write entities despite `Visibility=OFF` in the INI (e.g. `IV_TOOL_CENTER`, `IV_FEATURE_PROFILES`, `IV_ALTREP_FRONT/BACK`, `IV_ROLL`, `IV_ROLL_TANGENT`). Not individually tested. The permissive-drop whitelist design (D-334) makes this moot for correctness, but confirming which layers actually leak would be useful if the INI itself is ever revisited. | Low priority — whitelist already covers it |
+| OQ-91 | Single-part macro's exact final dialog `Size`/control layout after the resize (D-335) — left to the Claude Code implementation to finalize; needs a real-world check that the Export/Cancel buttons no longer clip. | Verify after Claude Code implementation lands |
+| OQ-92 | `PPM_MarkOperations` bend detection on STEP-converted-to-sheet-metal parts (flagged in the Bend Diagnostic session, part `Phantom A Längsträger links`) — the proposed fix of probing a temp DXF export for `IV_BEND`/`IV_BEND_DOWN` entities depends on the DXF export pipeline itself being correct first. Blocked on D-331-D-335 landing and being verified working. | Blocked on DXF export fix (D-331-D-335) |
