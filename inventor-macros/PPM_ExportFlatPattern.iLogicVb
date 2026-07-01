@@ -1,0 +1,609 @@
+' PPM_ExportFlatPattern.iLogicVb
+' Part-level flat pattern DXF export for Inventor 2021
+' API patterns: D-251 to D-258.
+' Reads material and thickness from Sheet Metal Style automatically (D-207).
+' Prompts worker for quantity only.
+' Filename format: PN_MATERIAL_THICKNESSmm_QTYpcs.dxf
+' XDATA block PPM_ESTIMATOR appended before EOF.
+
+AddReference "System.Drawing"
+AddReference "System.Windows.Forms"
+
+Sub Main()
+
+    ' ── Auto-update check ────────────────────────────────────────
+    ' Checks network path for newer version. If found, copies locally
+    ' and asks user to run again. Fails silently if network is down.
+    Dim localPath  As String = "C:\PPM Cuts and Bends\iLogic\PPM_ExportFlatPattern.iLogicVb"
+    Dim networkPath As String = "X:\USER\Gavrilovic\iLogic\PPM_ExportFlatPattern.iLogicVb"
+    Try
+        If System.IO.File.Exists(networkPath) AndAlso System.IO.File.Exists(localPath) Then
+            Dim netTime   As DateTime = System.IO.File.GetLastWriteTime(networkPath)
+            Dim localTime As DateTime = System.IO.File.GetLastWriteTime(localPath)
+            If netTime > localTime Then
+                System.IO.File.Copy(networkPath, localPath, True)
+                System.Windows.Forms.MessageBox.Show( _
+                    "Nova verzija je instalirana." & vbCrLf & _
+                    "New version installed." & vbCrLf & vbCrLf & _
+                    "Pokrenite makro ponovo." & vbCrLf & _
+                    "Please run the macro again.", _
+                    "PPM - Azuriranje / Update", _
+                    System.Windows.Forms.MessageBoxButtons.OK, _
+                    System.Windows.Forms.MessageBoxIcon.Information)
+                Exit Sub
+            End If
+        End If
+    Catch : End Try
+    ' ─────────────────────────────────────────────────────────────
+
+    ' ── Palette (D-258) ──────────────────────────────────────────
+    Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
+    Dim cSurface As System.Drawing.Color = System.Drawing.Color.FromArgb(72, 82, 98)
+    Dim cAccent  As System.Drawing.Color = System.Drawing.Color.FromArgb(46, 125, 209)
+    Dim cText    As System.Drawing.Color = System.Drawing.Color.FromArgb(230, 237, 243)
+    Dim cSub     As System.Drawing.Color = System.Drawing.Color.FromArgb(180, 190, 200)
+    Dim cGreen   As System.Drawing.Color = System.Drawing.Color.FromArgb(63, 185, 80)
+    Dim cAmber   As System.Drawing.Color = System.Drawing.Color.FromArgb(210, 153, 34)
+    Dim cInput   As System.Drawing.Color = System.Drawing.Color.FromArgb(33, 38, 45)
+
+    Dim fUI   As New System.Drawing.Font("Segoe UI", 9)
+    Dim fSub  As New System.Drawing.Font("Segoe UI", 8)
+    Dim fBold As New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    Dim fMono As New System.Drawing.Font("Consolas", 11, System.Drawing.FontStyle.Bold)
+
+    ' ── Guard: must be a sheet metal part ────────────────────────
+    If Not TypeOf ThisApplication.ActiveDocument Is PartDocument Then
+        ShowError("Otvori deo (.ipt) pre pokretanja makroa." & vbCrLf & _
+                  "Open a part (.ipt) before running this macro.")
+        GoTo Cleanup
+    End If
+
+    Dim oDoc As PartDocument = CType(ThisApplication.ActiveDocument, PartDocument)
+
+    If Not TypeOf oDoc.ComponentDefinition Is SheetMetalComponentDefinition Then
+        ShowError("Aktivni deo nije lim deo." & vbCrLf & _
+                  "Active part is not a sheet metal part.")
+        GoTo Cleanup
+    End If
+
+    Dim oSMDef As SheetMetalComponentDefinition = _
+        CType(oDoc.ComponentDefinition, SheetMetalComponentDefinition)
+
+    ' ── Read part number from iProperties ────────────────────────
+    Dim pn As String = ""
+    Try
+        Dim oProp As Inventor.Property = _
+            oDoc.PropertySets.Item("Design Tracking Properties").Item("Part Number")
+        pn = CStr(oProp.Value).Trim()
+    Catch : End Try
+    If pn = "" Then
+        Try : pn = System.IO.Path.GetFileNameWithoutExtension(oDoc.FullFileName)
+        Catch : pn = "UNKNOWN" : End Try
+    End If
+
+    ' ── Read material (D-253) ─────────────────────────────────────
+    Dim material As String = ""
+    Dim materialOk As Boolean = False
+    Try
+        material = oDoc.ComponentDefinition.Material.Name
+        If material <> "" Then materialOk = True
+    Catch : End Try
+    If material = "" Then material = "UNKNOWN"
+    Dim materialSanitized As String = SanitizeForFilename(material)
+
+    ' ── Read thickness (D-254) ───────────────────────────────────
+    Dim thickMM As Double = 0
+    Dim thickOk As Boolean = False
+    Try
+        thickMM = oSMDef.Thickness.ModelValue * 10
+        If thickMM > 0 Then thickOk = True
+    Catch : End Try
+    Dim thickStr As String = FormatThickness(thickMM)
+
+    ' ── Build dialog ─────────────────────────────────────────────
+    Dim includeBendLines As Boolean = False
+    Dim dlg As New System.Windows.Forms.Form
+    dlg.Text = "PPM - Izvoz ravnog uzorka / Export Flat Pattern"
+    dlg.Size = New System.Drawing.Size(460, 420)
+    dlg.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+    dlg.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    dlg.BackColor = cBg : dlg.MaximizeBox = False : dlg.MinimizeBox = False
+    dlg.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
+
+    ' Title
+    Dim lblTitle As New System.Windows.Forms.Label
+    lblTitle.Text = "IZVOZ RAVNOG UZORKA / EXPORT FLAT PATTERN"
+    lblTitle.Font = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    lblTitle.ForeColor = cAccent
+    lblTitle.Location = New System.Drawing.Point(20, 16)
+    lblTitle.Size = New System.Drawing.Size(420, 18)
+    dlg.Controls.Add(lblTitle)
+
+    ' Part number
+    Dim lblPn As New System.Windows.Forms.Label
+    lblPn.Text = pn
+    lblPn.Font = fMono
+    lblPn.ForeColor = cGreen
+    lblPn.Location = New System.Drawing.Point(20, 38)
+    lblPn.Size = New System.Drawing.Size(420, 22)
+    dlg.Controls.Add(lblPn)
+
+    ' Separator
+    Dim sep1 As New System.Windows.Forms.Label
+    sep1.BackColor = cSurface
+    sep1.Location = New System.Drawing.Point(20, 68)
+    sep1.Size = New System.Drawing.Size(420, 1)
+    dlg.Controls.Add(sep1)
+
+    ' Material row
+    Dim lblMatLbl As New System.Windows.Forms.Label
+    lblMatLbl.Text = "Materijal / Material:"
+    lblMatLbl.Font = fSub : lblMatLbl.ForeColor = cSub
+    lblMatLbl.Location = New System.Drawing.Point(20, 78)
+    lblMatLbl.Size = New System.Drawing.Size(150, 18)
+    dlg.Controls.Add(lblMatLbl)
+
+    Dim lblMatVal As New System.Windows.Forms.Label
+    lblMatVal.Text = material
+    lblMatVal.Font = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    lblMatVal.ForeColor = If(materialOk, cGreen, cAmber)
+    lblMatVal.Location = New System.Drawing.Point(175, 78)
+    lblMatVal.Size = New System.Drawing.Size(265, 18)
+    dlg.Controls.Add(lblMatVal)
+
+    Dim txtMat As New System.Windows.Forms.TextBox
+    txtMat.Font = fSub : txtMat.BackColor = cInput : txtMat.ForeColor = cAmber
+    txtMat.Text = material
+    txtMat.Visible = Not materialOk
+    txtMat.Location = New System.Drawing.Point(175, 78)
+    txtMat.Size = New System.Drawing.Size(265, 22)
+    dlg.Controls.Add(txtMat)
+
+    If Not materialOk Then
+        lblMatVal.Visible = False
+        Dim lblMatHint As New System.Windows.Forms.Label
+        lblMatHint.Text = "Nije moguce procitati — unesi rucno / Could not read — enter manually"
+        lblMatHint.Font = New System.Drawing.Font("Segoe UI", 7)
+        lblMatHint.ForeColor = cAmber
+        lblMatHint.Location = New System.Drawing.Point(175, 100)
+        lblMatHint.Size = New System.Drawing.Size(265, 14)
+        dlg.Controls.Add(lblMatHint)
+    End If
+
+    ' Thickness row
+    Dim lblThkLbl As New System.Windows.Forms.Label
+    lblThkLbl.Text = "Debljina / Thickness:"
+    lblThkLbl.Font = fSub : lblThkLbl.ForeColor = cSub
+    lblThkLbl.Location = New System.Drawing.Point(20, 110)
+    lblThkLbl.Size = New System.Drawing.Size(150, 18)
+    dlg.Controls.Add(lblThkLbl)
+
+    Dim lblThkVal As New System.Windows.Forms.Label
+    lblThkVal.Text = thickStr & " mm"
+    lblThkVal.Font = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    lblThkVal.ForeColor = If(thickOk, cGreen, cAmber)
+    lblThkVal.Location = New System.Drawing.Point(175, 110)
+    lblThkVal.Size = New System.Drawing.Size(265, 18)
+    dlg.Controls.Add(lblThkVal)
+
+    Dim txtThk As New System.Windows.Forms.TextBox
+    txtThk.Font = fSub : txtThk.BackColor = cInput : txtThk.ForeColor = cAmber
+    txtThk.Text = thickStr
+    txtThk.Visible = Not thickOk
+    txtThk.Location = New System.Drawing.Point(175, 110)
+    txtThk.Size = New System.Drawing.Size(100, 22)
+    dlg.Controls.Add(txtThk)
+
+    If Not thickOk Then
+        lblThkVal.Visible = False
+        Dim lblThkHint As New System.Windows.Forms.Label
+        lblThkHint.Text = "Nije moguce procitati — unesi rucno / Could not read — enter manually"
+        lblThkHint.Font = New System.Drawing.Font("Segoe UI", 7)
+        lblThkHint.ForeColor = cAmber
+        lblThkHint.Location = New System.Drawing.Point(175, 132)
+        lblThkHint.Size = New System.Drawing.Size(265, 14)
+        dlg.Controls.Add(lblThkHint)
+    End If
+
+    ' Separator
+    Dim sep2 As New System.Windows.Forms.Label
+    sep2.BackColor = cSurface
+    sep2.Location = New System.Drawing.Point(20, 150)
+    sep2.Size = New System.Drawing.Size(420, 1)
+    dlg.Controls.Add(sep2)
+
+    ' Quantity row
+    Dim lblQtyLbl As New System.Windows.Forms.Label
+    lblQtyLbl.Text = "Kolicina / Quantity (kom/pcs):"
+    lblQtyLbl.Font = fUI : lblQtyLbl.ForeColor = cSub
+    lblQtyLbl.Location = New System.Drawing.Point(20, 162)
+    lblQtyLbl.Size = New System.Drawing.Size(220, 18)
+    dlg.Controls.Add(lblQtyLbl)
+
+    Dim txtQty As New System.Windows.Forms.TextBox
+    txtQty.Font = New System.Drawing.Font("Consolas", 10, System.Drawing.FontStyle.Bold)
+    txtQty.BackColor = cInput : txtQty.ForeColor = cText
+    txtQty.Text = "1"
+    txtQty.TextAlign = System.Windows.Forms.HorizontalAlignment.Center
+    txtQty.Location = New System.Drawing.Point(250, 160)
+    txtQty.Size = New System.Drawing.Size(60, 24)
+    dlg.Controls.Add(txtQty)
+
+    ' Separator
+    Dim sep3 As New System.Windows.Forms.Label
+    sep3.BackColor = cSurface
+    sep3.Location = New System.Drawing.Point(20, 200)
+    sep3.Size = New System.Drawing.Size(420, 1)
+    dlg.Controls.Add(sep3)
+
+    ' Destination folder row
+    Dim lblFolderLbl As New System.Windows.Forms.Label
+    lblFolderLbl.Text = "Odredisni folder / Destination folder:"
+    lblFolderLbl.Font = fSub : lblFolderLbl.ForeColor = cSub
+    lblFolderLbl.Location = New System.Drawing.Point(20, 212)
+    lblFolderLbl.Size = New System.Drawing.Size(420, 18)
+    dlg.Controls.Add(lblFolderLbl)
+
+    Dim lastPathFile As String = System.IO.Path.Combine( _
+        System.IO.Path.GetTempPath(), "PPM_ExportFlatPattern_LastFolder.txt")
+    Dim lastFolder As String = ""
+    Try
+        If System.IO.File.Exists(lastPathFile) Then
+            lastFolder = System.IO.File.ReadAllText(lastPathFile).Trim()
+        End If
+    Catch : End Try
+    If lastFolder = "" Then
+        Try : lastFolder = System.IO.Path.GetDirectoryName(oDoc.FullFileName)
+        Catch : End Try
+    End If
+
+    Dim txtFolder As New System.Windows.Forms.TextBox
+    txtFolder.Font = fSub : txtFolder.BackColor = cInput : txtFolder.ForeColor = cSub
+    txtFolder.Text = If(lastFolder <> "", lastFolder, "(nije izabran / not selected)")
+    txtFolder.Location = New System.Drawing.Point(20, 232)
+    txtFolder.Size = New System.Drawing.Size(280, 22)
+    dlg.Controls.Add(txtFolder)
+
+    Dim btnBrowse As New System.Windows.Forms.Button
+    btnBrowse.Text = "..." : btnBrowse.Font = fBold
+    btnBrowse.BackColor = cSurface : btnBrowse.ForeColor = cText
+    btnBrowse.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnBrowse.FlatAppearance.BorderColor = cAccent
+    btnBrowse.Location = New System.Drawing.Point(308, 231)
+    btnBrowse.Size = New System.Drawing.Size(110, 22)
+    dlg.Controls.Add(btnBrowse)
+
+    ' Bend lines checkbox
+    Dim chkBend As New System.Windows.Forms.CheckBox
+    chkBend.Text = "Ukljuci linije savijanja / Include bend lines (IV_BEND, IV_BEND_DOWN)"
+    chkBend.Font = fUI : chkBend.ForeColor = cText : chkBend.BackColor = cBg
+    chkBend.Checked = False
+    chkBend.Location = New System.Drawing.Point(20, 262)
+    chkBend.Size = New System.Drawing.Size(420, 22)
+    dlg.Controls.Add(chkBend)
+
+    ' Separator + buttons
+    Dim sep4 As New System.Windows.Forms.Label
+    sep4.BackColor = cSurface
+    sep4.Location = New System.Drawing.Point(20, 294)
+    sep4.Size = New System.Drawing.Size(420, 1)
+    dlg.Controls.Add(sep4)
+
+    Dim btnCancel As New System.Windows.Forms.Button
+    btnCancel.Text = "Otkazi / Cancel" : btnCancel.Font = fUI
+    btnCancel.BackColor = cSurface : btnCancel.ForeColor = cSub
+    btnCancel.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnCancel.FlatAppearance.BorderColor = cSurface
+    btnCancel.Location = New System.Drawing.Point(40, 308)
+    btnCancel.Size = New System.Drawing.Size(160, 34)
+    btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel
+    dlg.Controls.Add(btnCancel)
+
+    Dim btnExport As New System.Windows.Forms.Button
+    btnExport.Text = "Izvezi / Export" : btnExport.Font = fBold
+    btnExport.BackColor = cAccent : btnExport.ForeColor = cText
+    btnExport.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnExport.FlatAppearance.BorderColor = cAccent
+    btnExport.Location = New System.Drawing.Point(234, 308)
+    btnExport.Size = New System.Drawing.Size(160, 34)
+    btnExport.DialogResult = System.Windows.Forms.DialogResult.OK
+    btnExport.Enabled = (lastFolder <> "" AndAlso System.IO.Directory.Exists(lastFolder))
+    dlg.Controls.Add(btnExport)
+
+    dlg.AcceptButton = btnExport
+    dlg.CancelButton = btnCancel
+
+    AddHandler btnBrowse.Click, Sub(s, e)
+        Dim fbd As New System.Windows.Forms.FolderBrowserDialog
+        fbd.Description = "Izaberi odredisni folder / Select destination folder"
+        Dim typed As String = txtFolder.Text.Trim()
+        If System.IO.Directory.Exists(typed) Then
+            fbd.SelectedPath = typed
+        ElseIf lastFolder <> "" AndAlso System.IO.Directory.Exists(lastFolder) Then
+            fbd.SelectedPath = lastFolder
+        End If
+        If fbd.ShowDialog() = System.Windows.Forms.DialogResult.OK Then
+            txtFolder.Text = fbd.SelectedPath
+            txtFolder.ForeColor = cGreen
+            btnExport.Enabled = True
+        End If
+    End Sub
+
+    AddHandler txtFolder.TextChanged, Sub(s, e)
+        If System.IO.Directory.Exists(txtFolder.Text.Trim()) Then
+            txtFolder.ForeColor = cGreen
+            btnExport.Enabled = True
+        Else
+            txtFolder.ForeColor = cSub
+            btnExport.Enabled = False
+        End If
+    End Sub
+
+    If dlg.ShowDialog() <> System.Windows.Forms.DialogResult.OK Then GoTo Cleanup
+
+    includeBendLines = chkBend.Checked
+
+    ' ── Read values from dialog ───────────────────────────────────
+    Dim destFolder As String = txtFolder.Text.Trim()
+    If Not System.IO.Directory.Exists(destFolder) Then
+        ShowError("Odredisni folder ne postoji." & vbCrLf & _
+                  "Destination folder does not exist.")
+        GoTo Cleanup
+    End If
+    Try : System.IO.File.WriteAllText(lastPathFile, destFolder) : Catch : End Try
+
+    If Not materialOk Then
+        material = SanitizeForFilename(txtMat.Text.Trim())
+        materialSanitized = material
+    End If
+    If Not thickOk Then
+        thickStr = txtThk.Text.Trim().Replace(",", ".")
+    End If
+
+    Dim qty As Integer = 1
+    Try : qty = Math.Max(1, CInt(txtQty.Text.Trim())) : Catch : End Try
+
+    ' ── Build filename and path ───────────────────────────────────
+    Dim filename As String = pn & "_" & materialSanitized & "_" & thickStr & "mm_" & qty & "pcs.dxf"
+    Dim destPath As String = System.IO.Path.Combine(destFolder, filename)
+
+    ' ── Overwrite check ───────────────────────────────────────────
+    If System.IO.File.Exists(destPath) Then
+        Dim owRes As System.Windows.Forms.DialogResult = _
+            System.Windows.Forms.MessageBox.Show( _
+                "Fajl vec postoji. Zameni?" & vbCrLf & vbCrLf & filename, _
+                "PPM - Zamena fajla / Overwrite", _
+                System.Windows.Forms.MessageBoxButtons.YesNo, _
+                System.Windows.Forms.MessageBoxIcon.Question)
+        If owRes <> System.Windows.Forms.DialogResult.Yes Then GoTo Cleanup
+    End If
+
+    ' ── Export flat pattern DXF (D-251) ──────────────────────────
+    Try
+        Dim oDataIO As DataIO = oDoc.ComponentDefinition.DataIO
+        Dim iniPath As String = If(includeBendLines, _
+            "C:\PPM Cuts and Bends\iLogic\PPM_FlatPattern_WithBends.ini", _
+            "C:\PPM Cuts and Bends\iLogic\PPM_FlatPattern_NoBends.ini")
+        oDataIO.WriteDataToFile("FLAT PATTERN DXF?Configuration=" & iniPath, destPath)
+    Catch ex As Exception
+        ShowError("Greska pri izvozu ravnog uzorka:" & vbCrLf & _
+                  "Error exporting flat pattern:" & vbCrLf & vbCrLf & ex.Message)
+        GoTo Cleanup
+    End Try
+
+    ' ── Filter layers ─────────────────────────────────────────────
+    Try : FilterDxfLayers(destPath, includeBendLines) : Catch : End Try
+
+    ' XDATA removed — broke AutoCAD compatibility; info in filename
+
+    ' ── Success dialog ────────────────────────────────────────────
+    Dim sf As New System.Windows.Forms.Form
+    sf.Text = "PPM - Izvoz zavrsen / Export Complete"
+    sf.Size = New System.Drawing.Size(460, 200)
+    sf.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+    sf.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    sf.BackColor = cBg : sf.MaximizeBox = False
+    sf.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
+
+    Dim lblDone As New System.Windows.Forms.Label
+    lblDone.Text = "IZVOZ ZAVRSEN / EXPORT COMPLETE"
+    lblDone.Font = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    lblDone.ForeColor = cAccent
+    lblDone.Location = New System.Drawing.Point(20, 20)
+    lblDone.Size = New System.Drawing.Size(420, 18)
+    sf.Controls.Add(lblDone)
+
+    Dim lblFile As New System.Windows.Forms.Label
+    lblFile.Text = filename
+    lblFile.Font = New System.Drawing.Font("Consolas", 8)
+    lblFile.ForeColor = cGreen
+    lblFile.Location = New System.Drawing.Point(20, 46)
+    lblFile.Size = New System.Drawing.Size(420, 18)
+    sf.Controls.Add(lblFile)
+
+    Dim lblInfo As New System.Windows.Forms.Label
+    lblInfo.Text = "Materijal / Material:  " & material & vbCrLf & _
+                   "Debljina / Thickness:  " & thickStr & " mm" & vbCrLf & _
+                   "Kolicina / Quantity:   " & qty & " kom"
+    lblInfo.Font = fSub : lblInfo.ForeColor = cSub
+    lblInfo.Location = New System.Drawing.Point(20, 72)
+    lblInfo.Size = New System.Drawing.Size(420, 52)
+    sf.Controls.Add(lblInfo)
+
+    Dim sep5 As New System.Windows.Forms.Label
+    sep5.BackColor = cSurface
+    sep5.Location = New System.Drawing.Point(20, 130)
+    sep5.Size = New System.Drawing.Size(420, 1)
+    sf.Controls.Add(sep5)
+
+    Dim btnOK As New System.Windows.Forms.Button
+    btnOK.Text = "OK" : btnOK.Font = fBold
+    btnOK.BackColor = cAccent : btnOK.ForeColor = cText
+    btnOK.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btnOK.FlatAppearance.BorderColor = cAccent
+    btnOK.Location = New System.Drawing.Point(170, 144)
+    btnOK.Size = New System.Drawing.Size(120, 32)
+    btnOK.DialogResult = System.Windows.Forms.DialogResult.OK
+    sf.Controls.Add(btnOK)
+    sf.AcceptButton = btnOK : sf.ShowDialog()
+
+Cleanup:
+    fUI.Dispose() : fSub.Dispose() : fBold.Dispose() : fMono.Dispose()
+
+End Sub
+
+' ════════════════════════════════════════════════════════════════════
+' SUBROUTINES
+' ════════════════════════════════════════════════════════════════════
+
+Sub ShowError(msg As String)
+    Dim ef As New System.Windows.Forms.Form
+    ef.Text = "PPM - Greska / Error"
+    ef.Size = New System.Drawing.Size(460, 200)
+    ef.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+    ef.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    ef.BackColor = System.Drawing.Color.FromArgb(59, 68, 83) : ef.MaximizeBox = False
+    ef.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
+    Dim lbl As New System.Windows.Forms.Label
+    lbl.Text = msg
+    lbl.Font = New System.Drawing.Font("Segoe UI", 9)
+    lbl.ForeColor = System.Drawing.Color.FromArgb(210, 153, 34)
+    lbl.Location = New System.Drawing.Point(20, 20) : lbl.Size = New System.Drawing.Size(420, 70)
+    ef.Controls.Add(lbl)
+    Dim btn As New System.Windows.Forms.Button
+    btn.Text = "OK"
+    btn.Font = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
+    btn.BackColor = System.Drawing.Color.FromArgb(46, 125, 209)
+    btn.ForeColor = System.Drawing.Color.FromArgb(230, 237, 243)
+    btn.FlatStyle = System.Windows.Forms.FlatStyle.Flat
+    btn.Location = New System.Drawing.Point(180, 134) : btn.Size = New System.Drawing.Size(100, 32)
+    btn.DialogResult = System.Windows.Forms.DialogResult.OK
+    ef.Controls.Add(btn) : ef.AcceptButton = btn : ef.ShowDialog()
+End Sub
+
+Sub WriteXDATA(filePath As String, material As String, thickStr As String)
+    Dim lines As New System.Collections.Generic.List(Of String)( _
+        System.IO.File.ReadAllLines(filePath))
+    Dim eofIdx As Integer = lines.Count - 1
+    For idx As Integer = lines.Count - 1 To 0 Step -1
+        If lines(idx).Trim() = "EOF" Then : eofIdx = idx : Exit For : End If
+    Next
+    Dim xdata As New System.Collections.Generic.List(Of String)
+    xdata.Add("  0") : xdata.Add("XRECORD")
+    xdata.Add("  2") : xdata.Add("PPM_ESTIMATOR")
+    xdata.Add("  1") : xdata.Add("MATERIAL=" & material)
+    xdata.Add("  1") : xdata.Add("THICKNESS_MM=" & thickStr)
+    lines.InsertRange(eofIdx, xdata)
+    System.IO.File.WriteAllLines(filePath, lines.ToArray())
+End Sub
+
+Sub FilterDxfLayers(filePath As String, includeBendLines As Boolean)
+    ' Entity-block whitelist — ENTITIES section only; all other sections pass through unchanged.
+    ' NEVER touches TABLES/LAYER section or group-code 70 layer counts — editing those in a
+    ' prior version broke AutoCAD and laser-software file compatibility.
+    '
+    ' Reads the DXF in group-code/value pairs (alternating lines) so a data value of "0"
+    ' is never confused with the group-code-0 entity delimiter.
+    '
+    ' Per entity block whitelist:
+    '   IV_OUTER_PROFILE, IV_INTERIOR_PROFILES  -> rewrite group code 8 value to "0", keep
+    '   0 (explicit or omitted -- DXF default)  -> keep as-is
+    '   IV_BEND, IV_BEND_DOWN                   -> keep only if includeBendLines=True
+    '   anything else (incl. unrecognised IV_*) -> drop (permissive-drop, not an enumerated blacklist)
+    '
+    ' POLYLINE note: VERTEX/SEQEND sub-blocks carry their own group-code-8 layer matching the
+    ' parent POLYLINE, so this whitelist handles them correctly in isolation (same layer = same
+    ' keep/drop decision). Inventor flat-pattern exports are expected to emit only
+    ' LINE/ARC/CIRCLE/POINT/LWPOLYLINE -- POLYLINE/VERTEX/SEQEND should not appear in practice.
+
+    Dim lines() As String = System.IO.File.ReadAllLines(filePath)
+    Dim out As New System.Collections.Generic.List(Of String)
+    Dim i As Integer = 0
+    Dim foundEntities As Boolean = False
+
+    ' ── Pass through everything before ENTITIES section ───────────
+    Do While i < lines.Length
+        If i + 3 < lines.Length AndAlso _
+           lines(i).Trim() = "0" AndAlso lines(i + 1).Trim() = "SECTION" AndAlso _
+           lines(i + 2).Trim() = "2" AndAlso lines(i + 3).Trim().ToUpper() = "ENTITIES" Then
+            out.Add(lines(i)) : out.Add(lines(i + 1))
+            out.Add(lines(i + 2)) : out.Add(lines(i + 3))
+            i += 4 : foundEntities = True
+            Exit Do
+        End If
+        out.Add(lines(i))
+        i += 1
+    Loop
+
+    If foundEntities Then
+        ' ── Filter entity blocks ──────────────────────────────────
+        Do While i < lines.Length
+            If i + 1 >= lines.Length Then Exit Do
+
+            Dim gc As String = lines(i).Trim()
+            If gc <> "0" Then i += 2 : Continue Do  ' skip malformed pair
+
+            Dim entityType As String = lines(i + 1).Trim().ToUpper()
+            If entityType = "ENDSEC" Then
+                out.Add(lines(i)) : out.Add(lines(i + 1))
+                i += 2 : Exit Do
+            End If
+
+            ' Collect entity block as group-code/value pairs
+            Dim block As New System.Collections.Generic.List(Of String)
+            block.Add(lines(i)) : block.Add(lines(i + 1))
+            i += 2
+            Do While i + 1 < lines.Length
+                If lines(i).Trim() = "0" Then Exit Do
+                block.Add(lines(i)) : block.Add(lines(i + 1))
+                i += 2
+            Loop
+
+            ' Find layer name at group code 8 (search group-code slots: 0, 2, 4, ...)
+            Dim layerName As String = ""
+            Dim layerValIdx As Integer = -1
+            Dim j As Integer = 0
+            Do While j + 1 < block.Count
+                If block(j).Trim() = "8" Then
+                    layerName = block(j + 1).Trim() : layerValIdx = j + 1 : Exit Do
+                End If
+                j += 2
+            Loop
+
+            ' Apply whitelist
+            ' DXF spec: omitted group code 8 defaults to layer 0 -- keep as-is.
+            Dim ln As String = layerName.ToUpper()
+            If layerValIdx = -1 OrElse ln = "0" Then
+                out.AddRange(block)
+            ElseIf ln = "IV_OUTER_PROFILE" OrElse ln = "IV_INTERIOR_PROFILES" Then
+                block(layerValIdx) = "0"
+                out.AddRange(block)
+            ElseIf (ln = "IV_BEND" OrElse ln = "IV_BEND_DOWN") AndAlso includeBendLines Then
+                out.AddRange(block)
+            End If
+            ' else: drop -- IV_ARC_CENTERS, IV_TANGENT, any other unrecognised layer
+        Loop
+    End If
+
+    ' ── Pass through OBJECTS, EOF, and anything else after ENTITIES ──
+    Do While i < lines.Length
+        out.Add(lines(i))
+        i += 1
+    Loop
+
+    System.IO.File.WriteAllLines(filePath, out.ToArray())
+End Sub
+
+Function SanitizeForFilename(s As String) As String
+    Dim result As String = s
+    For Each c As Char In System.IO.Path.GetInvalidFileNameChars()
+        result = result.Replace(c.ToString(), "_")
+    Next
+    Return result.Replace(" ", "_")
+End Function
+
+Function FormatThickness(mm As Double) As String
+    If mm = 0 Then Return "0"
+    If mm = Math.Floor(mm) Then Return CInt(mm).ToString()
+    Return mm.ToString("0.##")
+End Function

@@ -1768,3 +1768,40 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   buttons — bottom edge at y=318 vs. ~35-40px of required window chrome margin);
   reuse the batch macro's proven proportions rather than a minimal patch. Implementation
   assigned to a Claude Code session, both macros in one pass.
+
+## DXF Export Fix Confirmed Working — Deployment & Follow-on Findings (D-336 to D-339)
+
+- D-336: **New `FilterDxfLayers` (D-334) confirmed working on a real batch export.**
+  Verified directly against actual DXF output: `ENTITIES` section contains only
+  `LINE`/`ARC` blocks on layer `0`, no `IV_ARC_CENTERS` or `IV_TANGENT` entities present,
+  `TABLES`/`LAYER` section untouched. Confirmed on a 33-part batch (27 successful exports).
+  Single-part macro (`PPM_ExportFlatPattern.iLogicVb`) also confirmed working by Voja,
+  bend-lines checkbox behaving correctly in both checked/unchecked states, dialog no
+  longer clipping.
+
+- D-337: **`PPM_BatchExportFlatPatterns.iLogicVb` `chkBend.Checked` default corrected
+  from `True` to `False`.** Supersedes D-335's decision to leave the batch macro's
+  default unchanged — Voja reversed that call after observing it in practice. Both
+  macros now default to no bend lines, matching original D-272 intent.
+
+- D-338: **Root cause of the 6 batch export E_FAIL failures (D-261 symptom) identified
+  as stale/invalid computed sheet-metal state, not STEP-conversion, timing, or feature
+  count.** Confirmed via three independent manual fixes: (1) `NR01555346-5` — toggling
+  the sheet metal thickness override back to the 3mm rule (even though it was already
+  correct) fixed the export; near-identical mirror-part `NR01555346-4` (same instant
+  open time, same feature pattern) exported without issue, ruling out timing and part
+  complexity as the cause. (2) A lathe/turned part modeled as sheet metal + drilled/tapped
+  (not unique — similar parts export fine) — root cause not isolated beyond "stale state",
+  ruled out "too many features" as a category-level explanation. (3) `Phantom A Rippe
+  innen 3` — deleting the flat pattern, converting solid→sheet metal→solid and back
+  fixed the export. All three fixes share no common trigger except forcing Inventor to
+  recompute the sheet metal/flat-pattern definition. Working hypothesis (untested):
+  `WriteDataToFile` assumes the flat pattern is already valid/computable and does not
+  force a recompute — calling `.Update()` on the part document before export may prevent
+  this class of failure proactively. Not yet verified — affected parts were manually
+  fixed by Voja before the hypothesis could be tested against them directly.
+
+- D-339: **`PPM_BatchExportFlatPatterns.iLogicVb` does not restore a part's original
+  state after processing.** Confirmed on `Phantom A Rippe innen 3` — left open in flat
+  pattern state after the batch macro completed, rather than returned to its pre-export
+  state. Separate bug from the D-338 E_FAIL investigation; scoped as its own fix.

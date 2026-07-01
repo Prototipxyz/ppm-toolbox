@@ -4,6 +4,10 @@
 ' Walk strategy: ThisApplication.Documents (crash-safe)
 ' Qty source: auto-detect BOM xlsx next to assembly, or manual browse, fallback qty=1
 ' xlsx parsing: ZIP+XML reader (no OLEDB dependency)
+' v2 patches:
+'   - Mirrored/derived parts (_MIR suffix): detected, skipped, qty merged into source PN
+'   - Weldment children (Inseparable sub-asm): collected via sub-asm BOM API, qty = weldment_qty * child_qty
+'   - Dialog padding: form widened to 560px, textboxes 400px, buttons repositioned
 
 AddReference "System.Drawing"
 AddReference "System.Windows.Forms"
@@ -12,6 +16,29 @@ AddReference "System.IO.Compression"
 AddReference "System.IO.Compression.FileSystem"
 
 Sub Main()
+
+    ' ── Auto-update check ────────────────────────────────────────
+    Dim localPath   As String = "C:\PPM Cuts and Bends\iLogic\PPM_BatchExportFlatPatterns.iLogicVb"
+    Dim networkPath As String = "X:\USER\Gavrilovic\iLogic\PPM_BatchExportFlatPatterns.iLogicVb"
+    Try
+        If System.IO.File.Exists(networkPath) AndAlso System.IO.File.Exists(localPath) Then
+            Dim netTime   As DateTime = System.IO.File.GetLastWriteTime(networkPath)
+            Dim localTime As DateTime = System.IO.File.GetLastWriteTime(localPath)
+            If netTime > localTime Then
+                System.IO.File.Copy(networkPath, localPath, True)
+                System.Windows.Forms.MessageBox.Show( _
+                    "Nova verzija je instalirana." & vbCrLf & _
+                    "New version installed." & vbCrLf & vbCrLf & _
+                    "Pokrenite makro ponovo." & vbCrLf & _
+                    "Please run the macro again.", _
+                    "PPM - Azuriranje / Update", _
+                    System.Windows.Forms.MessageBoxButtons.OK, _
+                    System.Windows.Forms.MessageBoxIcon.Information)
+                Exit Sub
+            End If
+        End If
+    Catch : End Try
+    ' ─────────────────────────────────────────────────────────────
 
     ' ── Palette (D-258) ──────────────────────────────────────────
     Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
@@ -95,18 +122,19 @@ Sub Main()
 
     Dim dlg As New System.Windows.Forms.Form
     dlg.Text = "PPM - Batch Export Flat Patterns"
-    dlg.Size = New System.Drawing.Size(520, 400)
+    dlg.Size = New System.Drawing.Size(560, 400)
     dlg.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
     dlg.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
     dlg.MaximizeBox = False : dlg.MinimizeBox = False
     dlg.BackColor = cBg
+    dlg.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
 
     Dim lblHeader As New System.Windows.Forms.Label
     lblHeader.Text = "BATCH EXPORT - FLAT PATTERNS"
     lblHeader.Font = New System.Drawing.Font("Segoe UI", 10, System.Drawing.FontStyle.Bold)
     lblHeader.ForeColor = cAccent
     lblHeader.Location = New System.Drawing.Point(20, 18)
-    lblHeader.Size = New System.Drawing.Size(480, 22)
+    lblHeader.Size = New System.Drawing.Size(520, 22)
     dlg.Controls.Add(lblHeader)
 
     Dim lblAsm As New System.Windows.Forms.Label
@@ -114,14 +142,14 @@ Sub Main()
     lblAsm.Font = fMono
     lblAsm.ForeColor = cGreen
     lblAsm.Location = New System.Drawing.Point(20, 46)
-    lblAsm.Size = New System.Drawing.Size(480, 20)
+    lblAsm.Size = New System.Drawing.Size(520, 20)
     dlg.Controls.Add(lblAsm)
 
     ' Separator
     Dim sep1 As New System.Windows.Forms.Label
     sep1.BackColor = cSurface
     sep1.Location = New System.Drawing.Point(20, 74)
-    sep1.Size = New System.Drawing.Size(480, 1)
+    sep1.Size = New System.Drawing.Size(520, 1)
     dlg.Controls.Add(sep1)
 
     ' Destination folder
@@ -137,7 +165,7 @@ Sub Main()
     txtFolder.ForeColor = cSub : txtFolder.ReadOnly = False
     txtFolder.Text = If(lastFolder <> "", lastFolder, "(nije izabran / not selected)")
     txtFolder.Location = New System.Drawing.Point(20, 108)
-    txtFolder.Size = New System.Drawing.Size(380, 22)
+    txtFolder.Size = New System.Drawing.Size(376, 22)
     dlg.Controls.Add(txtFolder)
 
     Dim btnBrowseFolder As New System.Windows.Forms.Button
@@ -145,29 +173,29 @@ Sub Main()
     btnBrowseFolder.BackColor = cSurface : btnBrowseFolder.ForeColor = cText
     btnBrowseFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat
     btnBrowseFolder.FlatAppearance.BorderColor = cAccent
-    btnBrowseFolder.Location = New System.Drawing.Point(408, 107)
-    btnBrowseFolder.Size = New System.Drawing.Size(92, 24)
+    btnBrowseFolder.Location = New System.Drawing.Point(404, 107)
+    btnBrowseFolder.Size = New System.Drawing.Size(116, 24)
     dlg.Controls.Add(btnBrowseFolder)
 
     ' Separator
     Dim sep2 As New System.Windows.Forms.Label
     sep2.BackColor = cSurface
     sep2.Location = New System.Drawing.Point(20, 142)
-    sep2.Size = New System.Drawing.Size(480, 1)
+    sep2.Size = New System.Drawing.Size(520, 1)
     dlg.Controls.Add(sep2)
 
     ' BOM file row
     Dim lblBom As New System.Windows.Forms.Label
     lblBom.Font = fSub : lblBom.ForeColor = cSub
     lblBom.Location = New System.Drawing.Point(20, 152)
-    lblBom.Size = New System.Drawing.Size(480, 18)
+    lblBom.Size = New System.Drawing.Size(520, 18)
     dlg.Controls.Add(lblBom)
 
     Dim txtBom As New System.Windows.Forms.TextBox
     txtBom.Font = fSub : txtBom.BackColor = cInput
     txtBom.ReadOnly = True
     txtBom.Location = New System.Drawing.Point(20, 174)
-    txtBom.Size = New System.Drawing.Size(380, 22)
+    txtBom.Size = New System.Drawing.Size(376, 22)
     dlg.Controls.Add(txtBom)
 
     ' Set BOM field initial state
@@ -190,8 +218,8 @@ Sub Main()
     btnBrowseBom.BackColor = cSurface : btnBrowseBom.ForeColor = cText
     btnBrowseBom.FlatStyle = System.Windows.Forms.FlatStyle.Flat
     btnBrowseBom.FlatAppearance.BorderColor = cAccent
-    btnBrowseBom.Location = New System.Drawing.Point(408, 173)
-    btnBrowseBom.Size = New System.Drawing.Size(92, 24)
+    btnBrowseBom.Location = New System.Drawing.Point(404, 173)
+    btnBrowseBom.Size = New System.Drawing.Size(116, 24)
     dlg.Controls.Add(btnBrowseBom)
 
     Dim lblBomHint As New System.Windows.Forms.Label
@@ -199,38 +227,38 @@ Sub Main()
     lblBomHint.Font = New System.Drawing.Font("Segoe UI", 7)
     lblBomHint.ForeColor = System.Drawing.Color.FromArgb(120, 140, 160)
     lblBomHint.Location = New System.Drawing.Point(20, 200)
-    lblBomHint.Size = New System.Drawing.Size(480, 16)
+    lblBomHint.Size = New System.Drawing.Size(520, 16)
     dlg.Controls.Add(lblBomHint)
 
     ' Separator
     Dim sep3 As New System.Windows.Forms.Label
     sep3.BackColor = cSurface
     sep3.Location = New System.Drawing.Point(20, 224)
-    sep3.Size = New System.Drawing.Size(480, 1)
+    sep3.Size = New System.Drawing.Size(520, 1)
     dlg.Controls.Add(sep3)
 
     ' Bend lines checkbox
     Dim chkBend As New System.Windows.Forms.CheckBox
     chkBend.Text = "Ukljuci linije savijanja / Include bend lines (IV_BEND, IV_BEND_DOWN)"
     chkBend.Font = fUI : chkBend.ForeColor = cText : chkBend.BackColor = cBg
-    chkBend.Checked = True
+    chkBend.Checked = False
     chkBend.Location = New System.Drawing.Point(20, 234)
-    chkBend.Size = New System.Drawing.Size(480, 22)
+    chkBend.Size = New System.Drawing.Size(520, 22)
     dlg.Controls.Add(chkBend)
 
     Dim lblNote As New System.Windows.Forms.Label
-    lblNote.Text = "Preskocice ne-lim delove. Duplikati se izvoze jednom." & vbCrLf & _
-                   "Non-sheet-metal parts skipped. Duplicates exported once with total qty."
+    lblNote.Text = "Preskocice ne-lim delove. Duplikati se izvoze jednom. Delovi u ogledalu (_MIR) se spajaju sa originalnim." & vbCrLf & _
+                   "Non-SM parts skipped. Duplicates exported once. Mirrored parts (_MIR) qty merged into source."
     lblNote.Font = fSub : lblNote.ForeColor = cSub
     lblNote.Location = New System.Drawing.Point(20, 262)
-    lblNote.Size = New System.Drawing.Size(480, 30)
+    lblNote.Size = New System.Drawing.Size(520, 30)
     dlg.Controls.Add(lblNote)
 
     ' Separator + buttons
     Dim sep4 As New System.Windows.Forms.Label
     sep4.BackColor = cSurface
     sep4.Location = New System.Drawing.Point(20, 300)
-    sep4.Size = New System.Drawing.Size(480, 1)
+    sep4.Size = New System.Drawing.Size(520, 1)
     dlg.Controls.Add(sep4)
 
     Dim btnCancel As New System.Windows.Forms.Button
@@ -238,8 +266,8 @@ Sub Main()
     btnCancel.BackColor = cSurface : btnCancel.ForeColor = cSub
     btnCancel.FlatStyle = System.Windows.Forms.FlatStyle.Flat
     btnCancel.FlatAppearance.BorderColor = cSurface
-    btnCancel.Location = New System.Drawing.Point(20, 314)
-    btnCancel.Size = New System.Drawing.Size(140, 32)
+    btnCancel.Location = New System.Drawing.Point(90, 320)
+    btnCancel.Size = New System.Drawing.Size(160, 34)
     btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel
     dlg.Controls.Add(btnCancel)
 
@@ -248,8 +276,8 @@ Sub Main()
     btnExport.BackColor = cAccent : btnExport.ForeColor = cText
     btnExport.FlatStyle = System.Windows.Forms.FlatStyle.Flat
     btnExport.FlatAppearance.BorderColor = cAccent
-    btnExport.Location = New System.Drawing.Point(280, 314)
-    btnExport.Size = New System.Drawing.Size(220, 32)
+    btnExport.Location = New System.Drawing.Point(290, 320)
+    btnExport.Size = New System.Drawing.Size(160, 34)
     btnExport.DialogResult = System.Windows.Forms.DialogResult.OK
     btnExport.Enabled = False
     dlg.Controls.Add(btnExport)
@@ -348,6 +376,38 @@ Sub Main()
     ' Always include the assembly file itself as a sanity reference
     Try : asmRefPaths.Add(oAsmDoc.FullFileName) : Catch : End Try
 
+    ' ── Build qty override map: merge _MIR qty into source PN ────────────────
+    ' For each PN ending in _MIR: find source PN (strip _MIR suffix),
+    ' add MIR qty to source qty in qtyMap so the source DXF gets combined qty.
+    ' MIR parts themselves are never exported (no flat pattern on derived parts).
+    Dim mirMergeLog As New System.Collections.Generic.List(Of String)
+    If bomLoaded Then
+        Dim mirKeys As New System.Collections.Generic.List(Of String)
+        For Each k As String In qtyMap.Keys
+            If k.EndsWith("_MIR") Then mirKeys.Add(k)
+        Next
+        For Each mirKey As String In mirKeys
+            Dim sourceKey As String = mirKey.Substring(0, mirKey.Length - 4).ToUpper() ' strip _MIR
+            Dim mirQty As Integer = qtyMap(mirKey)
+            If qtyMap.ContainsKey(sourceKey) Then
+                qtyMap(sourceKey) += mirQty
+                mirMergeLog.Add(mirKey & " (" & mirQty & ") → spojen sa / merged into " & sourceKey)
+            Else
+                ' Source PN not in BOM — keep MIR entry so it gets exported standalone
+                ' (edge case: only the MIR variant exists, not the original)
+                mirMergeLog.Add(mirKey & " (" & mirQty & ") — original nije u BOM / not in BOM, izvozi se odvojeno / exported standalone")
+            End If
+        Next
+    End If
+
+    ' ── Collect weldment (Inseparable) sub-assembly children ─────────────────
+    ' Top-level Parts Only BOM suppresses children of Inseparable sub-assemblies.
+    ' For each Inseparable sub-asm: call its own BOM API to get child PNs + qtys,
+    ' multiply by weldment qty in top BOM, inject into qtyMap.
+    ' Falls back to qty=1 per child if sub-asm BOM API fails.
+    Dim weldmentLog As New System.Collections.Generic.List(Of String)
+    CollectWeldmentChildren(oAsmDoc, qtyMap, bomLoaded, weldmentLog)
+
     For Each oDoc As Document In ThisApplication.Documents
         If Not TypeOf oDoc Is PartDocument Then Continue For
 
@@ -365,6 +425,12 @@ Sub Main()
                 Continue For
             End If
         Catch : Continue For : End Try
+
+        ' ── Skip mirrored/derived parts — they have no flat pattern ──────────
+        ' DerivedPartComponentDefinition type not available in iLogic 2021 sandbox.
+        ' Detect by _MIR filename suffix (confirmed naming convention).
+        Dim fnCheck As String = System.IO.Path.GetFileNameWithoutExtension(docPath).ToUpper()
+        If fnCheck.EndsWith("_MIR") Then Continue For  ' qty already merged into source above
 
         Dim pn As String = ""
         Try
@@ -427,7 +493,14 @@ Sub Main()
             Dim thickStr As String = FormatThickness(thickMM)
 
             Dim filename As String = pn & "_" & material & "_" & thickStr & "mm_" & qty & "pcs.dxf"
-            Dim destPath As String = System.IO.Path.Combine(destFolder, filename)
+            ' Sort into subfolders: DestFolder\MATERIAL\THICKNESSmm\filename
+            Dim subFolder As String = System.IO.Path.Combine(destFolder, material, thickStr & "mm")
+            Try
+                If Not System.IO.Directory.Exists(subFolder) Then
+                    System.IO.Directory.CreateDirectory(subFolder)
+                End If
+            Catch : End Try
+            Dim destPath As String = System.IO.Path.Combine(subFolder, filename)
 
             ' D-210: skip if DXF newer than part
             If System.IO.File.Exists(destPath) Then
@@ -456,10 +529,14 @@ Sub Main()
             Try
                 ' Export flat pattern DXF (D-251)
                 Dim oDataIO As DataIO = oPartDoc.ComponentDefinition.DataIO
-                oDataIO.WriteDataToFile("FLAT PATTERN DXF?AcadVersion=2000", destPath)
+                Dim iniPath As String = If(includeBendLines, _
+                    "C:\PPM Cuts and Bends\iLogic\PPM_FlatPattern_WithBends.ini", _
+                    "C:\PPM Cuts and Bends\iLogic\PPM_FlatPattern_NoBends.ini")
+                oDataIO.WriteDataToFile("FLAT PATTERN DXF?Configuration=" & iniPath, destPath)
 
-                ' Append XDATA block
-                WriteXDATA(destPath, material, thickStr)
+                FilterDxfLayers(destPath, includeBendLines)
+
+                ' XDATA removed — broke AutoCAD compatibility; info in filename
 
                 nExported += 1
 
@@ -479,7 +556,7 @@ Sub Main()
         End Try
     Next
 
-    ShowSummary(nExported, nSkipped, nFailed, nQty1, bomLoaded, failList, missingBom, destFolder)
+    ShowSummary(nExported, nSkipped, nFailed, nQty1, bomLoaded, failList, missingBom, destFolder, mirMergeLog, weldmentLog)
 
 Cleanup:
     fUI.Dispose() : fSub.Dispose() : fBold.Dispose() : fMono.Dispose()
@@ -503,6 +580,116 @@ Sub CollectReferencedPaths(oDoc As Document, _
         ' Recurse into sub-assemblies
         If TypeOf refDoc Is AssemblyDocument Then
             CollectReferencedPaths(refDoc, paths)
+        End If
+    Next
+End Sub
+
+Sub CollectWeldmentChildren( _
+        oTopAsm As AssemblyDocument, _
+        ByRef qtyMap As System.Collections.Generic.Dictionary(Of String, Integer), _
+        bomLoaded As Boolean, _
+        ByRef weldmentLog As System.Collections.Generic.List(Of String))
+    ' Finds Inseparable sub-assemblies (weldments) in the top assembly.
+    ' For each: reads the weldment's own BOM via API to get child PNs + qtys.
+    ' Multiplies by weldment qty in top BOM, injects into qtyMap.
+    ' Fallback: qty=1 per child if sub-asm BOM API fails.
+    '
+    ' Strategy: walk ReferencedDocuments of top asm, find AssemblyDocuments
+    ' whose BOMStructure = kInseparableBOMStructure (value 67109120).
+    ' kInseparableBOMStructure is an Inventor enum — used as integer literal
+    ' to avoid compile errors in iLogic 2021 if enum not in scope.
+    Const kInseparable As Integer = 67109120
+
+    For Each refDoc As Document In oTopAsm.ReferencedDocuments
+        If Not TypeOf refDoc Is AssemblyDocument Then Continue For
+        Dim subAsm As AssemblyDocument = CType(refDoc, AssemblyDocument)
+
+        ' Check if this sub-assembly is Inseparable in the top-level BOM
+        Dim isInseparable As Boolean = False
+        Try
+            ' BOMStructure is a property of the ComponentDefinition
+            Dim bsVal As Integer = CInt(subAsm.ComponentDefinition.BOMStructure)
+            If bsVal = kInseparable Then isInseparable = True
+        Catch : End Try
+        If Not isInseparable Then Continue For
+
+        ' Get weldment qty from top BOM (how many times this sub-asm appears)
+        Dim weldPN As String = ""
+        Try
+            Dim wProp As Inventor.Property = _
+                subAsm.PropertySets.Item("Design Tracking Properties").Item("Part Number")
+            weldPN = CStr(wProp.Value).Trim()
+        Catch : End Try
+        If weldPN = "" Then
+            Try : weldPN = System.IO.Path.GetFileNameWithoutExtension(subAsm.FullFileName)
+            Catch : weldPN = "WELD_UNKNOWN" : End Try
+        End If
+
+        Dim weldQty As Integer = 1
+        If bomLoaded AndAlso qtyMap.ContainsKey(weldPN.ToUpper()) Then
+            weldQty = qtyMap(weldPN.ToUpper())
+        End If
+
+        ' Read weldment's own BOM to get its children
+        Dim childQtyMap As New System.Collections.Generic.Dictionary(Of String, Integer)
+        Dim childBomOk As Boolean = False
+        Try
+            Dim wBOM As BOM = subAsm.ComponentDefinition.BOM
+            wBOM.PartsOnlyViewEnabled = True
+            Dim wView As BOMView = wBOM.BOMViews.Item("Parts Only")
+            ' Export to temp xlsx and parse
+            Dim tmpBom As String = System.IO.Path.Combine( _
+                System.IO.Path.GetTempPath(), "PPM_WeldBOM_" & weldPN & ".xlsx")
+            If System.IO.File.Exists(tmpBom) Then System.IO.File.Delete(tmpBom)
+            wView.Export(tmpBom, kMicrosoftExcelFormat)
+            If System.IO.File.Exists(tmpBom) Then
+                ReadBomXlsx(tmpBom, childQtyMap)
+                Try : System.IO.File.Delete(tmpBom) : Catch : End Try
+                childBomOk = (childQtyMap.Count > 0)
+            End If
+        Catch : End Try
+
+        If childBomOk Then
+            ' Inject child qtys × weldment qty into main qtyMap
+            For Each kvp In childQtyMap
+                Dim childPN As String = kvp.Key.ToUpper()
+                Dim childQty As Integer = kvp.Value * weldQty
+                If qtyMap.ContainsKey(childPN) Then
+                    ' Already in top BOM somehow — take the higher value (conservative)
+                    qtyMap(childPN) = Math.Max(qtyMap(childPN), childQty)
+                Else
+                    qtyMap(childPN) = childQty
+                End If
+            Next
+            weldmentLog.Add(weldPN & " (x" & weldQty & "): " & childQtyMap.Count & " dela ucitano iz BOM-a / children loaded from BOM")
+        Else
+            ' Fallback: walk ReferencedDocuments of sub-asm, assign qty = weldQty per child
+            Dim fallbackCount As Integer = 0
+            For Each childDoc As Document In subAsm.ReferencedDocuments
+                If Not TypeOf childDoc Is PartDocument Then Continue For
+                Dim childPart As PartDocument = CType(childDoc, PartDocument)
+                Try
+                    If Not TypeOf childPart.ComponentDefinition Is SheetMetalComponentDefinition Then
+                        Continue For
+                    End If
+                Catch : Continue For : End Try
+                Dim childPN As String = ""
+                Try
+                    Dim cProp As Inventor.Property = _
+                        childPart.PropertySets.Item("Design Tracking Properties").Item("Part Number")
+                    childPN = CStr(cProp.Value).Trim().ToUpper()
+                Catch : End Try
+                If childPN = "" Then
+                    Try : childPN = System.IO.Path.GetFileNameWithoutExtension(childDoc.FullFileName).ToUpper()
+                    Catch : Continue For : End Try
+                End If
+                If Not qtyMap.ContainsKey(childPN) Then
+                    qtyMap(childPN) = weldQty  ' 1 per weldment occurrence, fallback
+                    fallbackCount += 1
+                End If
+            Next
+            weldmentLog.Add(weldPN & " (x" & weldQty & "): BOM API nije uspio / failed — " & _
+                            fallbackCount & " dece kolicina=weldQty (amber)")
         End If
     Next
 End Sub
@@ -662,6 +849,103 @@ Sub WriteXDATA(filePath As String, material As String, thickStr As String)
     System.IO.File.WriteAllLines(filePath, lines.ToArray())
 End Sub
 
+Sub FilterDxfLayers(filePath As String, includeBendLines As Boolean)
+    ' Entity-block whitelist -- ENTITIES section only; all other sections pass through unchanged.
+    ' NEVER touches TABLES/LAYER section or group-code 70 layer counts -- editing those in a
+    ' prior version broke AutoCAD and laser-software file compatibility.
+    '
+    ' Reads the DXF in group-code/value pairs (alternating lines) so a data value of "0"
+    ' is never confused with the group-code-0 entity delimiter.
+    '
+    ' Per entity block whitelist:
+    '   IV_OUTER_PROFILE, IV_INTERIOR_PROFILES  -> rewrite group code 8 value to "0", keep
+    '   0 (explicit or omitted -- DXF default)  -> keep as-is
+    '   IV_BEND, IV_BEND_DOWN                   -> keep only if includeBendLines=True
+    '   anything else (incl. unrecognised IV_*) -> drop (permissive-drop, not an enumerated blacklist)
+    '
+    ' POLYLINE note: VERTEX/SEQEND sub-blocks carry their own group-code-8 layer matching the
+    ' parent POLYLINE, so this whitelist handles them correctly in isolation (same layer = same
+    ' keep/drop decision). Inventor flat-pattern exports are expected to emit only
+    ' LINE/ARC/CIRCLE/POINT/LWPOLYLINE -- POLYLINE/VERTEX/SEQEND should not appear in practice.
+
+    Dim lines() As String = System.IO.File.ReadAllLines(filePath)
+    Dim out As New System.Collections.Generic.List(Of String)
+    Dim i As Integer = 0
+    Dim foundEntities As Boolean = False
+
+    ' ── Pass through everything before ENTITIES section ───────────
+    Do While i < lines.Length
+        If i + 3 < lines.Length AndAlso _
+           lines(i).Trim() = "0" AndAlso lines(i + 1).Trim() = "SECTION" AndAlso _
+           lines(i + 2).Trim() = "2" AndAlso lines(i + 3).Trim().ToUpper() = "ENTITIES" Then
+            out.Add(lines(i)) : out.Add(lines(i + 1))
+            out.Add(lines(i + 2)) : out.Add(lines(i + 3))
+            i += 4 : foundEntities = True
+            Exit Do
+        End If
+        out.Add(lines(i))
+        i += 1
+    Loop
+
+    If foundEntities Then
+        ' ── Filter entity blocks ──────────────────────────────────
+        Do While i < lines.Length
+            If i + 1 >= lines.Length Then Exit Do
+
+            Dim gc As String = lines(i).Trim()
+            If gc <> "0" Then i += 2 : Continue Do  ' skip malformed pair
+
+            Dim entityType As String = lines(i + 1).Trim().ToUpper()
+            If entityType = "ENDSEC" Then
+                out.Add(lines(i)) : out.Add(lines(i + 1))
+                i += 2 : Exit Do
+            End If
+
+            ' Collect entity block as group-code/value pairs
+            Dim block As New System.Collections.Generic.List(Of String)
+            block.Add(lines(i)) : block.Add(lines(i + 1))
+            i += 2
+            Do While i + 1 < lines.Length
+                If lines(i).Trim() = "0" Then Exit Do
+                block.Add(lines(i)) : block.Add(lines(i + 1))
+                i += 2
+            Loop
+
+            ' Find layer name at group code 8 (search group-code slots: 0, 2, 4, ...)
+            Dim layerName As String = ""
+            Dim layerValIdx As Integer = -1
+            Dim j As Integer = 0
+            Do While j + 1 < block.Count
+                If block(j).Trim() = "8" Then
+                    layerName = block(j + 1).Trim() : layerValIdx = j + 1 : Exit Do
+                End If
+                j += 2
+            Loop
+
+            ' Apply whitelist
+            ' DXF spec: omitted group code 8 defaults to layer 0 -- keep as-is.
+            Dim ln As String = layerName.ToUpper()
+            If layerValIdx = -1 OrElse ln = "0" Then
+                out.AddRange(block)
+            ElseIf ln = "IV_OUTER_PROFILE" OrElse ln = "IV_INTERIOR_PROFILES" Then
+                block(layerValIdx) = "0"
+                out.AddRange(block)
+            ElseIf (ln = "IV_BEND" OrElse ln = "IV_BEND_DOWN") AndAlso includeBendLines Then
+                out.AddRange(block)
+            End If
+            ' else: drop -- IV_ARC_CENTERS, IV_TANGENT, any other unrecognised layer
+        Loop
+    End If
+
+    ' ── Pass through OBJECTS, EOF, and anything else after ENTITIES ──
+    Do While i < lines.Length
+        out.Add(lines(i))
+        i += 1
+    Loop
+
+    System.IO.File.WriteAllLines(filePath, out.ToArray())
+End Sub
+
 Function SanitizeForFilename(s As String) As String
     Dim result As String = s
     For Each c As Char In System.IO.Path.GetInvalidFileNameChars()
@@ -679,11 +963,12 @@ End Function
 Sub ShowError(msg As String)
     Dim ef As New System.Windows.Forms.Form
     ef.Text = "PPM - Greska / Error"
-    ef.Size = New System.Drawing.Size(440, 160)
+    ef.Size = New System.Drawing.Size(460, 200)
     ef.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
     ef.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
     ef.BackColor = System.Drawing.Color.FromArgb(59, 68, 83)
     ef.MaximizeBox = False
+    ef.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
     Dim lbl As New System.Windows.Forms.Label
     lbl.Text = msg : lbl.Font = New System.Drawing.Font("Segoe UI", 9)
     lbl.ForeColor = System.Drawing.Color.FromArgb(210, 153, 34)
@@ -694,7 +979,7 @@ Sub ShowError(msg As String)
     btn.BackColor = System.Drawing.Color.FromArgb(46, 125, 209)
     btn.ForeColor = System.Drawing.Color.FromArgb(230, 237, 243)
     btn.FlatStyle = System.Windows.Forms.FlatStyle.Flat
-    btn.Location = New System.Drawing.Point(170, 90) : btn.Size = New System.Drawing.Size(100, 30)
+    btn.Location = New System.Drawing.Point(180, 134) : btn.Size = New System.Drawing.Size(100, 32)
     btn.DialogResult = System.Windows.Forms.DialogResult.OK
     ef.Controls.Add(btn) : ef.AcceptButton = btn : ef.ShowDialog()
 End Sub
@@ -703,11 +988,15 @@ Sub ShowSummary(nExp As Integer, nSkip As Integer, nFail As Integer, _
                 nQty1 As Integer, bomLoaded As Boolean, _
                 failList As System.Collections.Generic.List(Of String), _
                 missingBom As System.Collections.Generic.List(Of String), _
-                destFolder As String)
+                destFolder As String, _
+                mirMergeLog As System.Collections.Generic.List(Of String), _
+                weldmentLog As System.Collections.Generic.List(Of String))
 
     Dim extraH As Integer = 0
     If nFail > 0 Then extraH += 110
     If missingBom.Count > 0 Then extraH += 80
+    If mirMergeLog.Count > 0 Then extraH += 80
+    If weldmentLog.Count > 0 Then extraH += 80
 
     Dim sf As New System.Windows.Forms.Form
     sf.Text = "PPM - Rezultat / Summary"
@@ -715,6 +1004,7 @@ Sub ShowSummary(nExp As Integer, nSkip As Integer, nFail As Integer, _
     sf.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
     sf.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
     sf.BackColor = System.Drawing.Color.FromArgb(59, 68, 83) : sf.MaximizeBox = False
+    sf.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
 
     Dim y As Integer = 18
 
@@ -760,7 +1050,7 @@ Sub ShowSummary(nExp As Integer, nSkip As Integer, nFail As Integer, _
     End If
     add(mkLbl(bomTxt, bomCol, False)) : y += 24
 
-    add(mkLbl("Folder: " & destFolder,
+    add(mkLbl("Root folder: " & destFolder & "  →  MATERIAL\THICKNESSmm\",
         System.Drawing.Color.FromArgb(180, 190, 200), False)) : y += 28
 
     ' Missing BOM parts list
@@ -780,6 +1070,44 @@ Sub ShowSummary(nExp As Integer, nSkip As Integer, nFail As Integer, _
         txtM.Text = String.Join(vbCrLf, missingBom.ToArray())
         txtM.Location = New System.Drawing.Point(20, y) : txtM.Size = New System.Drawing.Size(460, 50)
         add(txtM) : y += 58
+    End If
+
+    ' Mirrored parts merge log
+    If mirMergeLog.Count > 0 Then
+        Dim sepMir As New System.Windows.Forms.Label
+        sepMir.BackColor = System.Drawing.Color.FromArgb(72, 82, 98)
+        sepMir.Location = New System.Drawing.Point(20, y) : sepMir.Size = New System.Drawing.Size(460, 1)
+        add(sepMir) : y += 8
+        add(mkLbl("Ogledalni delovi / Mirrored parts (_MIR) — kolicine spojene / qty merged:",
+            System.Drawing.Color.FromArgb(63, 185, 80), True)) : y += 20
+        Dim txtMir As New System.Windows.Forms.TextBox
+        txtMir.Multiline = True : txtMir.ReadOnly = True
+        txtMir.ScrollBars = System.Windows.Forms.ScrollBars.Vertical
+        txtMir.BackColor = System.Drawing.Color.FromArgb(33, 38, 45)
+        txtMir.ForeColor = System.Drawing.Color.FromArgb(63, 185, 80)
+        txtMir.Font = New System.Drawing.Font("Consolas", 8)
+        txtMir.Text = String.Join(vbCrLf, mirMergeLog.ToArray())
+        txtMir.Location = New System.Drawing.Point(20, y) : txtMir.Size = New System.Drawing.Size(460, 50)
+        add(txtMir) : y += 58
+    End If
+
+    ' Weldment children log
+    If weldmentLog.Count > 0 Then
+        Dim sepW As New System.Windows.Forms.Label
+        sepW.BackColor = System.Drawing.Color.FromArgb(72, 82, 98)
+        sepW.Location = New System.Drawing.Point(20, y) : sepW.Size = New System.Drawing.Size(460, 1)
+        add(sepW) : y += 8
+        add(mkLbl("Zavareni sklopovi / Weldment children — kolicine ucitane / qty resolved:",
+            System.Drawing.Color.FromArgb(46, 125, 209), True)) : y += 20
+        Dim txtW As New System.Windows.Forms.TextBox
+        txtW.Multiline = True : txtW.ReadOnly = True
+        txtW.ScrollBars = System.Windows.Forms.ScrollBars.Vertical
+        txtW.BackColor = System.Drawing.Color.FromArgb(33, 38, 45)
+        txtW.ForeColor = System.Drawing.Color.FromArgb(46, 125, 209)
+        txtW.Font = New System.Drawing.Font("Consolas", 8)
+        txtW.Text = String.Join(vbCrLf, weldmentLog.ToArray())
+        txtW.Location = New System.Drawing.Point(20, y) : txtW.Size = New System.Drawing.Size(460, 50)
+        add(txtW) : y += 58
     End If
 
     If nFail > 0 Then
