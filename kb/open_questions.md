@@ -283,3 +283,32 @@ has shown 0 countersinks and 0 counterbores across all parts, so this is unvalid
 sizes, `SolutionNatureEnum` usage) sourced from an official Autodesk C# training sample (ADN-DevTech
 GitHub repo), not yet run in Inventor 2021 iLogic. First real compile-and-run will confirm or falsify.
 
+## Concave/Convex Filter + Laser-Cut Classification Test Run
+
+**OQ-108 partial resolution:** Concave/convex filter (`GetNormal` + radial vector) confirmed working
+on the one case verifiable by eye — `SP000011992 Erdungsauge`'s own Ø30 bar-stock OD is now correctly
+excluded (`SKIPPED_1_CONVEX_FACES`), leaving only its genuine tapped hole. `GetParamAtPoint`/`GetNormal`
+compiled and ran without `CONCAVITY_CHECK_FAILED` on any of 29 parts, so OQ-115's signature question is
+resolved — real, working. Not yet verified against a known false-negative case (a genuine hole that
+should NOT be filtered) — only the false-positive direction is confirmed so far.
+
+**OQ-110 resolved:** Sub-1mm face exclusion confirmed working — `Phantom A Gewindeplatte M8`'s earlier
+`8×Ø0.2` fillet-artifact entries are gone (`SKIPPED_8_SUB1MM_FACES`), no regression on real small
+features elsewhere in the 29-part run.
+
+**OQ-116** [OPEN] D-368's laser-cut classification produced a 100% non-match rate — `Holes_Plain` empty
+across all 29 parts, everything routed to `Holes_Laser`, including on parts with clearly-modeled Hole
+features (e.g. NR01555346-7's own 4×Ø25). This is a systematic failure, not a plausible real-world
+result, and points at `HoleFeature.HoleDiameter` (used to build the Pass-1 `knownDiameters` catalog) —
+either the property isn't returning what was assumed, or there's a units/rounding mismatch against the
+B-Rep-computed diameter. Not yet verified against official docs. Blocks D-368 from being trusted until
+resolved.
+
+**OQ-117** [OPEN] Thickness-sanity warning (OQ-109's implementation) over-fires on blind/tapped holes —
+`Gewindeplatte M8`'s M6×1 taps on 17mm stock trigger `HOLE_SMALLER_THAN_THICKNESS`, but a blind tapped
+hole has no reason to approach material thickness the way a through-cut does. Likely needs to apply
+only to non-threaded (through) holes, or use different logic for blind features.
+
+**OQ-118** [OPEN] Cosmetic: `Warnings` field can contain duplicate identical entries (seen twice on
+`Gewindeplatte M8`) — needs dedup before this is presentable in a real BOM export.
+
