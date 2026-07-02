@@ -235,3 +235,51 @@ failure to test against, since deliberate reproduction attempts have now failed 
 **OQ-106** [OPEN] FEM structural calculation (EN 12663-1 P-III, 2024, CL1): confirm whether Stirg has in-house capability or must subcontract. Required deliverable per Stadler spec — must be resolved before final quotation.
 
 **OQ-107** [OPEN] Pressure leak test certification: diesel tank at 0.3 bar, AdBlue tank at 0.5 bar (railway ordinance 51.1 chap. 8). Confirm whether Stirg has in-house test equipment or must outsource.
+
+## Feature Extraction Diagnostic Session — OQ-108 to OQ-115
+
+**OQ-100 partial resolution:** NR01555346-7 confirmed correct (24×M8×1.25 exact match) under the
+B-Rep method (D-367). NR01555346-8 designation conflict (diagnostic reads 8×M6x1; OQ-100 originally
+expected 8×M8×1.25) remains open — needs Voja's physical/drawing confirmation, not a code question.
+Separately, an M10-vs-M8×1.25 mismatch on `SP000011992 A.1 Erdungsauge RD30 L=15 M10` was found to be
+a modeling mistake on the part itself, now fixed by Voja — not a diagnostic bug. No longer tracked.
+
+**OQ-108** [OPEN] Concave/convex face filter (D-367 extension): algorithm verified (`Face.Evaluator.
+GetNormal` always points out of the solid, per Autodesk's official B-Rep training material; compare
+to the radial vector from the cylinder axis) but not yet built into the diagnostic macro. Needed to
+stop convex faces (external round stock, bosses) from being misread as holes — confirmed real bug via
+`SP000011992` reading its own Ø30 bar stock OD as a plain hole.
+
+**OQ-109** [OPEN] Thickness-vs-hole-diameter sanity warning: not yet built. Flag (not exclude) faces
+where diameter < ~30% of sheet thickness as implausible for a real machining/laser operation. Would
+also help catch fillet-derived sliver faces (e.g. the Ø0.2mm reading on `Phantom A Gewindeplatte M8`).
+
+**OQ-110** [OPEN] Sub-1mm face exclusion: not yet built. Faces below ~1mm diameter are near-certainly
+fillet artifacts, not real holes — should be dropped from hole lists entirely (with a count-of-skipped
+warning for visibility), not just flagged.
+
+**OQ-111** [OPEN] Laser-cut vs. drilled/tapped classification (D-368): not yet built into the
+diagnostic. Presence-based, not quantity-based, per D-368 — cross-reference B-Rep face diameter against
+the *set* of diameters present on `HoleFeature`s in the tree (existence only, not instance count, since
+D-367 established feature-tree instance counts are unreliable). No match → laser-cut-only, tracked
+separately for laser time estimation but not counted as a drill/tap operation.
+
+**OQ-112** [OPEN] Round bar stock recognition: brainstormed, not designed. Idea: detect cylindrical
+raw-stock parts (e.g. `RD30` naming convention), compute length along the cylinder axis from the
+bounding box, group by diameter+length+qty for a future "bar stock" material/costing category in the
+Estimator. Needs its own design session — separate from the hole/thread extraction work.
+
+**OQ-113** [OPEN] Assembly-level and single-part-document support: confirmed scope gap. The diagnostic
+macro currently requires an open `AssemblyDocument` and only extracts features from `PartDocument`s
+referenced by it — assemblies' own features (if any) and standalone single-part-document runs are not
+covered. Structural change to `Main()`'s document walk, deferred until hole/thread detection itself is
+trustworthy.
+
+**OQ-114** [OPEN] Countersink/counterbore instance counting: still feature-presence-only (D-367/D-368's
+B-Rep approach not yet extended to cs/cb). No real test data exists yet — every diagnostic run so far
+has shown 0 countersinks and 0 counterbores across all parts, so this is unvalidated either way.
+
+**OQ-115** [OPEN] `SurfaceEvaluator.GetParamAtPoint`/`GetNormal` exact VB.NET call signature (array
+sizes, `SolutionNatureEnum` usage) sourced from an official Autodesk C# training sample (ADN-DevTech
+GitHub repo), not yet run in Inventor 2021 iLogic. First real compile-and-run will confirm or falsify.
+

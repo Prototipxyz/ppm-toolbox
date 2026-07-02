@@ -1886,3 +1886,51 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
 **D-359** Weldment sub-assembly traversal in `PPM_SendToEstimator`: recursive, not fixed-depth. Macro walks full assembly tree to identify all weldment environments regardless of nesting level.
 
 **D-360** Engineering hours optional interactive prompt in `PPM_SendToEstimator`: dialog at run time with pre-filled defaults for quoting, CAD, DXF prep, laser programming, and material receiving hours. Skippable (Cancel = no engineering block written to JSON). Validate workflow impact after first live run (OQ-99).
+
+## Feature Extraction — API Verification Session, PPM_TestFeatureExtraction diagnostic (D-361 to D-368)
+
+Session context: `GetPartFeatureData` (D-347–D-358) failed to compile and, once fixed to compile,
+produced wrong values against real Inventor 2021 output (surface area always 0, bend count always 1,
+hole/thread instance count always 1 regardless of real pattern/multi-point count, Content Center parts
+misclassified). Each fix below was verified against Autodesk official docs and/or working forum/blog
+code before being written, not guessed — `HoleTypeEnum.kTappedHole` (used pre-D-361) was a guess and
+did not exist, which is why this verification pass was run before further building.
+
+- **D-361** Tapped-hole detection: `HoleFeature.Tapped` (Boolean), not `HoleType = kTappedHole` (does
+  not exist). Thread designation via `HoleFeature.TapInfo` cast to `HoleTapInfo` or `TaperedThreadInfo`
+  (both have `.ThreadDesignation`).
+- **D-362** Surface area: `PartComponentDefinition.MassProperties.Area` (×100, cm²→mm²), not
+  `SurfaceBody.Area` — per-body physical properties are not reliably exposed via the API; official VBA
+  sample confirms `MassProperties.Area` at the part level.
+- **D-363** Bend count: `SheetMetalComponentDefinition.FlatPattern.FlatBendResults.Count`, calling
+  `.Unfold()` first if `HasFlatPattern = False`. Supersedes the placeholder
+  `If HasFlatPattern Then Return 1` stub that was never real logic.
+- **D-364** Sheet metal detection: `SheetMetalComponentDefinition.HasFlatPattern`, not
+  `FlatPattern IsNot Nothing`.
+- **D-365** Purchased/Content Center detection: `PartComponentDefinition.IsContentMember`, not
+  `ReferenceComponents.ContentCenterComponents.Count` (not a real property).
+- **D-366** iLogic external rule constraint (structural, not domain-specific): a `Class` used as a
+  function return type must be declared `Public`, or compilation fails with "cannot expose type
+  outside the project through class 'ThisRule'" — the rule wrapper implicitly exposes `Sub Main`/
+  functions as public. Also: single-line `Try : If ... Then ... : Catch : End Try` colon-chains are
+  invalid VB.NET (the `Then` clause's statement list swallows the `Catch`/`End Try`); must be written
+  as separate `Try` and `If` statements.
+- **D-367** Hole/thread instance counting: **B-Rep face-based, not feature-based** — supersedes
+  D-347/D-348 (`HoleFeature.PositionPoints`, used in D-347, could not be confirmed to exist in any
+  official Autodesk documentation across multiple searches, and produced wrong counts on real parts —
+  e.g. NR01555346-7 read as 1× instead of the real 24×). New method: each distinct `Face` where
+  `Face.SurfaceType = SurfaceTypeEnum.kCylinderSurface` is one hole instance, verified correct against
+  known ground truth (NR01555346-7: exact 24×M8×1.25 match). Thread designation read directly from
+  `Face.ThreadInfos` → `ThreadInfo.ThreadDesignation`, which unifies tapped-hole and separate
+  `ThreadFeature` detection (both surface as `ThreadInfo` entries on the same face) and is documented
+  to work identically on derived parts, iParts, and iFeatures — i.e. parts with no usable feature
+  history at all, which feature-tree walking cannot handle by construction.
+- **D-368** Hole classification model: the feature tree defines hole **type and dimension** (plain
+  diameter or thread designation) but never reliable **quantity** (D-367's rationale). B-Rep face scan
+  supplies quantity for all cases. For non-threaded faces specifically: if a face's diameter matches a
+  diameter present on some `HoleFeature` in the tree, classify as a drilled hole (real machining
+  operation); if no `HoleFeature` in the tree has a matching diameter, classify as laser-cut-only
+  (clearance hole with no drill/tap operation) — still recorded for laser time estimation, but not
+  counted toward drilling/tapping operation cost. Threaded faces are always trusted directly from
+  `Face.ThreadInfos` with no cross-reference needed, since that data comes from the face itself.
+
