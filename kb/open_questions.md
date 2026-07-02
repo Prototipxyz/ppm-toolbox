@@ -312,3 +312,25 @@ only to non-threaded (through) holes, or use different logic for blind features.
 **OQ-118** [OPEN] Cosmetic: `Warnings` field can contain duplicate identical entries (seen twice on
 `Gewindeplatte M8`) — needs dedup before this is presentable in a real BOM export.
 
+## Full-Revolution Arc-Span Filter Test Run
+
+**OQ-116 resolved:** root cause was never `HoleFeature.HoleDiameter` — it was fillet arcs and real
+holes both being concave, which the concave/convex filter alone can't distinguish. Confirmed via Voja's
+Inventor screenshots (Measure tool) that the earlier `4×Ø25`/`2mm` "holes" on NR01555346-7 were inner/
+outer corner fillets inherited from a STEP-derived base solid, not laser-cut or drilled features.
+
+**OQ-115 partially resolved:** `Face.Evaluator.ParamRangeRect`, `Get3dCurveFrom2dCurve`, and
+`Arc3d.SweepAngle` confirmed to compile and run without exceptions across all 29 real parts (zero
+`ARC_SWEEP_CHECK_FAILED`), and confirmed **correct** on the one case verifiable against Voja's
+screenshots — NR01555346-7 now shows `SKIPPED_4_PARTIAL_ARC_FACES` (the 4 corner fillets), with its
+`24×M8x1.25` tapped count unchanged. Still open: coverage.
+
+**OQ-119** [OPEN] Arc-span check returns `ARC_SWEEP_CHECK_INCONCLUSIVE` on the majority of cylindrical
+faces across the 29-part run (e.g. 76 times on the diesel tank alone) — neither parametric axis trial
+resolves to an `Arc3d`. The check fails open (face is kept as a hole candidate, never silently dropped),
+so nothing has been wrongly excluded, but coverage is incomplete — other parts' `Holes_Laser` entries
+may still contain unflagged fillets beyond the one case confirmed by eye. Working hypothesis, untested:
+both trial line segments anchor at `ParamRangeRect.MinPoint`, likely a parametric seam/boundary
+(a common degenerate point in ASM cylindrical parametrization); using a mid-range value for the fixed
+coordinate while still sweeping the other axis across its full range may resolve more cases. Next test.
+
