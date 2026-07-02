@@ -384,3 +384,13 @@ own equivalent categorization, not yet designed.
 (length calc via bounding box along cylinder axis, group by diameter+length+qty) explicitly requested
 as near-term work, not deferred.
 
+**OQ-124** [OPEN] Stock-material reference database for dimensional cross-reference: extends the D-370
+family of physical-constraint classification signals. Idea: standard stock size series (sheet/plate
+thickness, round bar diameter, square stock, pipe/tube) are industry-universal for steel/aluminum/
+stainless — a first pass does not need Stirg-specific supplier catalog data, just standard nominal
+series (same pattern already used in D-354's thickness-nominal check). Cross-referencing a part's actual
+dimension against the nearest standard stock size could infer the operation — e.g. a 28mm round part
+against 30mm standard round stock implies lathe turning (material removed from oversized stock), same
+logic extends to plate thickness. Undesigned — needs the actual standard size series values (not yet
+sourced or verified) before buildable.
+
