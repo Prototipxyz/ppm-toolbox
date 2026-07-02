@@ -1946,3 +1946,19 @@ not assumed. Classification: sweep only the Y axis; `TypeOf result Is Circle`
 (kept as a hole candidate, flagged via warning) per D-149. No X-axis trial or midpoint-anchoring needed
 — both were artifacts of not yet knowing which axis was angular.
 
+**D-370** Laser-cut-vs-drilled classification (extends D-368) gets a second, physical signal alongside
+the feature-tree presence check: if a hole's diameter is meaningfully smaller than the part's material
+thickness, laser cutting cannot physically produce it cleanly, so it must be drilled/tapped regardless
+of whether a matching `HoleFeature` exists in the tree. This supplements, not replaces, D-368's
+presence-based match — a face is classified as drilled if *either* signal indicates it. Confirmed by
+Voja from shop-floor knowledge (Stirg does use real Hole features for plain holes; the diameter/
+thickness relationship is a genuine physical constraint, not a heuristic guess). Exact threshold ratio
+not yet chosen — pending Voja's input (OQ-121 area), not something to look up or assume.
+
+**D-370a** Modeling-discipline gap, philosophy (extends D-149): no single rule can fully compensate for
+inconsistent feature-tree modeling across all of Stirg's real parts. The approach is layered heuristics
+(concave/convex, arc-span, sub-1mm exclusion, diameter/thickness physical constraint, feature-tree
+presence) that each reduce misclassification independently, combined via fail-open + warning flags —
+never a single mechanism expected to solve it completely, and never silent exclusion on an unconfirmed
+signal.
+

@@ -362,3 +362,25 @@ tracked.
 yet knowing which axis was angular (OQ-120) — not a real defect in the technique itself, and not fixed
 by midpoint anchoring (which was the wrong hypothesis, ruled out). No longer tracked.
 
+## Post-D-369 Scope Expansion
+
+**OQ-121** [OPEN] `MATERIAL_UNRECOGNIZED` possible false positive: fires on `Phantom A Kraftstofftank
+Diesel 1100 Liter` even though Voja states material is set on the part. Current code reads
+`PartComponentDefinition.Material.Name` (Physical Material assignment) — Inventor also has a separate
+Design Tracking "Material" iProperty, and these can disagree. Not yet investigated which one is
+actually populated on this part, or whether the code should check both. Needs research, not a guess-fix
+(explicit permission requested, not yet granted).
+
+**OQ-122** [OPEN] (extends OQ-113) Assembly-level material and operation-type recognition confirmed
+required by Voja, not just a scope gap — `PPM_ExportPartData`'s current assembly handling only sets
+`Weld Assy`/`Mech Assy` docType, with no material, operations, or other feature-derived fields at the
+assembly level at all.
+
+**OQ-123** [OPEN] Part_Type categorization scheme needed for assemblies: the current `sheet_metal`/
+`weldment`/`tube_pipe`/`machined`/`purchased` taxonomy (D-352) is part-level only; assemblies need their
+own equivalent categorization, not yet designed.
+
+**OQ-112 status update:** reprioritized from "future idea" to active scope — round bar stock recognition
+(length calc via bounding box along cylinder axis, group by diameter+length+qty) explicitly requested
+as near-term work, not deferred.
+
