@@ -334,3 +334,17 @@ both trial line segments anchor at `ParamRangeRect.MinPoint`, likely a parametri
 (a common degenerate point in ASM cylindrical parametrization); using a mid-range value for the fixed
 coordinate while still sweeping the other axis across its full range may resolve more cases. Next test.
 
+**OQ-119 partial resolution:** midpoint-anchor hypothesis did not change results (identical output to
+the boundary-anchor version) — ruled out; not the actual cause. Type-name instrumentation (`TypeName()`
+reflection) showed Trial 1 (sweep Box2d X-axis, fixed Y) consistently returns a plain `LineSegment`,
+not `Arc3d` or a guessed `Circle3d` — expected/correct behavior for a cylinder's *axial* parameter, not
+a bug. This means the X axis is axial, not angular, contrary to the arbitrary trial order originally
+assumed.
+
+**OQ-120** [OPEN] Trial 2 (sweep Box2d Y-axis, fixed X — the parameter that should be angular given
+OQ-119's finding) has never been independently observed: the single-sample-per-part instrumentation
+only captures whichever trial fails *first*, so Trial 1's (expected, correct) `LineSegment` result masks
+whatever Trial 2 actually returns. Needs its own instrumentation, or a standalone single-face probe
+(`CommandManager.Pick` on a known real hole, dump both trials' full diagnostics) — cheaper per iteration
+than a full 29-part assembly run for what is now a single-face question.
+
