@@ -1934,3 +1934,15 @@ did not exist, which is why this verification pass was run before further buildi
   counted toward drilling/tapping operation cost. Threaded faces are always trusted directly from
   `Face.ThreadInfos` with no cross-reference needed, since that data comes from the face itself.
 
+**D-369** Full-revolution hole/fillet classification (extends D-367, replaces the earlier two-trial
+self-correcting design): confirmed empirically via `PPM_ProbeFace.iLogicVb` single-face probe on a real
+hole — `Face.Evaluator.ParamRangeRect`'s **Y parameter is angular** (span = 2π to 14 significant
+figures), **X is axial** (span = hole depth). `Get3dCurveFrom2dCurve` on a full-Y-range line segment
+returns a `Circle` for a genuine hole (NOT `Circle3d` — that name doesn't compile; Inventor's curve
+type naming isn't fully consistent, e.g. `Face.Geometry` likewise returns plain `Cylinder`, not
+`Cylinder3d`), `Arc3d` for a partial arc (corner fillet, etc.) — confirmed by `TypeName()` reflection,
+not assumed. Classification: sweep only the Y axis; `TypeOf result Is Circle`
+→ real hole; `TypeOf result Is Arc3d` → fillet, excluded; any other result → inconclusive, fail-open
+(kept as a hole candidate, flagged via warning) per D-149. No X-axis trial or midpoint-anchoring needed
+— both were artifacts of not yet knowing which axis was angular.
+

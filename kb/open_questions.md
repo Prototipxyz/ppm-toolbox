@@ -348,3 +348,17 @@ whatever Trial 2 actually returns. Needs its own instrumentation, or a standalon
 (`CommandManager.Pick` on a known real hole, dump both trials' full diagnostics) — cheaper per iteration
 than a full 29-part assembly run for what is now a single-face question.
 
+**OQ-120 resolved:** `PPM_ProbeFace.iLogicVb` single-face probe confirmed Y=angular (span=2π exactly),
+X=axial, and `Get3dCurveFrom2dCurve` returns `Circle` (not `Circle3d` — that guess didn't compile; see
+D-369 correction) for a real hole's full Y-sweep vs. `Arc3d` for
+a partial arc. See D-369.
+
+**OQ-115 fully resolved:** all `SurfaceEvaluator`/`ParamRangeRect`/`Get3dCurveFrom2dCurve`/`Arc3d`/
+`Circle` API members confirmed real and correctly used, via direct empirical probe and one compile-time
+correction (`Circle3d` guessed initially, doesn't compile; real name is plain `Circle`). No longer
+tracked.
+
+**OQ-119 fully resolved:** the earlier "inconclusive on most faces" symptom was fully explained by not
+yet knowing which axis was angular (OQ-120) — not a real defect in the technique itself, and not fixed
+by midpoint anchoring (which was the wrong hypothesis, ruled out). No longer tracked.
+
