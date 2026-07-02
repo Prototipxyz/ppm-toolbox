@@ -1805,3 +1805,40 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   state after processing.** Confirmed on `Phantom A Rippe innen 3` — left open in flat
   pattern state after the batch macro completed, rather than returned to its pre-export
   state. Separate bug from the D-338 E_FAIL investigation; scoped as its own fix.
+
+## Diagnostic/Auto-Recovery Tool Implemented — Untested Against Real Failure (D-340)
+
+- D-340: **`TryRecoverAndExport` diagnostic/auto-recovery subroutine implemented in both
+  export macros plus a new standalone macro `PPM_DiagnoseAndRecoverExport.iLogicVb`.**
+  Design constraint maintained: only triggers after a `WriteDataToFile` exception, never
+  runs on a successful first attempt — verified by code structure (call sites are inside
+  `Catch` blocks only).
+
+  API members used were confirmed via direct .NET reflection against
+  `Autodesk.Inventor.Interop.dll` rather than assumed from memory or documentation,
+  after two drafted member names turned out wrong:
+  - `Document.RequiresUpdate` (Boolean) — **not** `ComponentDefinition.NeedsUpdate` as
+    first drafted; that member doesn't exist.
+  - `SheetMetalComponentDefinition.ActiveSheetMetalStyle.Thickness` returns a **String**
+    expression (e.g. `"3 mm"`), **not** a `Parameter` object — first drafted as
+    `.Thickness.ModelValue`, which would have thrown on every read (silently, since
+    wrapped in `Try/Catch`, producing a permanently blank diagnostic column). Corrected
+    to capture the raw string (`RuleThicknessRaw` CSV column) and additionally parse it
+    via regex into a comparable mm value (`RuleThicknessMM` column, blank if the unit
+    suffix doesn't match `mm`/`in`/`inch`) rather than guessing at format.
+  - `SheetMetalComponentDefinition.HasFlatPattern` (Boolean) — confirmed as the correct
+    direct property, replacing a fragile `Nothing`-check against `.FlatPattern`.
+
+  Diagnostic snapshot on trigger: timestamp, part number, filename, original error,
+  `RequiresUpdate`, sheet metal rule name, raw + parsed rule thickness, actual part
+  thickness, flat-pattern-exists, part last-write-time, retry-succeeded — logged to
+  `C:\PPM Cuts and Bends\iLogic\PPM_ExportDiagnostics.csv` (created with header on first
+  trigger) regardless of outcome.
+
+  **Status: implemented and verified to compile against correct API members, but
+  functionally untested.** A deliberate attempt to reproduce the original E_FAIL
+  condition (toggling sheet metal thickness override, the method that worked on
+  `NR01555346-5` in D-338) did not reproduce the failure — all parts exported
+  successfully on the first attempt, meaning `TryRecoverAndExport` was never triggered
+  and no CSV file was ever created. The `.Update()`-before-retry hypothesis from D-338
+  remains neither confirmed nor refuted.

@@ -199,3 +199,13 @@ See D-330.
 | OQ-93 | Test the `.Update()`/forced-rebuild-before-export hypothesis (D-338) the next time a part throws this specific E_FAIL pattern, before manually fixing it via thickness toggle or solid-conversion — to get a clean before/after confirmation of the mechanism. Affected parts in this session were already manually fixed before the theory could be tested. | Test next occurrence |
 | OQ-94 | `PPM_BatchExportFlatPatterns.iLogicVb` should restore each part's pre-export state (e.g. flat pattern active/inactive) after processing, rather than leaving it altered (D-339). Needs a fix — scoped separately from the E_FAIL root-cause investigation (D-338/OQ-93). | Fix pending |
 | OQ-95 | Build a diagnostic/test macro to capture part state (thickness override vs. sheet metal rule, flat pattern validity, last-updated timestamp, etc.) when a batch export throws E_FAIL, so recurrence of this pattern can be triaged without manual toggling. Also considered: double-click on a failure-list entry to activate that part directly from the summary window for on-the-spot fixing (requires converting the failure list from read-only TextBox to a ListBox with a click handler matching back to the loaded PartDocument, per D-260's document walk). Bundle both together when picked up, since both concern the batch macro's per-part failure-handling lifecycle. | Design pending |
+
+## Diagnostic Tool Status — Revision to OQ-93, New Open Question (OQ-96)
+
+OQ-93 (previous text: "test the `.Update()` hypothesis next occurrence") is **not
+resolved by this attempt** — a deliberate re-break of a previously-failing part did not
+reproduce the E_FAIL condition, so the diagnostic tool (D-340) was never triggered.
+OQ-93 stays open, unchanged in substance: still needs a real, naturally-occurring
+failure to test against, since deliberate reproduction attempts have now failed once.
+
+| OQ-96 | Toggling the sheet metal thickness override — the method that resolved `NR01555346-5` in D-338 — did **not** reproduce the E_FAIL condition on retry (D-340). This means the original three failures either required a more specific state than a simple thickness-override change, or involved something transient (Inventor session state, document history, etc.) not captured by that single manual action. Worth noting whatever else is different (freshly-opened vs. long-running Inventor session, order of operations, etc.) the next time this pattern occurs naturally, since the mechanism is less understood than D-338 implied. | Watch for next natural occurrence |
