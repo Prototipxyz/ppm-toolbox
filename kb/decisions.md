@@ -1842,3 +1842,47 @@ D-273: AC1021 (AutoCAD 2007) export version confirmed target
   successfully on the first attempt, meaning `TryRecoverAndExport` was never triggered
   and no CSV file was ever created. The `.Update()`-before-retry hypothesis from D-338
   remains neither confirmed nor refuted.
+
+---
+
+## Diesel Tank Estimation Session & PPM Toolbox Feature Extraction — July 2026
+
+**D-341** Bending machine routing rule for Stirg: thickness ≤4mm → TruBend 3100 (110t); >4mm → TrumaBend V1700S (187t). Applied per-part in Estimator at calculation time.
+
+**D-342** Groove weld length recovery: Length = Volume ÷ 28mm² assumed cross-section (square gap fill). Placeholder pending OQ-84 validation. Used where Inventor weld bead report returns N/A in Length column.
+
+**D-343** Weld deposition rate placeholder: 400 mm/min MIG/MAG for structural mild steel fillet welds. Requires shop-floor validation (OQ-97).
+
+**D-344** Outsourced thick parts (thickness not in SPRINT4020 mild steel table): use nearest lower available laser rate as proxy for internal estimation only. Flagged explicitly in output. Not presented to customer as a laser rate.
+
+**D-345** Engineering hours (quoting, CAD, DXF prep, laser programming, material receiving) are one-time project costs, amortized over production quantity in Estimator output.
+
+**D-346** C-Schiene 29×15×2: manufactured in-house (laser cut + 2 bends per piece for C-profile). Not purchased. Processed as sheet metal OP-009 + OP-012.
+
+**D-347** Hole instance count extracted via `HoleFeature.PositionPoints.Count`, not `HoleFeatures.Count`. The latter returns feature definition count (always 1 for multi-position holes); the former returns physical hole count.
+
+**D-348** Thread data extraction uses two paths combined: (a) `HoleFeature.HoleType = kTappedHoleType` → read `ThreadDesignation` and `NominalSize` from HoleFeature; (b) `ThreadFeatures` collection for post-hoc threads applied to cylindrical faces. Both checked per part, results merged.
+
+**D-349** Surface area source: `PartComponentDefinition.SurfaceBody.Area` (cm², convert ×100 to mm²). Works for all part types. The 1× (one-sided) or 2× (both sides) multiplier is applied in Estimator at calculation time — macro exports raw body area only.
+
+**D-350** Batch JSON `batch_parts_data.json` written to Job Package output folder alongside DXFs, keyed by DXF filename stem. Contains all feature-extracted part data plus engineering hours block. Extends the existing Job Package format (see send-to-estimator.md) — not a separate format.
+
+**D-351** Excel BOM columns generated dynamically: first-pass scan of all assembly parts builds a feature presence map; only columns with at least one non-null value across the assembly scope are generated.
+
+**D-352** Part type flag auto-detected from Inventor environment: `sheet_metal` (flat pattern present), `weldment` (weldment environment), `tube_pipe` (heuristic: length >> cross-section), `machined` (solid, no flat pattern), `purchased` (no geometry or reference part). Written to JSON and Excel. Estimator uses flag to gate applicable operations.
+
+**D-353** Flat pattern L×W boundary checks: stock threshold 1500×3000mm (yellow warning); orderable threshold 2000×4000mm (red error). Check applied per part. Written to JSON flags array and highlighted in Excel.
+
+**D-354** Thickness validation: nominal series 1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 15.0, 20.0, 25.0mm. Warn if extracted thickness deviates >0.1mm from nearest nominal (catches modelling errors like 3.02mm). Does not block export.
+
+**D-355** Material grade warning: trigger if Inventor material name is "Generic", "General", empty string, or unrecognised. Warning written to JSON flags array and highlighted in Excel. Does not block export.
+
+**D-356** Countersink and counterbore extraction: count only. Angle, type, and seat geometry not extracted — sufficient for OP-011 costing at current norm granularity. Fields: `countersinks_count`, `counterbores_count` (integers).
+
+**D-357** Bend angles not extracted by macro or Estimator. Angle data lives on technical drawings. Estimator uses bend count × norm time; angle-specific tooling decisions made on shop floor.
+
+**D-358** Mass exported per part via `MassProperties.Mass` (kg). Used for material cost cross-check and shipping weight. Written to JSON and Excel BOM.
+
+**D-359** Weldment sub-assembly traversal in `PPM_SendToEstimator`: recursive, not fixed-depth. Macro walks full assembly tree to identify all weldment environments regardless of nesting level.
+
+**D-360** Engineering hours optional interactive prompt in `PPM_SendToEstimator`: dialog at run time with pre-filled defaults for quoting, CAD, DXF prep, laser programming, and material receiving hours. Skippable (Cancel = no engineering block written to JSON). Validate workflow impact after first live run (OQ-99).

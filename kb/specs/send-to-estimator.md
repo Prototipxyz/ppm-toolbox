@@ -222,3 +222,108 @@ Consistent with D-149 (Graceful Degradation):
 - Global Form button wired to this macro
 - SendKeys approach confirmed viable (OQ-87): no competing windows
   in sequential execution context
+
+---
+
+## Feature Extraction Extension — July 2026
+
+Extends Step 5 (Structured BOM export) and manifest.json with part-level feature data.
+See D-347 through D-360 for governing decisions.
+
+### New fields added to StructuredBOM.xlsx PARTS sheet (dynamic columns, D-351)
+
+Columns only generated if at least one part in the assembly has a non-null value:
+
+| Column | Source | Notes |
+|---|---|---|
+| `Part_Type` | Auto-detected (D-352) | sheet_metal / weldment / tube_pipe / machined / purchased |
+| `Material_Grade` | `Material.Name` | Warning if Generic/General/empty (D-355) |
+| `Thickness_mm` | Sheet metal style | Warning if >0.1mm from nominal series (D-354) |
+| `Mass_kg` | `MassProperties.Mass` | D-358 |
+| `FlatPattern_L_mm` | Flat pattern bounding box | Sheet metal only; size warning (D-353) |
+| `FlatPattern_W_mm` | Flat pattern bounding box | Sheet metal only |
+| `Surface_Area_mm2` | `SurfaceBody.Area × 100` | Raw body area — 1×/2× multiplier in Estimator (D-349) |
+| `Holes_Plain` | `PositionPoints.Count` per drilled HoleFeature | Format: `count×dia` e.g. `4×8.5` |
+| `Holes_Tapped` | `PositionPoints.Count` + `ThreadDesignation` | Format: `count×M8×1.25` (D-347, D-348) |
+| `Hole_Depth_mm` | HoleFeature termination depth | null if through |
+| `Countersinks` | Count only (D-356) | Integer |
+| `Counterbores` | Count only (D-356) | Integer |
+| `Warnings` | All flags combined | Pipe-separated string |
+
+### batch_parts_data.json schema extension
+
+`batch_parts_data.json` extends the existing `manifest.json` (already in spec above)
+with a `parts` block and optional `engineering` block:
+
+```json
+{
+  "package_version": "1.1",
+  "engineering": {
+    "quoting_h": 8.0,
+    "cad_h": 20.0,
+    "dxf_prep_h": 8.0,
+    "tech_drawings_h": 2.0,
+    "laser_programming_h": 7.0,
+    "material_receiving_h": 0.5
+  },
+  "parts": {
+    "{dxf_filename_stem}": {
+      "part_name": "string",
+      "part_number": "string",
+      "part_type": "sheet_metal|weldment|tube_pipe|machined|purchased",
+      "material_grade": "string",
+      "thickness_mm": "float",
+      "qty_in_assembly": "integer",
+      "mass_kg": "float",
+      "flat_pattern_l_mm": "float|null",
+      "flat_pattern_w_mm": "float|null",
+      "body_surface_area_mm2": "float",
+      "holes_plain": [{"count": "int", "diameter_mm": "float", "depth_mm": "float|null"}],
+      "holes_tapped": [{"count": "int", "thread_designation": "string", "depth_mm": "float|null"}],
+      "countersinks_count": "integer",
+      "counterbores_count": "integer",
+      "warnings": ["string"],
+      "dxf_file": "string|null"
+    }
+  }
+}
+```
+
+`engineering` block absent if user skips prompt (D-360).
+`bends` field NOT in JSON — populated by Estimator from DXF bend layer count at ingestion time (D-357 / existing DXF parsing spec).
+
+### Hole extraction iLogic API paths (D-347, D-348)
+
+```vb
+' Instance count — use PositionPoints, NOT HoleFeatures.Count
+For Each oFeat As HoleFeature In oPart.Features.HoleFeatures
+    Dim nCount As Integer = oFeat.PositionPoints.Count
+
+    If oFeat.HoleType = kTappedHoleType Then
+        ' Path A: tapped hole via Hole dialog
+        Dim sDesig As String = oFeat.ThreadDesignation  ' e.g. "M8x1.25"
+    End If
+Next
+
+' Path B: post-hoc thread features on cylindrical faces
+For Each oThread As ThreadFeature In oPart.Features.ThreadFeatures
+    Dim sDesig As String = oThread.ThreadInfo.ThreadDesignation
+Next
+```
+
+### Weldment traversal (D-359)
+
+Recursive walk replaces fixed-depth assumption. Pseudo-code:
+
+```vb
+Sub TraverseForWeldments(oComp As ComponentOccurrence)
+    If oComp.Definition.SubType = "{9C464203...}" Then  ' weldment GUID
+        QueueWeldReport(oComp)
+    End If
+    For Each oChild As ComponentOccurrence In oComp.SubOccurrences
+        TraverseForWeldments(oChild)
+    Next
+End Sub
+```
+
+Results in `weld_checklist.txt` if any weldments fail automation (OQ-98).

@@ -209,3 +209,29 @@ OQ-93 stays open, unchanged in substance: still needs a real, naturally-occurrin
 failure to test against, since deliberate reproduction attempts have now failed once.
 
 | OQ-96 | Toggling the sheet metal thickness override — the method that resolved `NR01555346-5` in D-338 — did **not** reproduce the E_FAIL condition on retry (D-340). This means the original three failures either required a more specific state than a simple thickness-override change, or involved something transient (Inventor session state, document history, etc.) not captured by that single manual action. Worth noting whatever else is different (freshly-opened vs. long-running Inventor session, order of operations, etc.) the next time this pattern occurs naturally, since the mechanism is less understood than D-338 implied. | Watch for next natural occurrence |
+
+---
+
+## Diesel Tank Estimation Session — July 2026
+
+**OQ-97** [OPEN] Weld deposition rate validation: measure real MIG/MAG mm/min on Stirg shop floor for structural S235JR fillet welds. Current placeholder 400 mm/min (D-343). Most significant accuracy lever for OP-016 cost on large weldments.
+
+**OQ-98** [OPEN] `AssemblyWeldBeadReportCmd` automation from `PPM_SendToEstimator`: test recursive weldment traversal (D-359) and per-weldment report invocation without modal dialog blocking macro. Test on main tank weldment (NR01555346) first. Fallback if blocked: output checklist of weldments needing manual export.
+
+**OQ-99** [OPEN] Engineering hours prompt (D-360): validate that dialog does not disrupt workflow in practice. Review after first live run on Stirg dev PC.
+
+**OQ-100** [OPEN] All parts in Stadler diesel tank assembly require hole/thread re-verification via corrected macro (`PositionPoints.Count` fix, D-347). Known wrong entries: NR01555346-7 = 24× M8×1.25 tapped (10mm deep); NR01555346-8 = 8× M8×1.25 tapped.
+
+**OQ-101** [OPEN] Deburring (OP-014) and visual QC (OP-023) norms applied per-blank produce disproportionate cost share (~34% combined in current diesel tank run). Evaluate applying these per sub-assembly rather than per individual blank for weldment assemblies.
+
+**OQ-102** [OPEN] Assembly hours (OP-020): current placeholder 0.5h/sub-assembly is the weakest norm estimate. Requires measured time from Stirg shop on a comparable welded tank to calibrate.
+
+**OQ-103** [OPEN] Markup structure for Stadler client: confirm whether flat 30% applies across all operation types or whether Stirg applies variable margins per operation category.
+
+**OQ-104** [OPEN] KROMA level sensor MWAS 2.710-630/121 procurement: designed for FANINA (PL), requires FANINA technical release before KROMA ships. Contact: Mateusz Socha (mateusz.socha@fanina.pl). Escalation path: raise with Stadler (Jonathan Erny) whether they can provide FANINA release or accept an alternative sensor.
+
+**OQ-105** [OPEN] SP-numbered purchased parts in Stadler package (SP100233354 tank cap, SP100233515 filler neck, SP100598235 socket fittings G3/4"): confirm with Stadler whether customer-furnished or Stirg-procured. Affects quotation scope materially.
+
+**OQ-106** [OPEN] FEM structural calculation (EN 12663-1 P-III, 2024, CL1): confirm whether Stirg has in-house capability or must subcontract. Required deliverable per Stadler spec — must be resolved before final quotation.
+
+**OQ-107** [OPEN] Pressure leak test certification: diesel tank at 0.3 bar, AdBlue tank at 0.5 bar (railway ordinance 51.1 chap. 8). Confirm whether Stirg has in-house test equipment or must outsource.
