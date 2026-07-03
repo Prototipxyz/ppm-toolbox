@@ -402,3 +402,48 @@ attempted: Jeep Commerce/InoxCacak category pages didn't expose clean dimension 
 automated fetch (site blocks robots); Metal-Centar (regional stainless distributor) did yield usable
 data confirming the same tier pattern generalizes to stainless. Not exhaustive — deferred to a
 dedicated pass.
+
+## Round Stock / Pipe / Tube Detection — OQ-112 Extension (Post-D-375)
+
+**OQ-112 status:** round-bar turning-inference logic (`ROUND_STOCK_TURNED_FROM_*`, `CONFIRM_TURNING_
+OPERATION`) was validated once, in isolation, against real data (`NR01555346-9`'s 60.3mm OD, `602.1063.
+000.001-A`'s 154mm OD). It is currently unreachable in the latest diagnostic version: OQ-129's coaxial-
+bore over-firing routes every part that would exercise this logic into the hollow/pipe path instead, so
+it needs re-validation once OQ-129's gating is resolved, not assumed still correct as-is.
+
+**OQ-125** [OPEN] Standard pipe/tube/profile size reference database, needed for two purposes: (1)
+dimensional cross-reference the same way EN 10060 round bar is used (D-375's turning logic), and (2) per
+Voja: a positive match against a real standard series is itself a confirmation signal that a detected
+round/hollow feature genuinely is pipe/tube/profile stock, not just a coincidentally-coaxial hole in a
+solid part (see OQ-129). Needed series, not yet sourced: EN 10219/10220 (structural hollow section, incl.
+square/rectangular — separate cross-section logic from round), EN 10255 (threaded pipe), EN 10216/10217
+(seamless/welded round tube).
+
+**OQ-128** [OPEN, deferred, large scope] Full weldment/profile/tube categorization system: cross-section
+recognition (round/square/rectangular/angle/channel), standard profile catalog cross-reference (OQ-125),
+required stock length + piece count calculation, sawing operation count. Square/rectangular profiles
+confirmed by Voja to need separate detection logic from round tube/bar. Undesigned — deferred until
+OQ-129's narrower round/hollow gating problem is solved first.
+
+**OQ-129** [OPEN] Coaxial round-stock/bore detection over-fires on real data — two confirmed failure
+patterns, not a single bug: (1) a solid part with any coaxial through-hole gets misclassified as hollow
+tube stock (`SP000011992`, a solid RD30 grounding lug with an M10 tap, read as OD 30mm / bore 8.38mm
+pipe — it is not tube stock); (2) round-stock length calculation picks up the entire part body's bounding
+box even when the round feature is a small local boss on a much larger fabricated body (diesel tank's
+fitting read as 691.1mm long, using the tank's own extent). Root cause: no gate exists on *whether* to
+attempt round-stock/pipe analysis at all before running OD/bore/turning logic. Candidate gates raised,
+none yet implemented or tested: (a) shape gate — only analyze when max convex diameter is proportionate
+to the part's overall extent, not a small local feature on a much bigger body; (b) wall-ratio gate — only
+classify as hollow when bore/OD ratio falls in a realistic tube-wall range; (c) standard-size cross-check
+— treat a match against a real standard series (round bar via D-375's EN 10060 table, or pipe/tube once
+OQ-125 is sourced) as the actual confirmation signal, rather than geometry alone. Likely needs more than
+one of these combined. Supersedes/absorbs the earlier, narrower OQ-126 (disc/flange false-positive) —
+tracked here going forward, not separately. Test plan (Voja, not yet run): validate against a small,
+targeted set before re-running the full assembly — a real 60.3mm OD tube part and a real ~25mm tapped
+solid round grounding part, specifically chosen to separately exercise the true-tube and true-solid-
+with-hole cases this bug currently conflates.
+
+**OQ-127 resolved:** not a gap — `PPM_MarkOperations.iLogicVb` already covers this via the existing
+PPM_OP_XXXXX iProperty convention (D-274): Procurement is one of the 11 operation categories (D-275),
+set manually like any other worker-judgment operation, consistent with D-278's established philosophy
+that geometry alone can't determine purchased/procured status. No automatic detection needed or planned.

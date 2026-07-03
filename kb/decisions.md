@@ -1994,3 +1994,17 @@ exists in the current sample set.
 itself. When this logic is ported into `PPM_ExportPartData` for production use, these must be routed to
 a separate debug-only field, not the primary `Warnings` field, since they clutter the field with
 non-actionable internal filter counts rather than real part-level concerns.
+
+**D-374** `MATERIAL_UNRECOGNIZED` renamed to `MATERIAL_NOT_SET` in `PPM_TestFeatureExtraction` (same
+D-355 trigger logic — blank/`Generic`/`General`, substring match per D-371a — unchanged). Clearer,
+actionable label; downstream Excel/PPM App display text "Please set material for this part" planned but
+not yet wired anywhere. Confirmed via live run: `MATERIAL_NOT_SET` appears correctly on the diesel tank
+part, same trigger case as the old `MATERIAL_UNRECOGNIZED`, no regression.
+
+**D-375** Round-stock axial length calculation fixed: projects the part body's bounding box onto the
+actual axis direction of the max-diameter convex face (`ProjectedLengthAlongAxis`), replacing the
+original largest-of-3-bounding-box-dimensions shortcut, which was wrong for any disc/flange-shaped part
+where diameter exceeds length. Confirmed correct in isolation via live run against real ground truth:
+`SP000011992` ("...L=15...") now reports `RoundStock_L = 15mm` exactly. Note: this fix is validated
+independently of the surrounding round-stock/hollow-detection gating logic, which is NOT validated —
+see OQ-129.
