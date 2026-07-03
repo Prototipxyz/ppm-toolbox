@@ -391,3 +391,14 @@ against 30mm standard round stock implies lathe turning (material removed from o
 logic extends to plate thickness. Undesigned — needs the actual standard size series values (not yet
 sourced or verified) before buildable.
 
+
+**OQ-124 note:** Phase 1 sheet-stock tiers (1250×2500, 1500×3000, 2000×4000mm) sourced and validated
+for the "fits smallest tier" path via D-372's live test — see D-372. `LARGE_FORMAT_CONFIRM_STOCK` and
+true `OVERSIZE_ORDERABLE` branches remain unverified against real data (no oversized test part in
+current sample set). Still fully open: round/flat/square/hex bar standard series (EN 10060/10058/
+10059/10061), aluminum sheet (EN 485), corten, tool steel, engineering plastics. Phase 2 (local
+Stirg-region supplier catalogs — Jeep Commerce, InoxCacak, Rajan, Metalionline, MGM) partially
+attempted: Jeep Commerce/InoxCacak category pages didn't expose clean dimension tables to search or
+automated fetch (site blocks robots); Metal-Centar (regional stainless distributor) did yield usable
+data confirming the same tier pattern generalizes to stainless. Not exhaustive — deferred to a
+dedicated pass.

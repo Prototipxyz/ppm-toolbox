@@ -1976,3 +1976,21 @@ string equality against `"generic"`/`"general"`, which silently missed `"1:Gener
 unset material on `Phantom A Kraftstofftank Diesel 1100 Liter` that should have warned but didn't.
 Fixed to substring match (`EndsWith(":generic")` etc.) instead of exact equality.
 
+
+**D-372** [VALIDATED — confirmed live] `OVERSIZE_ORDERABLE` check redesigned: tier-fit against standard
+sheet stock sizes (1250×2500, 1500×3000, 2000×4000mm, both flat-pattern orientations checked) replaces
+D-353's fixed 1500×3000/2000×4000 threshold pair, which was confirmed wrong (NR01555346-1's
+2373.15×996mm flat pattern fits 1250×2500 stock but was flagged oversize under the old logic). New
+`LARGE_FORMAT_CONFIRM_STOCK` warning added for parts fitting only the largest tier. Tiers sourced from
+ArcelorMittal e-steel France (EU mill) and regional stainless stockist data (Metal-Centar) — not yet
+Stirg-supplier-specific (see OQ-124 phase 2). Confirmed via live 29-part run: NR01555346-1 and -3 no
+longer show false `OVERSIZE_ORDERABLE`, 29/29 parts compiled and ran clean, no regression elsewhere.
+Note: this run only exercises the "fits smallest tier" path — `LARGE_FORMAT_CONFIRM_STOCK` and true
+`OVERSIZE_ORDERABLE` (fits no tier) remain unverified against real data, no test part large enough
+exists in the current sample set.
+
+**D-373** `SKIPPED_*_FACES` and other internal-diagnostic-only warnings (face-filter counts) remain in
+`PPM_TestFeatureExtraction`'s `Warnings` output — useful for troubleshooting the standalone diagnostic
+itself. When this logic is ported into `PPM_ExportPartData` for production use, these must be routed to
+a separate debug-only field, not the primary `Warnings` field, since they clutter the field with
+non-actionable internal filter counts rather than real part-level concerns.
