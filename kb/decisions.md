@@ -1962,3 +1962,10 @@ presence) that each reduce misclassification independently, combined via fail-op
 never a single mechanism expected to solve it completely, and never silent exclusion on an unconfirmed
 signal.
 
+**D-371** Material warning check corrected (extends D-355): primary read is `PartDocument.
+ActiveMaterial.Name`, not `PartComponentDefinition.Material.Name` (confirmed "hidden"/deprecated by
+Autodesk community — a downstream/legacy property, not the driving one). Legacy property kept as
+fallback only if `ActiveMaterial` is empty. Confirmed via real 29-part test run on NR01555346.iam:
+`MATERIAL_UNRECOGNIZED` false positive on `Phantom A Kraftstofftank Diesel 1100 Liter` resolved, all
+other 28 parts' values unchanged (no regression).
+

@@ -364,12 +364,9 @@ by midpoint anchoring (which was the wrong hypothesis, ruled out). No longer tra
 
 ## Post-D-369 Scope Expansion
 
-**OQ-121** [OPEN] `MATERIAL_UNRECOGNIZED` possible false positive: fires on `Phantom A Kraftstofftank
-Diesel 1100 Liter` even though Voja states material is set on the part. Current code reads
-`PartComponentDefinition.Material.Name` (Physical Material assignment) — Inventor also has a separate
-Design Tracking "Material" iProperty, and these can disagree. Not yet investigated which one is
-actually populated on this part, or whether the code should check both. Needs research, not a guess-fix
-(explicit permission requested, not yet granted).
+**OQ-121 resolved:** root cause was `PartComponentDefinition.Material` being a deprecated/"hidden"
+property, not a Physical-vs-Design-Tracking iProperty disagreement as originally guessed. Fix is
+`PartDocument.ActiveMaterial` — see D-371 for the confirmed, tested resolution.
 
 **OQ-122** [OPEN] (extends OQ-113) Assembly-level material and operation-type recognition confirmed
 required by Voja, not just a scope gap — `PPM_ExportPartData`'s current assembly handling only sets
