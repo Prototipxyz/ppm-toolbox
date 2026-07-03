@@ -1969,3 +1969,10 @@ fallback only if `ActiveMaterial` is empty. Confirmed via real 29-part test run 
 `MATERIAL_UNRECOGNIZED` false positive on `Phantom A Kraftstofftank Diesel 1100 Liter` resolved, all
 other 28 parts' values unchanged (no regression).
 
+**D-371a** `PartDocument.ActiveMaterial.Name` format confirmed via real data (once the value was
+actually displayed, not just used for a pass/fail check): `"N:MaterialName"` — an index prefix, not a
+bare name (e.g. `"1:EN S235JR"`, `"1:Generic"`). D-371's `MATERIAL_UNRECOGNIZED` check used exact
+string equality against `"generic"`/`"general"`, which silently missed `"1:Generic"` — a genuinely
+unset material on `Phantom A Kraftstofftank Diesel 1100 Liter` that should have warned but didn't.
+Fixed to substring match (`EndsWith(":generic")` etc.) instead of exact equality.
+
