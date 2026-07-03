@@ -2008,3 +2008,44 @@ where diameter exceeds length. Confirmed correct in isolation via live run again
 `SP000011992` ("...L=15...") now reports `RoundStock_L = 15mm` exactly. Note: this fix is validated
 independently of the surrounding round-stock/hollow-detection gating logic, which is NOT validated —
 see OQ-129.
+
+
+## OQ-129 Gating Fixes + Pipe/Tube/Fitting Reference Scope (D-376 to D-380)
+
+**D-376** OQ-129 fix strategy: gates (a) shape/extent, (b) wall-ratio, (c) standard-size
+cross-check implemented and tested independently, not bundled in one patch — repeats the
+v14 bundling lesson (single patch fixed length calc but introduced the coaxial-bore
+regression, only caught after a full 29-part run). Order: (a) first — self-contained, no
+external data dependency. (b) second — needs sourced tube wall-ratio range. (c) deferred —
+blocked on OQ-125 dimension sourcing.
+
+**D-377** OQ-129 gate (a) provisional threshold: round-feature diameter must be ≥10% of
+the part's largest bounding-box dimension to attempt round-stock/pipe classification;
+below that, treat as local boss/fitting, skip round-stock analysis entirely. Derived from
+2 real data points: RD30 lug SP000011992 (Ø30mm face on ~30mm-extent part, ratio≈1.0, true
+positive) vs. tank fitting boss (Ø30mm feature on 2380×1300×861mm tank, ratio≈0.013, the
+real Bug B false-positive case — 691mm length misread). ~75× gap between the two known
+cases; 10% is a round, conservative cutoff within that gap, not a precisely derived
+boundary. Coarse/provisional, same caveat class as D-375's EN 10060 tolerance placeholder
+— needs more real cases (ideally a genuine borderline one) before treated as final.
+
+**D-378** OQ-125 scope narrowed: round profiles only (tube/pipe). Square/rect hollow
+section (EN 10219/10220 rect variant) dropped from scope.
+
+**D-379** Fitting classification scope: straight fittings only (nipple/socket), both BSP
+and NPT thread families. Classified by OD+ID+length signature. No elbows/tees/reducers.
+
+**D-380** Applicable standards identified for OQ-125 + fitting reference DB (dimension
+values not yet sourced — standards identification only):
+- Steel round tube/pipe: carbon EN 10216-1 (seamless) / EN 10217-1 (welded); stainless
+  EN 10216-5 (seamless) / EN 10217-7 (welded). Same dimensional backbone across grades,
+  differ by part-number/grade table, not separate size series.
+- Aluminum tube: separate standard family, not EN 10216/10217 — EN 754 (drawn) / EN 755
+  (extruded). Typically specified by actual measured OD/wall, not nominal series like
+  steel NPS/DN — breaks the nominal-cross-check pattern, needs its own actual-dimension
+  table.
+- BSP fittings: DIN 2999 obsolete, superseded by ISO 7-1 (BSPT, tapered) / ISO 228-1
+  (BSPP, parallel) for thread form. Fitting body dims (nipple/socket OD, length) via
+  BS EN 10241.
+- NPT fittings: thread form via ASME B1.20.1. Fitting body dims via ASTM A733, referenced
+  against NPS nominal size (not actual OD) — same nominal-vs-actual gap as steel pipe.

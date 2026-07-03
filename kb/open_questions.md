@@ -447,3 +447,17 @@ with-hole cases this bug currently conflates.
 PPM_OP_XXXXX iProperty convention (D-274): Procurement is one of the 11 operation categories (D-275),
 set manually like any other worker-judgment operation, consistent with D-278's established philosophy
 that geometry alone can't determine purchased/procured status. No automatic detection needed or planned.
+
+
+**OQ-129 status update:** gate (a) has a provisional threshold (D-377), pending more real
+cases to confirm/narrow. Gate (b) fully open — wall-ratio range not yet researched. Gate
+(c) blocked on OQ-125 dimension sourcing.
+
+**OQ-125 status update:** scope narrowed to round profiles only (D-378). Applicable
+standards identified across carbon steel, stainless, aluminum, BSP, NPT (D-380) — actual
+OD/wall/length dimension values not yet sourced. That sourcing is the next phase.
+
+**OQ-130** [NEW] Straight-fitting classification (nipple/socket, BSP+NPT) via OD+ID+length
+signature (D-379) — split out from OQ-125 since it's a distinct task (is-this-a-fitting
+classification vs. OQ-125's stock-size cross-check role). Blocked on same dimension
+sourcing step as OQ-125.
