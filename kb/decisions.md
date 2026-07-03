@@ -2049,3 +2049,39 @@ values not yet sourced — standards identification only):
   BS EN 10241.
 - NPT fittings: thread form via ASME B1.20.1. Fitting body dims via ASTM A733, referenced
   against NPS nominal size (not actual OD) — same nominal-vs-actual gap as steel pipe.
+
+---
+
+## Stadler AdBlue/Diesel Tank Estimation — Scope, Feature Data & Pricing (July 2026)
+
+**D-361** TM000207992 Halter Tankstutzen gespiegelt: top-level diesel tank laser-cut part (tank nozzle holder, mirrored). EN S235JR 3mm, qty 1/unit. Bolted interface only — no welds, no sub-assembly weld report.
+
+**D-362** NR01481349.4 (22mm EN 1.4404): outsourced cutting, real reference 126 EUR/pc (2pcs/unit). SPRINT4020 stainless ceiling 20mm — in-house impossible. 20mm SS rate used as internal proxy only.
+
+**D-363** ArmaFlex RAIL SD RA-25-99/EA: cut in-house (specialised jigsaw). Material 8,355.45 RSD/m² (71.41 EUR/m²). Labour manual estimate 0.1h/pc. AdBlue tank only — 5 pieces (NR01481349.13–17). Diesel tank has no insulation.
+
+**D-364** Painting: liquid wet paint (not powder coating), RAL 7016/7024, in-house OP-017. Stadler explicitly requested wet paint.
+
+**D-365** Corrected feature data from PPM_TestFeatureExtraction (supersedes all prior BOM-sourced values for this assembly):
+- NR01555346-1: 12 bends, 2×Ø86 laser holes
+- NR01555346-2: 2 bends, 2×Ø60.3 laser holes
+- NR01555346-3: 2 bends, 1×Ø102.6 + 6×Ø45 laser holes
+- NR01555346-4: 4 bends; NR01555346-5: 4 bends
+- NR01555346-6: 12×M8×1.25 tapped (old BOM had 1×plain — wrong)
+- NR01555346-7: 24×M8×1.25 tapped (confirmed)
+- NR01555346-8: 8×M6×1 tapped, machined OD90/ID48 (thread was wrongly stated as M8)
+- Phantom A Befestigungswinkel_1: 8 bends
+- Phantom A Längsträger links/rechts: 2 bends each, 4×Ø17.5 laser holes each
+- Phantom A Befestigung adblue: 2 bends, 2×Ø17 laser holes
+- Phantom A.1 Flansch 12xM8: 24×Ø8.6 laser clearance holes (NOT tapped — previous session incorrect)
+- Phantom A.1 Deckel: 12×Ø8.5 laser holes
+- Phantom A Gewindehinterlage: 2×M16×2 tapped, 25mm outsource
+- Phantom A Anschraubpunkt Tank: 4×M16×2 tapped, 40mm outsource
+- Phantom A Gewindeplatte M8: 2×M6×1 tapped, 17mm outsource
+- C-Schiene all variants: 8 bends/pc (not 2 as previously assumed)
+
+**D-366** Large-format sheet flag: NR01555346-1 (2373×996mm) and NR01555346-3 (2294×1014mm) exceed 1500×3000mm stock — require ordered 2000×4000mm sheets. Both fit orderable threshold.
+
+**D-367** Tank cap pricing confirmed (local supplier, in stock, ex-VAT):
+- AdBlue tank cap (Čep AD blue, art. 1293): 620.00 RSD/pc = 5.30 EUR/pc
+- Diesel tank cap (Čep rezervoara, art. 7079): 750.00 RSD/pc = 6.41 EUR/pc

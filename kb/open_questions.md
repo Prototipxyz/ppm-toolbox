@@ -461,3 +461,11 @@ OD/wall/length dimension values not yet sourced. That sourcing is the next phase
 signature (D-379) — split out from OQ-125 since it's a distinct task (is-this-a-fitting
 classification vs. OQ-125's stock-size cross-check role). Blocked on same dimension
 sourcing step as OQ-125.
+
+---
+
+## Stadler Tank Estimation — July 2026
+
+**OQ-108** [CLOSED → D-363] ArmaFlex cutting: specialised jigsaw; manual labour 0.1h/pc.
+
+**OQ-109** [CLOSED → D-361] TM000207992: bolted only, no missing weld beads.
