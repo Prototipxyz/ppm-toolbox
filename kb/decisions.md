@@ -2085,3 +2085,55 @@ values not yet sourced — standards identification only):
 **D-367** Tank cap pricing confirmed (local supplier, in stock, ex-VAT):
 - AdBlue tank cap (Čep AD blue, art. 1293): 620.00 RSD/pc = 5.30 EUR/pc
 - Diesel tank cap (Čep rezervoara, art. 7079): 750.00 RSD/pc = 6.41 EUR/pc
+
+---
+
+## Estimator — Unified Workflow & Reliability Model (July 2026)
+
+**D-381** Bend costing gains a second signal: DXF bend-layer line length, classified
+simple/complex against a length threshold, feeding bend time/cost. Additive to D-357
+(bend count × norm time) — does not replace it. Threshold value(s) not yet defined (OQ-131).
+
+**D-382** Estimator fault-isolation principle: a failure on any single part number or any
+single operation within a part number flags and skips that item only — the run never
+aborts on partial bad input. Extends D-149 (Graceful Degradation) to the Estimator's
+batch-processing context. Self-diagnostic checks run per operation per PN; all flags/
+warnings/errors are written to a fail report per run (format TBD, OQ-134).
+
+**D-383** Administrative/CAD time cost split: 3D modeling/CAD time is calculated
+automatically per PN as a function of feature count + bend count (exact formula TBD,
+OQ-132). All other admin costs — drawing prep, laser-program prep, indirect/overhead
+salary allocation, one-off costs (e.g. FEA) — are manual per-job entries, not derived.
+
+**D-384** Quote margin is percentage-based, applied to raw cost. Risk factor and
+ecology factor are proposed additions to the quote markup structure.
+
+**D-385** Real capacity/resource scheduling is explicitly out of Estimator scope —
+that responsibility belongs to PPM App (Tier 3, per three-tier strategy). Estimator
+produces only a rough duration estimate: total calculated production hours ÷
+configurable working-hours-per-day.
+
+**D-386** First-run/missing-configuration state: Estimator never blocks. Missing norms/
+rates/machine config produces a warning (banner/flag), analysis still runs and flags
+affected line items rather than preventing job creation.
+
+**D-387** Qty multiplier (ordered quantity) is set at Job creation for the top-level
+assembly, independently overridable per line item (e.g. spares ordered in a different
+quantity than the assembly).
+
+**D-388** v1 data ingestion supports both a JSON import path (schema not yet defined,
+OQ-135) and always-available individual manual import per data type (DXF folder,
+structured BOM, weld bead report, etc.). Manual import remains usable after a JSON
+import to support isolated partial re-import (e.g. re-importing only weld data after
+rework, without redoing the whole job).
+
+**D-389** Every operation instance carries a separate fixed setup-time/cost sub-line
+tied to its parent operation, distinct from that operation's per-unit/count-based
+time and cost.
+
+**D-390** No standalone "internal costing report" screen. The hierarchical assembly/
+sub-assembly/part review screen (with flat-view toggle) is itself the internal report;
+producing the report is an export action from that screen.
+
+**D-391** Risk factor and ecology factor in quote markup are percentage-based,
+applied the same way as margin (D-384). Closes OQ-133.

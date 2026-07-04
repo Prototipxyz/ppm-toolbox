@@ -3,6 +3,11 @@
 **Phase:** Pre-PPM, standalone validation tool (per D-197) — not integrated into ppm-app
 **Depends on:** D-196 (resolution strategy), D-198 (bend extraction), D-199/D-200 (macro, filename convention)
 
+**Scope superseded/expanded (July 2026):** the Estimator's scope has grown well beyond
+this standalone tool — see D-227 onward and D-381–D-391 for bending cost, quoting,
+admin costs, and the full unified workflow. This document remains accurate for the
+original standalone DXF cutting-time/bend-count scope described below.
+
 ## What it does
 A locally-run GUI tool (drag-drop window) that takes one or more Inventor flat-pattern
 DXFs as input and produces, per part: a clean laser-ready DXF (cut geometry only) and

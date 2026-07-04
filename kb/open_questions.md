@@ -469,3 +469,29 @@ sourcing step as OQ-125.
 **OQ-108** [CLOSED → D-363] ArmaFlex cutting: specialised jigsaw; manual labour 0.1h/pc.
 
 **OQ-109** [CLOSED → D-361] TM000207992: bolted only, no missing weld beads.
+
+---
+
+## Estimator Unified Workflow — July 2026
+
+**OQ-131** [OPEN] Bend-complexity line-length threshold: single global value, or
+per-material/thickness? Not yet defined.
+
+**OQ-132** [OPEN] CAD/modeling time formula: exact relationship between feature
+count + bend count and hours — linear per-feature norm, tiered complexity bands,
+or something else? Not yet defined.
+
+**OQ-133** [CLOSED → D-391] Risk factor / ecology factor mechanics: percentage-based,
+same as margin.
+
+**OQ-134** [OPEN] Fail-report format for Estimator runs: per-PN and per-operation
+granularity assumed (D-382) — output format (JSON/Excel/log), fields, and where
+it's surfaced in the UI not yet specified.
+
+**OQ-135** [OPEN] Job-input JSON schema (Send-to-Estimator format) not yet defined.
+Needed for Estimator v1 regardless of `PPM_SendToEstimator` build status — to be
+compiled collaboratively, field by field.
+
+**OQ-136** [OPEN] Individual manual re-import reconciliation semantics: when a JSON
+job is already loaded and the user manually re-imports one data type (e.g. weld
+report only), does it overwrite just those lines, merge, or prompt? Not yet defined.
