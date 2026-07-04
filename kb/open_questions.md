@@ -503,3 +503,32 @@ overwrites only the re-imported data type's fields, rest of job untouched.
 
 **OQ-137** [CLOSED → D-406] Bilingual UI scope: resolved as two independent settings —
 global app-UI language and a separate customer-facing quote-PDF export language.
+
+---
+
+## Cut-Length Optimization & Machining Estimation — July 2026
+
+**OQ-138** [PARTIALLY RESOLVED → D-417-420] 1D cut-length optimization for tube/
+pipe/bar stock: algorithm and data-source approach now defined (bin-packing on
+length x qty, adjustable kerf, built independent of import-method validation).
+Remaining open: export format (OQ-139), kerf granularity (OQ-140), Weldment Cut
+List viability (OQ-141).
+
+**OQ-139** [OPEN] Cut list export format: CSV, PDF, or something else? Per-job,
+or per-machine/saw run?
+
+**OQ-140** [OPEN] Kerf width granularity: one value per saw/machine, or does it
+also need to vary by material/profile/blade type on the same machine (a lookup
+table rather than one flat setting)?
+
+**OQ-141** [OPEN] Whether extracting from the Weldment Cut List requires new
+macro work and whether it actually narrows OQ-129's scope, or solves a narrower
+problem (weldment members only — non-weldment round/tube parts still need
+OQ-129's face-based approach). To be tested in a separate macro session.
+
+**OQ-142** [OPEN] Machining (mill/turn) feature-based cost estimation — extend
+D-274/275's operation-category x norm-hours approach to machined parts (pocket
+volume, hole/bore counts and depths, distinct setup/face count). Structurally
+viable per industry precedent (Xometry/Protolabs-style geometry-based instant
+quoting, researched not assumed). Deferred until the sheet-metal/weldment/tube
+pipeline is stable.

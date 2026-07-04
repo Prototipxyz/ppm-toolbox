@@ -2226,3 +2226,54 @@ D-403's navigation discoverable; breadcrumb header in nested hierarchy views.
 
 **D-411** Both light and dark theme required — not dark-only. Extends/amends D-408's
 design system.
+
+---
+
+## Estimator — Raw Stock Panel, Tube/Pipe Stock Logic & Cut-Length Optimization (July 2026)
+
+**D-412** Raw Stock Needed (Summary panel) lists all job consumables, not just sheet
+stock: sheet stock (auto-calculated, D-372–375), tube/pipe/profile stock (D-416,
+D-420), and weld consumables — wire and gas (already calculated per D-308–324),
+broken down by wire type/diameter and gas type separately. One consolidated list.
+
+**D-413** Summary panel has no standalone "Stock Sheets" quick-stat tile — sheet
+count is shown only within the detailed Raw Stock Needed list (D-412), not
+duplicated as a top-level tile.
+
+**D-414** Summary panel's top-level stats (Total Cost, Total Hours, Weight) are
+stacked vertically in a single column, not a 2x2 grid.
+
+**D-415** Operation line items (Laser Cut, Bend, Weld, etc.) get column headers
+analogous to the part-level row (MATERIAL/QTY/WEIGHT/COST), so unit-vs-total
+time/cost values are self-explanatory rather than relying on bare "unit"/"total"
+text labels.
+
+**D-416** Tube/pipe/round/profile stock needed is expressed as a count of standard
+stock-length pieces (ceiling of total cut length needed / standard stock length per
+material/profile), matching the existing sheet-stock rounding logic (D-372–375) —
+not displayed as raw linear meters. Depends on standard-length reference data per
+profile/material (OQ-125, still open) for the underlying data; this decision fixes
+the display/calculation rule itself.
+
+**D-417** Cut-length data for tube/pipe/bar part numbers has two sources: manual
+entry, or extraction from Inventor's native Weldment Cut List feature (for parts
+belonging to a modeled weldment with that feature populated). Manual override
+always available per D-396. Unvalidated — to be empirically tested in a separate
+macro session before being trusted as a macro-side data source.
+
+**D-418** Cut-length optimization uses a 1D bin-packing algorithm: inputs are
+required length x qty per PN, standard stock bar length per material/profile
+(OQ-125), and a kerf width value adjustable per machine/saw in Settings (machines/
+parameters table, alongside existing laser/press-brake machine config). Output is
+an optimized cut plan plus total stock pieces required, feeding the Raw Stock
+Needed panel (D-412).
+
+**D-419** The optimized cut plan is exportable as a standalone shop-floor document,
+alongside the existing DXF/BOM/quote exports — exact format not yet decided
+(OQ-139).
+
+**D-420** Cut-length optimization (D-418) is built into the Estimator now, not
+gated on D-417's Weldment Cut List validation. The algorithm/UI operates on
+length x qty data regardless of source — manual entry today, macro-extracted
+later if separate macro-session testing confirms the Weldment Cut List path is
+reliable. Only the import mechanism changes later, not the optimization math.
