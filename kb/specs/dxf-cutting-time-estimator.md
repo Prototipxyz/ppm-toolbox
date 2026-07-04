@@ -4,9 +4,11 @@
 **Depends on:** D-196 (resolution strategy), D-198 (bend extraction), D-199/D-200 (macro, filename convention)
 
 **Scope superseded/expanded (July 2026):** the Estimator's scope has grown well beyond
-this standalone tool — see D-227 onward and D-381–D-391 for bending cost, quoting,
-admin costs, and the full unified workflow. This document remains accurate for the
-original standalone DXF cutting-time/bend-count scope described below.
+this standalone tool — see D-227 onward and D-381–D-420, and the full pipeline spec
+at kb/specs/estimator-unified-workflow.md, for bending cost, quoting, admin costs,
+raw stock/cut-length optimization, and the complete unified workflow. This document
+remains accurate for the original standalone DXF cutting-time/bend-count scope
+described below.
 
 ## What it does
 A locally-run GUI tool (drag-drop window) that takes one or more Inventor flat-pattern
