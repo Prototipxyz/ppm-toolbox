@@ -474,12 +474,12 @@ sourcing step as OQ-125.
 
 ## Estimator Unified Workflow — July 2026
 
-**OQ-131** [OPEN] Bend-complexity line-length threshold: single global value, or
-per-material/thickness? Not yet defined.
+**OQ-131** [CLOSED → D-392] Bend-complexity line-length threshold: fully
+user-adjustable setting, no fixed value mandated.
 
-**OQ-132** [OPEN] CAD/modeling time formula: exact relationship between feature
-count + bend count and hours — linear per-feature norm, tiered complexity bands,
-or something else? Not yet defined.
+**OQ-132** [CLOSED → D-393, D-395] CAD/modeling time formula: no codified industry
+standard exists (researched, confirmed). Formula approach dropped entirely — CAD
+time is now fully manual per-PN (D-395).
 
 **OQ-133** [CLOSED → D-391] Risk factor / ecology factor mechanics: percentage-based,
 same as margin.
@@ -488,10 +488,18 @@ same as margin.
 granularity assumed (D-382) — output format (JSON/Excel/log), fields, and where
 it's surfaced in the UI not yet specified.
 
-**OQ-135** [OPEN] Job-input JSON schema (Send-to-Estimator format) not yet defined.
-Needed for Estimator v1 regardless of `PPM_SendToEstimator` build status — to be
-compiled collaboratively, field by field.
+**OQ-135** [CLOSED → D-397, D-398] Job-input JSON schema: already substantially
+defined in kb/specs/send-to-estimator.md (`batch_parts_data.json`/`manifest.json`,
+D-347-D-368) — no new fields required. Bend-length data derived from DXF at
+ingestion (D-397); CAD-hours starting suggestion is a simple count×default
+multiplier (D-398).
 
-**OQ-136** [OPEN] Individual manual re-import reconciliation semantics: when a JSON
-job is already loaded and the user manually re-imports one data type (e.g. weld
-report only), does it overwrite just those lines, merge, or prompt? Not yet defined.
+**OQ-136** [CLOSED → D-394] Individual manual re-import: targeted merge —
+overwrites only the re-imported data type's fields, rest of job untouched.
+
+---
+
+## Estimator UX & Design System — July 2026
+
+**OQ-137** [CLOSED → D-406] Bilingual UI scope: resolved as two independent settings —
+global app-UI language and a separate customer-facing quote-PDF export language.

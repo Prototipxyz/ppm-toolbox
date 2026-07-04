@@ -2137,3 +2137,92 @@ producing the report is an export action from that screen.
 
 **D-391** Risk factor and ecology factor in quote markup are percentage-based,
 applied the same way as margin (D-384). Closes OQ-133.
+
+---
+
+## Estimator — Norms Philosophy, Ingestion Correction, UX & Design System (July 2026)
+
+**D-392** Bend-complexity length threshold (OQ-131) is a fully user-adjustable field in
+the Estimator's norms/settings configuration, not hardcoded. Ships with a provisional
+starting value, tuned by the user against real shop experience.
+
+**D-393** CAD/modeling time formula (OQ-132): no codified industry standard exists for
+sheet-metal CAD modeling hours by complexity — confirmed by research, not assumed.
+Superseded by D-395 (CAD time made fully manual) — kept here for the research finding,
+not the formula approach it originally proposed.
+
+**D-394** Manual re-import after an existing JSON import performs a targeted merge:
+only the fields belonging to the re-imported data type (e.g. weld data) are
+overwritten; all other job data is untouched. Closes OQ-136.
+
+**D-395** CAD/modeling time is a fully manual per-part-number entry in the Estimator
+UI — no automatic formula from feature count or bend count. Supersedes D-383.
+
+**D-396** Universal editability: every hour, cost, quantity, and calculated parameter
+in the Estimator is user-adjustable. No per-field confirmation prompt — a single
+"are you sure?" prompt fires when the user attempts to leave a screen/job after
+making unsaved changes, catching unintentional edits without adding friction to
+deliberate bulk adjustment.
+
+**D-397** Bend-length complexity data (D-381) is derived by the Estimator from the
+DXF bend layer at ingestion time — the same mechanism already used for bend count
+(send-to-estimator.md, Estimator ingestion step 4). No new field added to
+`batch_parts_data.json`.
+
+**D-398** Engineering CAD-hours starting suggestion (`engineering.cad_h`, D-360's
+optional macro prompt) is calculated as: (part-number count in the job) × a
+configurable average hours-per-PN value (default placeholder 1.5h). Simple
+count-based multiplier — not the rejected feature/bend formula (D-395/D-383). Only
+pre-fills the Estimator's manual CAD-hours field as a starting point; fully
+user-editable per D-396. Closes OQ-135 together with the schema-reuse finding below.
+
+**D-399** Undo (Ctrl+Z) required on editable screens. Depth/scope (single-level vs
+multi-step stack) left as an implementation default.
+
+**D-400** Autosave + crash recovery: the Estimator periodically autosaves in-progress
+job edits to SQLite (not only on explicit save), so a crash costs at most a few
+minutes of work.
+
+**D-401** About/License screen: separate from the Activation flow. Shows current
+license tier, expiry, activate/deactivate controls, and a support contact link.
+
+**D-402** Recent Jobs quick-access on the dashboard — distinct from the full Job
+History screen — one-click reopen of the last few jobs.
+
+**D-403** Keyboard navigation (Tab/Enter cell-to-cell movement) required in dense
+editable tables, given the volume of inline editing D-396 introduces.
+
+**D-404** Long background operations (large DXF batch parsing, large PDF generation)
+show toast/progress notifications rather than a frozen-looking UI.
+
+**D-405** Confirm-before-delete required for destructive actions (deleting a job,
+a customer record) — separate mechanism from D-396's edit-navigation prompt.
+
+**D-406** UI language is bilingual (English + Serbian), as two independent settings:
+a global app-UI language setting, and a separate customer-facing quote-PDF export
+language setting (e.g. Serbian UI while quoting a German/English-speaking client
+like Stadler or Siemens). Closes OQ-137.
+
+**D-407** Screen sequence: "Batch Review" (flagged-parts triage, bulk-fix actions,
+partial-proceed — confirmed via the existing first-iteration mockup) sits between
+Ingestion and the main hierarchical Review screen. Not a new screen invented this
+session — recovered from prior design work.
+
+**D-408** App-wide visual design system adopted from the existing Batch Review
+mockup rather than re-decided per screen: accent blue `#2E7DD1` / amber `#d9920f` /
+green `#16A34A` status coding, Inter for UI text, JetBrains Mono for all data/numeric
+values, native desktop window chrome (custom title bar, no browser furniture).
+Extended by D-412 to support both light and dark theme, not dark-only.
+
+**D-409** Progressive disclosure on the main Review screen: individual per-row
+expand/collapse, plus a global "expand all / collapse all" toggle.
+
+**D-410** Additional proven UX patterns adopted: command palette (Ctrl/Cmd+K) to
+jump to any job/customer/part number; non-blocking inline validation (highlight in
+place, never a halting popup); optimistic UI with silent background autosave
+(D-400) rather than a visible "saving..." interrupt; persistent filter/view state
+across navigation; a keyboard-shortcut cheat-sheet overlay (e.g. `?`) to make
+D-403's navigation discoverable; breadcrumb header in nested hierarchy views.
+
+**D-411** Both light and dark theme required — not dark-only. Extends/amends D-408's
+design system.
