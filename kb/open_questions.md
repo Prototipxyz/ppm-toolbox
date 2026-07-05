@@ -532,3 +532,32 @@ volume, hole/bore counts and depths, distinct setup/face count). Structurally
 viable per industry precedent (Xometry/Protolabs-style geometry-based instant
 quoting, researched not assumed). Deferred until the sheet-metal/weldment/tube
 pipeline is stable.
+
+---
+
+## New Job Data Sourcing & Job Numbering — July 2026
+
+**OQ-143** [CLOSED → D-438] Manual-fill templates: resolved — reuse the exact
+existing macro-export column schema (StructuredBOM.xlsx, WeldBeadReport.xls),
+one shared parser for both macro output and hand-filled templates.
+
+**OQ-144** [CLOSED → D-436, D-439] In-app manual entry: resolved — required
+alongside template-file import; implemented as an "Add Part" action directly on
+Main Review, no separate wizard/screen.
+
+**OQ-145** [CLOSED → D-437] Reuse existing quote: resolved — full duplication
+into an independent fork.
+
+**OQ-146** [PARTIALLY RESOLVED → D-444, D-445] Quote-to-WO relationship: fork
+behavior and prefix-swap numbering both settled, provisionally. Remaining open:
+whether prefix-swap survives once real multi-user/numbering-source questions
+(OQ-147) are settled, since a shared external numbering source might make WO
+numbers independent of Quote numbers entirely.
+
+**OQ-147** [OPEN, roadmap-level, deliberately deferred] Centralized/pooled job
+numbering via a shared backend (e.g. Supabase) — proposed as a possible paid
+bridge tier between Tier 2 (Estimator, standalone) and Tier 3 (PPM App,
+subscription), easing customers toward full PPM adoption. Not being scoped or
+built now — flagging its existence and rationale so it isn't lost. Real
+infrastructure work (sync/conflict resolution, auth model, offline handling)
+deserving deliberate scoping later, not a side-effect decision.

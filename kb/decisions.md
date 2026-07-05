@@ -2308,3 +2308,82 @@ occupying a dedicated nav slot.
 Dashboard, New Job, Import, Batch Review, Main Review, Quote (includes PDF export
 config), Settings (includes D-423's first-run shortcut destination), Job History.
 About/License is a modal off the sidebar (D-424), not a standalone screen.
+
+---
+
+## Estimator — New Job Data Sourcing, Sparse Jobs, Job Numbering & Quote/WO (July 2026)
+
+**D-433** Job Package ingestion only populates whichever operation-relevant data
+categories are actually present in the imported data — a job with no weldment has
+no weld data, a job with no sheet-metal parts has no laser/bend data, and this is
+normal, not a flagged/failed state. Distinct from D-382's fault isolation, which
+covers expected-but-broken data, not legitimately absent categories.
+
+**D-434** A job must be fully startable with as little as one part and one
+operation. This is an ordinary case, not a degraded one — no minimum part count
+or operation-type requirement is enforced anywhere in ingestion or Main Review.
+
+**D-435** The individual manual-import UI shows one dedicated slot/button per
+data type the app supports (DXF, BOM, weld bead report, weldment cut list, etc.),
+regardless of what a specific job needs. Unused slots simply stay empty — the
+user only fills in what's relevant to their job.
+
+**D-436** Manual data entry supports both paths, not one or the other: direct
+in-app entry (add parts/rows by hand in the UI) and filled-in template files
+(D-438's templates). The in-app path is confirmed required, not just an
+assumption Claude Design happened to make.
+
+**D-437** "Reuse existing quote" duplicates a full previous job — all parts,
+operations, and pricing — into a new editable job. The duplicate is a fork:
+editing it does not affect the original job. Closes OQ-145.
+
+**D-438** Manual-fill templates reuse the exact existing column schema of the
+macro-generated exports (StructuredBOM.xlsx, WeldBeadReport.xls) rather than a
+separate format — one import parser handles both macro output and hand-filled
+templates identically. Closes OQ-143.
+
+**D-439** In-app manual part entry is an "Add Part" action on the Main Review
+screen, inserting a blank, immediately-editable row — no separate wizard or
+screen. Bypasses Batch Review (nothing to triage on manually-entered data).
+Closes OQ-144.
+
+**D-440** The "BOM file" slot in Individual Import explicitly carries operation
+REQ/DONE data (D-274/295's per-operation columns), not just material/geometry —
+this is the existing BOM export structure, not a new one. The slot's UI copy
+should say so explicitly, since a user manually filling the blank template
+(D-438) needs to know operation flags belong in this same file, not somewhere
+else.
+
+**D-441** BOM import does not require REQ/DONE operation columns to be present.
+If a BOM has none (e.g. it wasn't sourced from PPM Toolbox — a plain external
+spreadsheet, or geometry-only DXF/weldment-cut-list import with no BOM at all),
+every part simply starts with zero operations assigned — functionally identical
+to a PPM-Toolbox BOM where all REQ columns happen to be 0. No separate "plain
+BOM mode" or code path is needed; the same parser handles both uniformly.
+
+**D-442** Batch Review's triage scope extends to flag any part with zero
+operations assigned, not just missing material/thickness (its original scope
+per the first-iteration mockup). Necessary because D-434 requires every costed
+job to have at least one operation somewhere — a part with none is meaningfully
+incomplete, not a legitimate absence like D-433's missing-weld-data case.
+Remains non-blocking per D-386: flagged parts proceed normally, operations get
+assigned manually in Main Review.
+
+**D-443** Job/Quote number is auto-suggested (next sequential number based on
+local job history) but always editable, per D-396's universal editability
+principle — not a locked auto-generated field. Resolves both the single-user
+convenience case and the multi-user collision case (multiple standalone local
+installs with no shared counter) with the same mechanism: single-user shops get
+a correct suggestion for free; multi-user shops overwrite the suggestion with
+the real number from whatever external system (Business Central, a shared
+Excel sheet) is already their source of truth today. No new infrastructure
+required.
+
+**D-444** Quote-to-WO conversion forks a new Job record — the original Quote is
+untouched, the new WO record is independently editable from that point forward
+(same pattern as D-437's duplicate-quote fork).
+
+**D-445** [PROVISIONAL] WO numbering uses a prefix swap on the same number
+(e.g. Q-2026-001 -> WO-2026-001) rather than an independent WO sequence. Marked
+provisional — revisit once the numbering question is settled more broadly (ties
+to OQ-146/147's unresolved centralized-numbering questions).
