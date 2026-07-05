@@ -2277,3 +2277,34 @@ gated on D-417's Weldment Cut List validation. The algorithm/UI operates on
 length x qty data regardless of source — manual entry today, macro-extracted
 later if separate macro-session testing confirms the Weldment Cut List path is
 reliable. Only the import mechanism changes later, not the optimization math.
+
+---
+
+## Estimator — Screen List Finalization & Pitch Mockup Scope (July 2026)
+
+**D-421** Phone/responsive support applies only to the standalone pitch-mockup
+artifact used to demo the Estimator concept to Voja's boss. The production
+Estimator remains a PySide6 desktop application (no mobile/phone target) — stated
+explicitly to prevent a future reader or build session from inferring a
+responsive/mobile requirement from that mockup discussion.
+
+**D-422** PDF export configuration is not a separate screen — it lives inside the
+Quote screen's "Generate PDF" flow. Resolves the ambiguity left over from the
+original pre-redesign screens list.
+
+**D-423** On first launch (or whenever core config — company info, machine
+parameters, norm hours/costs — is missing), the Estimator shows a dismissible
+prompt offering a direct shortcut into Settings to fill it in. Refines D-386's
+warning mechanism with a concrete, actionable UX — remains fully non-blocking:
+dismissible, skippable, the user can proceed without completing it.
+
+**D-424** About/License is a modal/panel triggered by clicking the existing
+sidebar license/demo-mode status indicator — not a separate main-nav screen.
+Keeps the nav focused on daily-use screens; matches the common pattern of
+account/plan status living behind a click on its own indicator rather than
+occupying a dedicated nav slot.
+
+**Resolved screen list (10 screens, no remaining ambiguity):** EULA, Activation,
+Dashboard, New Job, Import, Batch Review, Main Review, Quote (includes PDF export
+config), Settings (includes D-423's first-run shortcut destination), Job History.
+About/License is a modal off the sidebar (D-424), not a standalone screen.
