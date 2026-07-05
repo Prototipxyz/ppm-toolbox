@@ -2387,3 +2387,18 @@ untouched, the new WO record is independently editable from that point forward
 (e.g. Q-2026-001 -> WO-2026-001) rather than an independent WO sequence. Marked
 provisional — revisit once the numbering question is settled more broadly (ties
 to OQ-146/147's unresolved centralized-numbering questions).
+
+---
+
+## Estimator — Quote Screen Delivery Date (July 2026)
+
+**D-446** Quote screen gets a distinct, manually-entered "Delivery Date" field —
+separate from the "deadline" captured at New Job creation. Deadline represents
+the customer's requested/needed-by date; Delivery Date represents the company's
+committed date being quoted back, which may differ.
+
+**D-447** The internal working-hours/day-derived duration estimate (D-385)
+never appears on the customer-facing PDF — it remains an internal planning
+aid only, shown in the Quote screen's editing panel to help the preparer
+decide on a Delivery Date, but dropped entirely from PDF export. The PDF's
+"Estimated duration" checkbox is replaced by a "Delivery Date" item instead.

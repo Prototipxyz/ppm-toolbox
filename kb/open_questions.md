@@ -561,3 +561,15 @@ subscription), easing customers toward full PPM adoption. Not being scoped or
 built now — flagging its existence and rationale so it isn't lost. Real
 infrastructure work (sync/conflict resolution, auth model, offline handling)
 deserving deliberate scoping later, not a side-effect decision.
+
+---
+
+## Navigation Structure — July 2026
+
+**OQ-148** [OPEN] Sidebar "Import" vs. "New Job": purpose/distinction unclear,
+unresolved even after direct question. One option worth considering later,
+not adopted now: fold "Import" into a button on Main Review itself (e.g.
+"Import/Update Data") rather than a standalone sidebar item — this would
+sidestep the ambiguity of what a persistent nav item means outside job
+context. Revisit once Job History and the full nav are locked and the
+question can be judged in context rather than in the abstract.
