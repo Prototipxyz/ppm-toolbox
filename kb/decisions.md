@@ -2563,3 +2563,63 @@ norm (D-393). Revisit with real data if it proves too coarse.
 **D-485** Fixed costs = separate group at the bottom of Main Review, below fabricated, machined, and purchased parts. Confirmed line types: engineering hours (rate × hours, PN-count suggestion per D-481, always adjustable), FEM (total ÷ project qty), transport, and any user-added fixed items. Each line has editable description, quantity, and rate.
 
 **D-486** Summary rail breakdown (from top): Total Cost → split into Materials Total + Operations Total + Fixed Costs Total → each section expandable to per-type detail → materials list each showing editable per-unit price and computed quantity.
+
+---
+
+## Stirg — Excel Cost Report Design (July 2026)
+
+**D-487** Formula column not visible in Excel cost report. Derivations live in cell formulas only.
+
+**D-488** Weld summary row = Level 2 under its parent assembly in the cost report.
+
+**D-489** Cost report organised per unique PN — each part number appears exactly once. Qty = total usage for one main assembly. Assembly headers are grouping/shading context only. This is an estimating report, not a structural BOM.
+
+**D-490** Both EUR/pc and EUR×qty columns included. Unit cost allows auditing of high-total rows without manual division.
+
+**D-491** Item numbers not included in cost report. Customer PN is used directly. Report is internal only — no cross-reference to customer BOM required.
+
+**D-492** Two cost columns per data row — Internal (real company rate) and Quotable (rate with markup). Both live, both formula-linked to Sheet 1.
+
+**D-493** Excel cost report has three sheets: Sheet 1 = Parameters & Norms (all editable inputs), Sheet 2 = Main Review (full PN breakdown, formula-linked to Sheet 1), Sheet 3 = Quote (order qty, margin, risk, profit).
+
+**D-494** All data columns on Sheet 2 carry Excel AutoFilter. Filterable by Type, Material, Operation, Level etc.
+
+**D-495** Material cost has markup. Per-material markup % defined on Sheet 1. Cost price and quotable price both visible on Sheet 1.
+
+**D-496** Summary table frozen above all data rows on Sheet 2. Always visible when scrolling.
+
+**D-497** FEM = manual entry per job on Sheet 1 Fixed Costs block.
+
+**D-498** Rate reference column removed from Sheet 2. Actual rate values live in cells via formula from Sheet 1.
+
+**D-499** Quote sheet has order qty input field. Total = per-assembly cost × order qty.
+
+**D-500** Quote sheet has editable Risk % and Margin % fields applied on top of quotable subtotal.
+
+**D-501** Sheet 2 includes ×order qty columns — 6 cost columns total: EUR/pc int · EUR/pc quot · EUR×1 int · EUR×1 quot · EUR×16 int · EUR×16 quot.
+
+**D-502** Material markup is per-material on Sheet 1, not a global percentage.
+
+**D-503** Quote sheet shows single total only — no line-item breakdown visible.
+
+**D-504** Quote sheet includes Profit field: Total Quoted − Internal cost total, both at full order qty.
+
+**D-505** Profit = Total Quoted − Total Internal, both calculated at full order qty level.
+
+**D-506** Engineering hours auto-calculated: COUNT(unique PNs in Sheet 2) × editable h/PN value on Sheet 1. Appears as a line item in Fixed Costs group on Sheet 2.
+
+**D-507** Order qty = single editable cell on Sheet 1 Job Parameters block. Referenced by all ×qty columns on Sheet 2 and Quote sheet.
+
+**D-508** Manipulation time and preparation time combined into one Handling sub-row per operation on Sheet 2. Separately editable on Sheet 1 norms table. Displayed as one combined row in Sheet 2.
+
+**D-509** Handling weight bracket placeholder values (editable on Sheet 1): <5kg=0.03h/pc, 5–20kg=0.07h/pc, 20–50kg=0.15h/pc, >50kg=0.35h/lift. Crane threshold = 50kg editable.
+
+**D-510** Setup appears as its own visible sub-row under each operation in Sheet 2.
+
+**D-511** Handling + prep time multiplied by general labour rate. General labour rate = separate editable cell on Sheet 1 Labour & Handling block.
+
+**D-512** Visual design principle for Excel report: assembly header rows = dark blue fill / white bold text, part rows = medium grey / bold PN, operation rows = white / normal indented, setup and handling sub-rows = light fill / italic further indented, material rows = light amber tint, weld rows = medium grey italic, separator lines between parts.
+
+**D-513** Setup sub-row rate = machine rate for that operation (machine is occupied during setup). General labour rate applies to handling/prep rows only.
+
+**D-514** Sheet 1 input blocks physically and visually separated: Job Parameters block (order qty, job number, client) is separate from Labour & Handling block (general labour rate, crane threshold, weight bracket table).

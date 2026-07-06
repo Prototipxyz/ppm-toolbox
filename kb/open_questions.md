@@ -576,3 +576,17 @@ Main Review instead.
 **OQ-149** [OPEN] Industrial wet paint coating (EN 45545 compliant, RAL 7016/7024) — subcontractor quote required before final submission. Current estimation uses car-reference placeholder only (D-473). Contact: local coating subcontractor or Stirg shop floor.
 
 **OQ-150** [OPEN] PPM_TestFeatureExtraction BendCount fix required: macro must use BendFeatures.Count or equivalent feature-definition count, not face enumeration. Current output is 2× physical bend count on all tested parts (D-474). Fix and validate on real Inventor files before porting logic into PPM_ExportPartData.
+
+---
+
+## Stirg — Excel Cost Report (July 2026)
+
+**OQ-151** [CLOSED → D-490] EUR/pc vs EUR×qty: both columns included.
+
+**OQ-152** [CLOSED → D-491] Item numbers not needed. Customer PN is sufficient identifier.
+
+**OQ-153** [CLOSED → D-501] ×order qty columns included (Option B — 6 cost columns total).
+
+**OQ-154** [CLOSED → D-509] Handling time basis = weight bracket. Placeholder values set. Crane tier added above 50kg threshold.
+
+**OQ-155** [CLOSED → D-513] Setup sub-row rate = machine rate for that operation.
