@@ -2639,3 +2639,15 @@ norm (D-393). Revisit with real data if it proves too coarse.
 **D-535** Weld grinding (OP-013) basis changes from h/weldment to h/m of weld length. Formula: grinding_hours = total_weld_mm ÷ 1000 × h_per_m. Default placeholder: 0.050 h/m (3 min/m) = moderate structural dressing. Editable on Sheet 1. Actual value depends on weld position and customer surface requirement.
 
 **D-536** Assembly & Seal (OP-020) placeholder = 4.0 h/weldment assembly, pending Stirg measured time on a comparable job (OQ-158). Replaces previous 0.5 h/sub-assembly.
+
+---
+
+## PPM Estimator — Norm Calibration & Sheet Count (July 2026, continued)
+
+**D-537** Bend line length extraction added to PPM feature extraction pipeline. IV_BEND and IV_BEND_DOWN DXF layers contain individual line segments; measuring each segment enables the two-tier 30s/60s bend cycle rule (D-532). Output: per-PN list of individual bend line lengths alongside bend count. Implementation: enhance PPM_TestFeatureExtraction / PPM_ExportPartData in next macro session.
+
+**D-538** External welder market reference for Stadler UWC tank: €1,000/set for complete welding. PPM Estimator model at 104 mm/min arc speed + 30% operating factor yields ~€1,634/set (diesel + adblue combined), ~64% above reference. Delta attributable to: (a) arc speed placeholder may still be too conservative; (b) reference covers welding labour only; (c) different tank geometry. Reference retained as sanity-check anchor, not a binding target.
+
+**D-539** Bend cycle time simplified to flat 40 s/bend for all bends (middle ground between 30 s short and 60 s long from D-532), including operator repositioning. Applies until OQ-159 (bend line length extraction) is resolved. 40 s/bend = 0.01111 h/bend. Implemented in OP-012 norms row on Sheet 1.
+
+**D-540** Weld arc speed calibrated to 104 mm/min to match worker estimate of 3 working days for diesel+adblue tank welding (44,992 mm total at 30% operating factor, 8 h shift). Formula: 44,992 ÷ (3 × 8 × 0.30 × 60) = 104.1 mm/min. This is a calibrated placeholder, not a measured WPS value (OQ-157). Arc speed, operating factor, and shift hours are all editable on Sheet 1.

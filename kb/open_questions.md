@@ -600,3 +600,7 @@ Main Review instead.
 **OQ-158** [OPEN] Assembly & Seal (OP-020) norm set to 4.0 h/weldment placeholder (D-536). Real measured time for diesel+adblue tank or comparable complex weldment at Stirg needed.
 
 **OQ-159** [OPEN] Bend length data for two-tier OP-012 rule (D-532): pipeline currently outputs bend count only, not individual fold line lengths. Determine whether DXF bend layer geometry is sufficient to measure fold length, or whether a manual flag per PN is the practical solution.
+
+**OQ-160** [OPEN] NR01555346-1 flat pattern area back-calculated as ~1.67 m² from mass (39.2 kg, 3mm S235JR). If any flat pattern dimension exceeds 1500 mm, a 2000×4000 mm sheet is required instead of standard 1500×3000. Verify actual flat pattern bounding box dimensions from DXF or Inventor flat pattern view before purchasing material.
+
+**OQ-161** [REFERENCE] Sheet count estimates for one assembly set (1500×3000mm at 75% nesting efficiency, back-calculated from mass — not from DXF flat dimensions): S235JR diesel: 7 sheets (2mm×1, 3mm×2, 5mm×1, 8mm×1, 10mm×1, 12mm×1). 1.4404 SS AdBlue: 3 sheets (1mm×1, 3mm×1, 6mm×1). Per full order (×16 sets): ~112 sheets S235JR, ~48 sheets 1.4404 SS. Figures to be validated against actual nested DXF output.
