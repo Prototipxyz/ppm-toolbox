@@ -568,3 +568,11 @@ deserving deliberate scoping later, not a side-effect decision.
 **OQ-148** [CLOSED → D-466] Sidebar "Import": resolved — removed as a
 standalone nav item, folded into a contextual "Import/Update Data" button on
 Main Review instead.
+
+---
+
+## Stirg Metall — Stadler Rail Tank Estimation (Continued, July 2026)
+
+**OQ-149** [OPEN] Industrial wet paint coating (EN 45545 compliant, RAL 7016/7024) — subcontractor quote required before final submission. Current estimation uses car-reference placeholder only (D-473). Contact: local coating subcontractor or Stirg shop floor.
+
+**OQ-150** [OPEN] PPM_TestFeatureExtraction BendCount fix required: macro must use BendFeatures.Count or equivalent feature-definition count, not face enumeration. Current output is 2× physical bend count on all tested parts (D-474). Fix and validate on real Inventor files before porting logic into PPM_ExportPartData.

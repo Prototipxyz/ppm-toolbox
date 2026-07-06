@@ -2525,3 +2525,25 @@ physical reference, not an editable spreadsheet.
 machine, not a material/blade-specific lookup table — same provisional-and-
 tunable philosophy as the bend-complexity threshold (D-392) and CAD-hours
 norm (D-393). Revisit with real data if it proves too coarse.
+
+---
+
+## Stirg Metall — Stadler Rail Tank Estimation (Continued, July 2026)
+
+**D-472** Deburring (OP-014) applied per unique part type for weldment assemblies — not per individual blank. Diesel tank: 23 unique types; AdBlue tank: 9 unique types.
+
+**D-473** Painting placeholder: Diesel tank 300 EUR/unit, AdBlue tank 100 EUR/unit. In-house wet paint (OP-017) including materials, car reference (door≈70 EUR, bumper≈100 EUR). Subject to EN 45545 subcontractor quote (OQ-149).
+
+**D-474** DXF bend line count = physical press brake strokes and is the authoritative source for OP-012 costing. PPM_TestFeatureExtraction BendCount = 2× physical count — enumerates bend faces (inner+outer), not bend feature definitions. Confirmed on NR01555346-1 (DXF=6 / FE=12), all C-Schiene variants (DXF=4 / FE=8).
+
+**D-475** PPM Estimator pitch demo rebuilt from decoded Claude Design source exports (Main Review, Quote, Settings). Exact CSS tokens, layout, and component patterns matched from dc-runtime bundles. Three interactive screens: Main Review (part tree + 4-column op layout + setup sub-lines + summary rail), Settings (norms table + material rates), Quote (internal working area + Option A customer preview).
+
+**D-476** Tube/pipe stock section omitted from demo Raw Stock Needed panel — no tube/pipe parts in the Diesel/AdBlue tank BOM.
+
+**D-477** "VAT / Tax ID" label used consistently throughout all demo UI, correcting PIB/Tax ID inconsistency present in source design files.
+
+**D-478** Material cost rates confirmed for Stirg estimation model: EN S235JR = €2/kg, EN 1.4404 SS = €6/kg, ArmaFlex RAIL RA-25 = €71.41/m² (8,355 RSD/m²). Applied per-part from massKg × qty × rate. Outsourced parts with real reference price (NR01481349.4 oc=126 EUR, ArmaFlex oc=137.69 EUR) exclude separate material cost — already included in their outsource/material line.
+
+**D-479** Customer-facing quote confirmed as Option A: single line "Diesel & AdBlue Tank Assembly — complete" with qty, delivery date, and total (margin applied). No operation breakdown, no margin/risk/ecology figures visible to customer.
+
+**D-480** Custom "Add line" in Main Review supports 5 types: Fixed cost, New part, Service, Procured part, New assembly — each with description, qty, unit cost. Added lines appear in the assembly tree, contribute to total, and persist in shared storage.
