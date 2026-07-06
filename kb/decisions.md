@@ -2456,3 +2456,72 @@ own company.
 
 **D-458** PIB and MB appear on every customer-facing Quote PDF, unconditionally
 — not gated on whether the customer is Serbian/local.
+
+---
+
+## Estimator — Identifier Consolidation, Job History, System Overlays & Final Resolutions (July 2026)
+
+**D-459** Company Info and Customer records use two universal fields, not
+three: the existing "VAT / Tax ID" field is kept as-is and serves as the
+universal tax-identifier field (covers PIB, VAT, EIN, or whatever a given
+country's equivalent is) — no separate dedicated PIB field. "MB" is added as
+a second, distinct field for company registration number (covers MB, KVK,
+HRB, etc. depending on country). Supersedes D-456 and D-457's three-field
+structure; D-458's substantive requirement (both identifiers shown on every
+Quote PDF, for both company and customer) is unchanged, just now expressed
+as two fields instead of three.
+
+**D-460** Job History uses infinite scroll, not pagination.
+
+**D-461** Clicking a job row in Job History opens directly into Main Review for
+that job — consistent with D-402's one-click-reopen behavior on the Dashboard.
+
+**D-462** "Duplicate" is available both as an inline row action on Job History
+and through New Job's "Duplicate Existing Quote" path (D-437) — both use the
+same underlying job picker, not two separate implementations.
+
+**D-463** Part-number search across all jobs returns job-level results (which
+jobs contain a matching part), not a direct jump to the part itself.
+
+**D-464** Command palette (Cmd/Ctrl+K, D-410) is global — available from any
+screen, not only Main Review. On Main Review, where a persistent visible
+search bar already exists, Cmd+K focuses that same bar rather than opening a
+separate overlay; elsewhere it opens the palette directly.
+
+**D-465** "Convert to Work Order" (D-444) has no confirmation dialog — it's
+non-destructive (forks a new record, original Quote untouched), so a blocking
+prompt would be inconsistent with D-386. Executes immediately; a toast
+notification (D-404) confirms the new WO number.
+
+**D-466** "Import" is removed as a standalone sidebar nav item. Re-importing/
+updating data into an already-open job (D-388/D-394's targeted merge) is
+instead a contextual action button on Main Review — e.g. "Import/Update Data"
+— alongside the existing Add Part (D-439) and Export (D-390) actions. Closes
+OQ-148. Reduces the screen count from 10 to 9.
+
+**D-467** Keyboard shortcut set (D-410's cheat sheet, now concrete): Cmd/Ctrl+K
+command palette, Cmd/Ctrl+N New Job, Cmd/Ctrl+S save, ? show cheat sheet,
+Cmd/Ctrl+F search/filter, Cmd/Ctrl+H Job History, Cmd/Ctrl+Z / Shift+Z undo/
+redo, Tab/Shift+Tab next/previous cell, Enter confirm cell & move down, Esc
+cancel edit/close dialog, Cmd/Ctrl+P Generate PDF, Cmd/Ctrl+Shift+? Convert
+to Work Order.
+
+**D-468** Ctrl+S is supported despite continuous autosave (D-400) — forces an
+immediate save and shows a brief confirmation toast (D-404's pattern). Costs
+nothing to support and avoids the appearance of a broken shortcut for users
+with explicit-save muscle memory.
+
+**D-469** Fail-report format (closes OQ-134): a flat log, one row per issue —
+Job number, Part Number, Operation (if applicable), Issue type, Timestamp.
+Exportable via the same Excel pattern as the internal costing report.
+Accessible via a "View Fail Report" link on Main Review/Batch Review, not a
+dedicated screen.
+
+**D-470** Cut list export format (closes OQ-139): PDF, one clear page laid out
+per stock bar (each cut length and any offcut shown per bar) — a shop-floor
+physical reference, not an editable spreadsheet.
+
+**D-471** Kerf width granularity (closes OQ-140): one flat value per saw/
+machine, not a material/blade-specific lookup table — same provisional-and-
+tunable philosophy as the bend-complexity threshold (D-392) and CAD-hours
+norm (D-393). Revisit with real data if it proves too coarse.

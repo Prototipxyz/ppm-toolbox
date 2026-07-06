@@ -484,9 +484,9 @@ time is now fully manual per-PN (D-395).
 **OQ-133** [CLOSED → D-391] Risk factor / ecology factor mechanics: percentage-based,
 same as margin.
 
-**OQ-134** [OPEN] Fail-report format for Estimator runs: per-PN and per-operation
-granularity assumed (D-382) — output format (JSON/Excel/log), fields, and where
-it's surfaced in the UI not yet specified.
+**OQ-134** [CLOSED → D-469] Fail-report format: flat log (Job number, Part
+Number, Operation, Issue type, Timestamp), Excel-exportable, accessible via
+a "View Fail Report" link on Main Review/Batch Review.
 
 **OQ-135** [CLOSED → D-397, D-398] Job-input JSON schema: already substantially
 defined in kb/specs/send-to-estimator.md (`batch_parts_data.json`/`manifest.json`,
@@ -514,12 +514,11 @@ length x qty, adjustable kerf, built independent of import-method validation).
 Remaining open: export format (OQ-139), kerf granularity (OQ-140), Weldment Cut
 List viability (OQ-141).
 
-**OQ-139** [OPEN] Cut list export format: CSV, PDF, or something else? Per-job,
-or per-machine/saw run?
+**OQ-139** [CLOSED → D-470] Cut list export format: PDF, one page per stock
+bar showing its cuts and offcut.
 
-**OQ-140** [OPEN] Kerf width granularity: one value per saw/machine, or does it
-also need to vary by material/profile/blade type on the same machine (a lookup
-table rather than one flat setting)?
+**OQ-140** [CLOSED → D-471] Kerf width granularity: one flat value per
+saw/machine, not a lookup table. Revisit if real data shows it's too coarse.
 
 **OQ-141** [OPEN] Whether extracting from the Weldment Cut List requires new
 macro work and whether it actually narrows OQ-129's scope, or solves a narrower
@@ -566,10 +565,6 @@ deserving deliberate scoping later, not a side-effect decision.
 
 ## Navigation Structure — July 2026
 
-**OQ-148** [OPEN] Sidebar "Import" vs. "New Job": purpose/distinction unclear,
-unresolved even after direct question. One option worth considering later,
-not adopted now: fold "Import" into a button on Main Review itself (e.g.
-"Import/Update Data") rather than a standalone sidebar item — this would
-sidestep the ambiguity of what a persistent nav item means outside job
-context. Revisit once Job History and the full nav are locked and the
-question can be judged in context rather than in the abstract.
+**OQ-148** [CLOSED → D-466] Sidebar "Import": resolved — removed as a
+standalone nav item, folded into a contextual "Import/Update Data" button on
+Main Review instead.

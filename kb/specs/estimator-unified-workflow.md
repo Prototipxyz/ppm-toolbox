@@ -9,7 +9,19 @@ this document is the current, full scope.
 D-347–D-368 (feature extraction, `batch_parts_data.json` schema), D-381–D-411
 (design phase: norms philosophy, ingestion correction, UX & design system),
 D-412–D-420 (raw stock consolidation, tube/pipe stock logic, cut-length
-optimization).
+optimization), D-421–D-432 (screen list finalization, product renamed to
+"PPM Estimator"), D-433–D-445 (New Job data sourcing, sparse-job handling,
+job numbering, Quote/WO fork), D-446–D-448 (Quote screen delivery date,
+per-operation breakdown option), D-449–D-459 (Batch Review bulk-edit
+redesign, thumbnails, identifier fields), D-460–D-471 (Job History, command
+palette scope, Convert-to-WO confirmation, system overlays, shortcut set,
+fail-report/cut-list/kerf resolutions).
+
+**Resolved screen list (9 screens):** EULA, Activation, Dashboard, New Job,
+Batch Review, Main Review, Quote (includes PDF export config, D-422), Settings,
+Job History. About/License is a modal off the sidebar (D-424), not a
+standalone screen. "Import" is not a standalone nav item — re-importing into
+an open job is a contextual button on Main Review instead (D-466).
 
 ## Pipeline overview
 
@@ -23,10 +35,41 @@ warning banner. Analysis still runs; affected line items flag instead of failing
 
 ## 2. New Job
 
-Job/Quote number, Customer (existing, searchable, or new — persists for reuse),
-deadline, ordered qty for the top-level assembly (D-387) — independently
-overridable per line item later. Recent Jobs quick-access on the dashboard,
-distinct from full Job History (D-402).
+Job/Quote number (auto-suggested from local job history, always editable —
+D-443, resolves multi-install numbering collisions without new infrastructure),
+Customer (existing, searchable, or new — persists for reuse), deadline, ordered
+qty for the top-level assembly (D-387) — independently overridable per line
+item later, and again on the Quote screen. Recent Jobs quick-access on the
+dashboard, distinct from full Job History (D-402).
+
+**Four parallel data-sourcing paths, presented as equal choices (D-436–D-439):**
+1. **Import PPM Toolbox Handoff** — the Job Package (manifest + BOM + DXFs +
+   weld report)
+2. **Import Individual Files** — one dedicated slot per supported data type
+   (DXF, BOM, weld bead report, weldment cut list), each with a downloadable
+   blank template (D-438) using the exact same column schema as the macro
+   export — one shared parser for both sources. The BOM slot explicitly
+   carries operation REQ/DONE data too (D-440), not just material/geometry.
+3. **Start Blank** — zero parts, "Add Part" inserts an editable row directly
+   on Main Review (D-439). Skips Batch Review (nothing to triage).
+4. **Duplicate Existing Quote** — forks a full previous job (all parts,
+   operations, pricing) into a new independent copy (D-437). Skips Batch
+   Review.
+
+Paths 1–2 proceed to Batch Review next if anything needs triage; paths 3–4 go
+straight to Main Review.
+
+**Sparse and partial jobs are the ordinary case, not a degraded one (D-434):**
+a job with a single part and a single operation must work with no special
+handling. A BOM with no REQ/DONE columns at all (plain external spreadsheet,
+or no PPM Toolbox marking metadata) simply means every part starts with zero
+operations assigned — same code path as a PPM-Toolbox BOM where all flags
+happen to be 0 (D-441). Job Package data legitimately omits whole categories
+(no weldment → no weld data) without that being a failure state (D-433) —
+distinct from D-382's fault isolation, which covers expected-but-broken data.
+
+**Sidebar "Import" resolved (D-466):** not a standalone nav item — re-importing
+data into an already-open job is a contextual button on Main Review instead.
 
 ## 3. Ingestion (D-388)
 
@@ -51,11 +94,19 @@ DXF bend layer at ingestion time (D-397).
 ## 4. Batch Review (D-407)
 
 Triage screen between Ingestion and the main Review screen. Lists only flagged
-parts (missing material, missing thickness, unresolved qty, etc.) with inline
-fix controls, a resolved/total progress indicator, bulk-fix actions, and a
-dual-path footer: fix everything first, or proceed with just the currently-clean
-parts (never-block principle, D-386). Confirmed via first-iteration mockup —
-not new scope invented this session.
+parts (missing material, missing thickness, unresolved qty, zero operations
+assigned — D-442) with a Part Number as the primary identifier (DXF filename
+shown only as secondary text, only when one exists — D-451, since not every
+part type produces one). Checkbox row-selection plus a unified Bulk Edit
+control (field-selector dropdown — Quantity/Material/Thickness/Operations —
+plus one value input and Apply, one field at a time — D-449, D-453, D-454)
+applies only to selected rows. Rows expand to assign individual operations
+inline, mirroring Main Review's pattern (D-450). A thumbnail slot per row
+supports manual image attachment via a "+" placeholder; BOM/macro auto-pull
+is deferred but the slot is designed to accommodate it later without
+restructuring (D-452, OQ-149). Resolved/total progress indicator, dual-path
+footer: fix everything first, or proceed with just the currently-clean parts
+(never-block principle, D-386). Locked design, confirmed working.
 
 ## 5. Analysis pass (D-382, D-395, D-397, D-398)
 
@@ -76,7 +127,9 @@ not new scope invented this session.
 - Fault isolation: any single PN or operation failure flags and skips only
   that item — run never aborts (D-382, extends D-149). Self-diagnostic checks
   per operation per PN; all flags/warnings/errors logged to a fail report per
-  run (format not yet specified — OQ-134, still open)
+  run: a flat log, one row per issue — Job number, Part Number, Operation,
+  Issue type, Timestamp — exportable, accessible via a "View Fail Report"
+  link on Main Review/Batch Review (D-469))
 
 ## 6. Main Review screen
 
@@ -113,7 +166,7 @@ actions (deleting a job or customer record).
 (OQ-125) and an adjustable kerf width (per machine/saw, Settings). Outputs an
 optimized cut plan plus total stock pieces required (D-418), feeding the Raw
 Stock Needed panel. Exportable as a standalone shop-floor document (D-419,
-format TBD — OQ-139).
+format: PDF, one page per stock bar showing its cuts and offcut (D-470).
 
 Length data source: manual entry, or (unvalidated) extraction from Inventor's
 native Weldment Cut List feature (D-417) — to be tested in a separate macro
@@ -122,19 +175,50 @@ source feeds it (D-420); only the import mechanism changes later.
 
 ## 7. Quote window
 
-Checklist to select which items/operations are customer-visible. Margin %, risk
-%, ecology % — all percentage-based, same mechanism (D-384, D-391). Qty
-multiplier from Job creation, overridable here too (D-387). Rough duration
-estimate = total hours ÷ configurable working-hours/day — explicitly NOT real
-capacity/resource scheduling, which stays with PPM App (D-385). Generates PDF.
-Customer record persists for future jobs.
+Checklist to select which items/operations are customer-visible, plus an
+"Include per-operation cost breakdown" checkbox (unchecked by default) to
+optionally expose per-operation cost detail beyond rolled-up line totals
+(D-448). Margin %, risk %, ecology % — all percentage-based, same mechanism
+(D-384, D-391). Qty multiplier from Job creation, overridable here too
+(D-387). A separate, manually-entered Delivery Date field — distinct from
+the Job's "deadline" (customer's requested date) — represents the company's
+committed date and is what appears on the customer PDF (D-446). The rough
+duration estimate (total hours ÷ configurable working-hours/day) remains
+strictly internal, shown only in the editing panel to help decide on a
+Delivery Date — explicitly NOT real capacity/resource scheduling (D-385) and
+never appears on the PDF (D-447). PDF export configuration lives in this
+screen's "Generate PDF" flow, no separate screen (D-422). Customer record
+persists for future jobs.
+
+**Quote-to-WO conversion:** forks a new, independent Job record — the original
+Quote is untouched (D-444). Numbering uses a prefix swap on the same number
+(e.g. Q-2026-001 → WO-2026-001), marked provisional pending OQ-146/147 (D-445).
+No confirmation dialog — non-destructive, executes immediately, confirmed via
+toast notification (D-465).
 
 ## 8. Settings
 
 Company info, WPS/welding data, all norm hours/costs/thresholds (including the
 bend-complexity threshold, CAD-hours-per-PN default, and kerf width per machine/
-saw), margin defaults, stocked-materials list, machines/parameters table,
-About/License info (D-401, separate from the Activation flow itself).
+saw), margin defaults, stocked-materials list (extensible — add/delete rows,
+D-455), machines/parameters table, About/License info (D-401, separate from
+the Activation flow itself). Company Info and Customer records share two
+universal identifier fields — "VAT/Tax ID" and "MB" (registration number) —
+rather than country-specific pairs, adapting to whatever a given country's
+equivalent is (D-459); both appear on every Quote PDF (D-458).
+
+## 9. Job History
+
+Full, searchable record of every Quote and Work Order — distinct from the
+Dashboard's lightweight Recent Jobs list (D-402). Infinite scroll, not
+pagination (D-460). Search matches job number, customer name, or part number;
+part-number matches return job-level results, not a drill-down into the part
+itself (D-463). Filterable by type (Quote/Work Order) and date range. Clicking
+a row opens directly into Main Review (D-461). A "Duplicate" action exists as
+both an inline row action here and through New Job's "Duplicate Existing
+Quote" path (D-437) — same underlying picker, not two implementations
+(D-462). Work Orders show a "Forked From" reference back to their originating
+Quote (D-444).
 
 ## Cross-cutting: reliability & UX
 
@@ -145,7 +229,10 @@ About/License info (D-401, separate from the Activation flow itself).
 - Keyboard navigation (Tab/Enter) in dense editable tables (D-403)
 - Toast/progress notifications for long background operations, never a frozen
   UI (D-404)
-- Command palette (Ctrl/Cmd+K) to jump to any job/customer/part number
+- Command palette (Ctrl/Cmd+K) to jump to any job/customer/part number —
+  global, available from every screen; on Main Review, where a persistent
+  visible search bar already serves this role, Cmd+K focuses that bar rather
+  than opening a separate overlay (D-464)
 - Non-blocking inline validation — highlight in place, never a halting popup
 - Optimistic UI + silent background autosave, no visible "saving..." interrupt
 - Persistent filter/view state across navigation
@@ -168,12 +255,17 @@ light and dark theme required — not dark-only (D-411 amends D-408).
 
 ## Open items
 
-- **OQ-134** [OPEN] Fail-report format (per-PN/per-operation granularity assumed,
-  output format and UI surfacing not yet specified)
 - Bar/tube/profile automatic stock-quantity calculation remains manual pending
   OQ-125/128/129 resolution — out of scope for v1 automation
-- OQ-139 (cut list export format), OQ-140 (kerf granularity — flat vs. lookup
-  table), OQ-141 (Weldment Cut List viability, pending separate macro testing)
+- OQ-141 (Weldment Cut List viability, pending separate macro testing)
 - OQ-142: machining (mill/turn) feature-based cost estimation — viable per
   industry precedent (Xometry/Protolabs-style geometry analysis), deferred
+- OQ-146: WO numbering (prefix-swap is provisional, D-445) may not survive
+  once OQ-147 is resolved
+- OQ-147: centralized/pooled job numbering via a shared backend — deliberately
+  deferred roadmap idea, possible paid bridge tier between Estimator (Tier 2)
+  and PPM App (Tier 3), not scoped or built now
+- OQ-149: thumbnail auto-pull mechanism (v1 is manual-only, D-452) — how
+  Inventor would generate/export a part preview image and what convention
+  carries it through the Job Package, not scoped, deliberately deferred
   until sheet-metal/weldment/tube pipeline is stable
