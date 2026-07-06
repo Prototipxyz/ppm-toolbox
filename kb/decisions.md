@@ -2547,3 +2547,19 @@ norm (D-393). Revisit with real data if it proves too coarse.
 **D-479** Customer-facing quote confirmed as Option A: single line "Diesel & AdBlue Tank Assembly — complete" with qty, delivery date, and total (margin applied). No operation breakdown, no margin/risk/ecology figures visible to customer.
 
 **D-480** Custom "Add line" in Main Review supports 5 types: Fixed cost, New part, Service, Procured part, New assembly — each with description, qty, unit cost. Added lines appear in the assembly tree, contribute to total, and persist in shared storage.
+
+---
+
+## Stirg — Estimation Model Refinements (July 2026, continued)
+
+**D-481** Engineering hours auto-suggestion: Estimator proposes `0.35h × unique PN count` as a starting value. User can approve or override any figure. Value is always editable, never locked.
+
+**D-482** Weld in Main Review = one grouped summary row per assembly: total bead count, total weld length (mm), computed time at norm speed (D-474), total cost. Source is the per-assembly weld report; individual seams are not displayed in the UI tree.
+
+**D-483** Production PPM Estimator app to be built in a new dedicated Claude Code chat — not from the current estimation session.
+
+**D-484** ArmaFlex insulation has 5 separate BOM rows (NR01481349.13–17) with individual areas sourced from Excel BOM session: .13=0.531m², .14=0.535m², .15=0.224m², .16=0.177m², .17=0.111m². Each carries independent material cost = area × €71.41/m². Not grouped into one ARM entry.
+
+**D-485** Fixed costs = separate group at the bottom of Main Review, below fabricated, machined, and purchased parts. Confirmed line types: engineering hours (rate × hours, PN-count suggestion per D-481, always adjustable), FEM (total ÷ project qty), transport, and any user-added fixed items. Each line has editable description, quantity, and rate.
+
+**D-486** Summary rail breakdown (from top): Total Cost → split into Materials Total + Operations Total + Fixed Costs Total → each section expandable to per-type detail → materials list each showing editable per-unit price and computed quantity.
