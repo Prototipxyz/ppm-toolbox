@@ -2402,3 +2402,57 @@ never appears on the customer-facing PDF — it remains an internal planning
 aid only, shown in the Quote screen's editing panel to help the preparer
 decide on a Delivery Date, but dropped entirely from PDF export. The PDF's
 "Estimated duration" checkbox is replaced by a "Delivery Date" item instead.
+
+---
+
+## Estimator — Batch Review Bulk-Edit, Settings Materials & Serbian Identifiers (July 2026)
+
+**D-449** Batch Review bulk actions require checkbox row-selection first — "Apply
+material," "Set quantity," "Assign operations" then act only on the selected
+subset (via dropdown for material/operations, a typed field for quantity), not
+blanket application to every flagged row.
+
+**D-450** Batch Review rows are expandable to assign individual operations
+inline, mirroring Main Review's expand/operation-row pattern — not limited to
+the bulk "assign default operations" action.
+
+**D-451** Batch Review's primary identifier column shows Part Number (works
+for any part type), not a DXF filename. DXF filename, when one actually exists
+(sheet-metal parts only), is shown as secondary/supplementary detail, not the
+primary label — fixes the bug where every row displayed ".dxf" regardless of
+part type.
+
+**D-452** Thumbnail images: manual add only for v1 (click + on an empty
+thumbnail slot per part). BOM/macro auto-pull is deferred, not built now —
+but the data model and UI should be designed to anticipate it (e.g. an image
+reference field per part that's populated manually today, macro-populated
+later, without restructuring). Closes the v1-scope half of OQ-149.
+
+**D-453** Batch Review's bulk-action bar includes one control per bulk-settable
+flagged field, consistently — Material, Thickness, Quantity, and Operations —
+not an ad-hoc subset. Thickness was missing from the first pass despite being
+a flaggable field.
+
+**D-454** Batch Review's bulk-edit control is a single unified interface — a
+field-selector dropdown (Quantity/Material/Thickness/Operations) plus one value
+input and Apply, editing one field at a time — rather than four simultaneous
+mini-forms in a row. Resolves the layout crowding/truncation from the prior
+pass. Refines D-453's requirement (all four fields covered) without dictating
+this specific UI shape, which Claude Design arrived at and is now confirmed.
+
+**D-455** Settings' Materials tab (sheet stock tiers, tube/pipe standard
+lengths) supports adding new rows, not just editing the pre-populated set —
+consistent with D-396's universal editability principle, extended here to
+adding/removing entries, not just editing existing values.
+
+**D-456** Company Info (Settings) includes PIB (Tax ID) and MB (Company
+Registration Number) fields — standard Serbian business identifiers, used on
+legal/fiscal documents. Not previously captured anywhere in the data model.
+
+**D-457** Customer records include PIB and MB fields, always visible (not
+conditional on customer nationality/type) — same two Serbian business
+identifier fields as D-456, captured per customer, not just for the user's
+own company.
+
+**D-458** PIB and MB appear on every customer-facing Quote PDF, unconditionally
+— not gated on whether the customer is Serbian/local.
