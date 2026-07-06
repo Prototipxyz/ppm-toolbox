@@ -590,3 +590,13 @@ Main Review instead.
 **OQ-154** [CLOSED → D-509] Handling time basis = weight bracket. Placeholder values set. Crane tier added above 50kg threshold.
 
 **OQ-155** [CLOSED → D-513] Setup sub-row rate = machine rate for that operation.
+
+---
+
+## PPM Estimator — Norm Calibration (July 2026)
+
+**OQ-157** [PARTIALLY RESOLVED → D-534] Operating factor approach adopted. Arc-on speed placeholder 400 mm/min unvalidated; shop-floor measurement of actual MIG/MAG arc speed on S235JR structural fillet welds at Stirg needed.
+
+**OQ-158** [OPEN] Assembly & Seal (OP-020) norm set to 4.0 h/weldment placeholder (D-536). Real measured time for diesel+adblue tank or comparable complex weldment at Stirg needed.
+
+**OQ-159** [OPEN] Bend length data for two-tier OP-012 rule (D-532): pipeline currently outputs bend count only, not individual fold line lengths. Determine whether DXF bend layer geometry is sufficient to measure fold length, or whether a manual flag per PN is the practical solution.

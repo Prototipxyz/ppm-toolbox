@@ -2623,3 +2623,19 @@ norm (D-393). Revisit with real data if it proves too coarse.
 **D-513** Setup sub-row rate = machine rate for that operation (machine is occupied during setup). General labour rate applies to handling/prep rows only.
 
 **D-514** Sheet 1 input blocks physically and visually separated: Job Parameters block (order qty, job number, client) is separate from Labour & Handling block (general labour rate, crane threshold, weight bracket table).
+
+---
+
+## PPM Estimator — Norm Calibration (July 2026)
+
+**D-527** CANCELLED. C-Schiene b=4 bends per piece is correct per DXF extraction. Earlier Excel implementation error (b=4→b=2) must be reverted.
+
+**D-532** Press bend (OP-012) cycle time is two-tier based on bend line length, both values include operator repositioning: short bend (fold line ≤1 m) = 30 s/bend = 0.00833 h/bend; long bend (fold line >1 m) = 60 s/bend = 0.01667 h/bend. Source: Voja, Stirg measured. Both stored as editable seconds on Sheet 1; hidden column divides by 3600 for cost formulas.
+
+**D-533** Sheet 1 norms table stores all operation cycle values in natural units (seconds, minutes, or mm/min) with a visible Unit column. A hidden column converts to h/unit for cost formulas. All cost formulas reference the hidden converted column only.
+
+**D-534** Weld time formula: weld_hours = (weld_length_mm ÷ arc_speed_mm_min ÷ 60) ÷ operating_factor. Operating factor default = 30% (manual MIG/MAG, per AWS D1.1 / Lincoln Electric Procedure Handbook). Editable on Sheet 1. Sheet 2 summary includes an informational row converting total weld hours to elapsed shift-days so worker 3-day estimate is visible alongside cost. Arc-on speed (mm/min) is a separate editable cell; 400 mm/min is current placeholder (OQ-157).
+
+**D-535** Weld grinding (OP-013) basis changes from h/weldment to h/m of weld length. Formula: grinding_hours = total_weld_mm ÷ 1000 × h_per_m. Default placeholder: 0.050 h/m (3 min/m) = moderate structural dressing. Editable on Sheet 1. Actual value depends on weld position and customer surface requirement.
+
+**D-536** Assembly & Seal (OP-020) placeholder = 4.0 h/weldment assembly, pending Stirg measured time on a comparable job (OQ-158). Replaces previous 0.5 h/sub-assembly.
