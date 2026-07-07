@@ -2690,3 +2690,39 @@ independently per D-180 procedure.
 paired Control Class/GOV Authority/License Request/Control List/Under
 Regulation columns (×2 sets) — present but blank on inspected rows. Compliance
 axis, not a costing axis.
+
+
+## RFQ Quick-Scope Tool — STEP Geometry Prototype (July 2026)
+
+**D-547** STEP geometry engine = **cadquery-ocp (OCP Python bindings)**, not
+pythonocc-core. pythonocc-core has no pip wheel (conda-only distribution);
+Claude's sandbox has no conda. OCP wraps the same underlying OpenCASCADE
+kernel and is pip-installable — confirmed functionally equivalent for this
+tool's needs (B-rep bounding box, volume, surface area, face-type
+classification) on real test data. Windows pip-wheel availability on Voja's
+dev machine not yet confirmed (OQ-167).
+
+**D-548** Bounding box must be computed via proper B-rep API (`Bnd_Box` +
+`BRepBndLib`), never by scanning raw `CARTESIAN_POINT` text entries in the
+STEP file. The latter is confirmed unreliable: on real part 06030-01069-01 it
+overestimated the bounding box by ~1.6–2× (1141.8×671.3×803.0mm vs. the
+correct 716.0×101.4×413.6mm), because it captures non-boundary points
+(B-spline control points, axis-placement origins) alongside real geometry.
+
+**D-549** Thickness-extraction method for curved constant-radius sheet parts:
+identify cylindrical faces sharing the same axis (location + direction),
+pair inner/outer by matching axis, thickness = outer radius − inner radius.
+Validated on 06030-01069-01: R281.00/R285.20 → 4.20mm, cross-checked against
+an independent volume÷(area/2) estimate (4.14mm, 1.4% agreement). Applies
+only to true cylindrical geometry — flat plate and freeform/BSpline shells
+need separate methods, not yet validated (extends OQ-165, see OQ-168).
+
+**D-550** Material-inference cross-check adopted as a standard register step:
+compare STEP-derived volume against the drawing's stated approximate weight
+to back-calculate implied density, compared against known material densities
+(steel ≈7.85, stainless ≈7.93, aluminum ≈2.70 g/cm³ per D-478). Used only as
+a flag/evidence signal — especially valuable when material is missing or
+conflicts with contextual naming assumptions — never treated as confirmed
+material without corroboration. Real case: 06030-01069-01 implied density
+7.88 g/cm³ (steel-consistent) contradicts its parent assembly's "ALU"/"AL"
+naming (see OQ-166).

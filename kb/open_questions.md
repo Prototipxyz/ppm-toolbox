@@ -628,3 +628,21 @@ says "SHEET 1 OF 1". Confirm across more sources before assuming.
 thickness/mass vs. the Inventor-extracted ground truth (D-352 family) —
 unvalidated. Quick-Scope tool treats STEP-derived classification as coarse/
 confidence-flagged by design, not equivalent to the deep Inventor pass.
+
+
+## RFQ Quick-Scope Tool — STEP Prototype Findings (July 2026)
+
+**OQ-166** [OPEN] 06030-01069-01 implied density (~7.88 g/cm³, back-calculated
+from STEP volume + drawing weight) suggests steel, contradicting its parent
+assembly's "ALU"/"AL" naming (Y88159A-00, Y17742B-00). Confirm actual material
+spec / locate the "SEE ATTACHED MEDIA" reference (ties to OQ-161).
+
+**OQ-167** [OPEN, blocks Claude Code batch run] Confirm cadquery-ocp (OCP)
+installs cleanly via pip on Voja's Windows dev machine — same wheel
+availability as Claude's Linux sandbox not yet verified. Fallback: conda +
+pythonocc-core if no Windows wheel exists.
+
+**OQ-168** [OPEN] D-549's thickness-extraction method (cylinder-pair radius
+diffing) validated on exactly one part, one continuous cylindrical zone.
+Needs testing against a genuinely flat sheet part and a multi-facet
+press-braked part before treated as general-purpose.
