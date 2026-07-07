@@ -672,3 +672,27 @@ doesn't affect any validated field.
 recalculation: all 6 Scope Summary formulas calculate correctly (no
 #VALUE!/#REF!), wrap-text/row-auto-sizing render correctly, hardware row
 correctly minimal rather than garbage-filled.
+
+---
+
+## PPM Estimator — Data Architecture, Machine Fleet & Norms Consolidation (July 2026)
+
+**OQ-101** [UPDATE: RESOLVED → D-577] Hybrid QC model adopted — new OP-029 quick blank-level check + OP-023/024 rescoped to per-finished-unit. Addresses the measured ~34% cost-share distortion from per-blank QC/deburring on large weldments.
+
+**OQ-157** [UPDATE: CORRECTED, was showing stale value] Arc-on speed is **104 mm/min** per D-540 (calibrated from real 3-day worker estimate on the diesel+AdBlue job), not the 400 mm/min this entry originally stated — that figure was superseded before this entry was last edited; open_questions.md had drifted out of sync with decisions.md. Treat as closed → D-540.
+
+**OQ-158** [UPDATE: REFRAMED] Now scoped to calibrating the OP-020 per-part alignment allowance (5 min placeholder, D-576) rather than the old flat 4.0h/weldment figure — smaller, more directly measurable ask: time a real assembly, log minutes per part placed.
+
+**OQ-174** [OPEN] Laser internal rate unresolved conflict: €161/h (formulaic: €143/h Stirg-sourced overhead + €18/h labour per D-569) vs €190/h (figure used consistently throughout the AdBlue cost-report build). Neither confirmed as authoritative — blocks finalizing the Machine Parameters Registry rate for LAS-01. Needs Voja's determination: is €190 a real anchored/market figure that should override the formulaic buildup, or was €190 itself a placeholder that should now yield to €161?
+
+**OQ-175** [OPEN] Machine internal rates still unset for 5 units (placeholder only, unsourced): LAT-01 (600 Alpha 400) €30/h, LAT-02 (Prvomajska TNP 160B) €20/h, MIL-01 (NV5000) €35/h, MIL-02 (VMX42) €35/h, MTM-01 (Multus B400) €45/h. These are round-number guesses, not derived from any real cost data — need real figures before the Machine Parameters Registry can be trusted for these 5 rows.
+
+**OQ-176** [OPEN] Four machine variant confirmations still needed against nameplate/control screen: NV5000 sub-variant (1B/40 vs A/40 vs B/40 — travel/spindle-speed spread), VMX42 spindle speed option (10,000 vs 12,000 rpm), 600 Alpha 400 "AT" suffix (unmatched to catalog — Plus/U/local designation?), TNP 160B working-length variant (1000mm assumed, unconfirmed).
+
+**OQ-177** [OPEN, low priority, non-blocking] Kemppi WLD-02 paired power source model unconfirmed (MXF65 is feeder-only, carries no independent amp rating) — check the power source's own nameplate when convenient.
+
+**OQ-178** [OPEN] Fronius WLD-01 MMA (stick) capability unconfirmed — nameplate only documents TIG AC/DC; confirm if this unit is also used for stick welding at Stirg.
+
+**OQ-179** [OPEN] Several Norms placeholder time values proposed this session need real shop-floor timing to calibrate (D-195/OQ-72 convention): OP-011 drilling setup tiers (20/40/90/180s), OP-019 hardware insertion (8 sec/fastener), OP-020 alignment allowance (5 min/part — see also OQ-158), OP-029 quick blank check (10 sec/blank). OP-009 laser piece-removal (5 sec/pc) is the one figure in this batch already confirmed by Voja, not placeholder.
+
+**OQ-180** [OPEN, deliberately deferred] OP-020 batch efficiency (assembling many identical parts faster after the first one) not modeled — explicit simplification per Voja's steer to keep the per-part model simple for now. Revisit once OQ-158's real timing data exists.
