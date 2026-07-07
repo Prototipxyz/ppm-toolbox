@@ -2726,3 +2726,80 @@ conflicts with contextual naming assumptions — never treated as confirmed
 material without corroboration. Real case: 06030-01069-01 implied density
 7.88 g/cm³ (steel-consistent) contradicts its parent assembly's "ALU"/"AL"
 naming (see OQ-166).
+
+
+## RFQ Quick-Scope Tool — Deployment & First Real Batch (July 2026)
+
+**D-551** ppm-toolbox has no standing local clone on Voja's dev machine by
+default. Claude Code kickoff briefs must specify an explicit clone path, not
+just "read CLAUDE.md at repo root" — a session's working directory and a
+sibling clone folder have no automatic visibility into each other. If cloned
+for reference, it stays read-only; KB commits remain exclusively via the Git
+Data API from Claude.ai chats.
+
+**D-552** cadquery-ocp confirmed working on Voja's Windows dev machine
+(Python 3.14.6, via PythonManager's WindowsApps launcher stub — not a
+python.org-style install). Validated properly: real imports, then a full
+load→bbox→volume on an actual project STEP file, not just pip-install
+success. Resolves OQ-167.
+
+**D-553** Real folder-structure correction: for the Y88159A-00 package, the
+BOM (`Y88159A-00, BOM.xlsm` — comma-space, not the double-underscore name of
+the chat-uploaded copy) and the register template both live one level up in
+`ZIKA IZRAEL\`, not inside `Y88159A-00\`. Kickoff briefs should not assume
+BOM/template location relative to the target folder without checking.
+
+**D-554** `.STEP.ipt`-suffixed files are confirmed non-STEP (fail ISO-10303
+header check) and must be excluded via content check, not extension alone.
+At least one hardware part's such-suffixed file is named by its DIN
+designation rather than BOM part number.
+
+**D-555** Join-key fallback added for standard/catalog hardware: when
+filename-PN matching fails, fall back to matching the BOM's `Ident` column
+(e.g. "DIN 6325 8M6X30-ST") against a normalized filename token. Extends
+D-544's join logic for parts filed by spec designation rather than PN.
+
+**D-556** 06030-01069-01 reproduced exactly across two independent
+environments (Claude.ai sandbox, Claude Code on Windows): bbox
+716.0×101.4×413.6mm, thickness 4.20mm (R281.0/R285.2 cylinder pair), volume
+1,382,932.202mm³, density 7.882 g/cm³. Confirms method reproducibility.
+
+**D-557** Batch output writes to a new file (`..._Register_TOOLGEN.xlsx`),
+template never overwritten — the template's verified row is a permanent
+regression fixture.
+
+**D-558** Full batch run against the real 21-row Y88159A-00 BOM, confirmed
+via real Excel recalculation (not just openpyxl-written formula text): Total
+BOM lines=21, Unique PNs=18, Complete=20, Standard/catalog=1, Pending=0,
+Export-control unconfirmed=21 (entire package ships with zero classification
+— confirms D-546's blank-columns finding held across every row, not just the
+sample), Material flagged/unconfirmed=2 (the 06030-01069-01/-01070-01 pair,
+per OQ-166/170). 0 rows errored. Wrap-text and row-height auto-sizing
+confirmed rendering correctly (e.g. row 10 auto-sized to 95.5pt). Hardware
+row correctly left geometry/open-question cells empty rather than
+misapplying extraction logic.
+
+**D-559** Plausibility gate: density (STEP volume ÷ PDF-extracted weight)
+outside 2.0–9.5 g/cm³ flags the row's mass as unreliable with an explicit
+"do not trust — verify manually" note, rather than presenting bad
+PDF-weight-extraction results as clean data. Confirmed catching 4 bad rows
+(one at an impossible 0.39 g/cm³) without disturbing known-good rows.
+Underlying PDF weight-extraction heuristic (word-proximity to a "Kg" label)
+remains known-unreliable across drawings with inconsistent title-block
+layout — accepted as-is; flag-and-verify judged sufficient for a same-day
+scope tool, not worth further heuristic investment.
+
+**D-560** Excel COM `RPC_E_CALL_REJECTED` during scripted file verification
+resolved via retry-wrapped COM calls — confirms the error was transient
+(orphaned COM server / timing), not a fundamental non-interactive-session
+limitation. Process lesson: build retry-wrapping into any one-off COM
+automation script from the start rather than discovering the need for it
+through iterative failed attempts.
+
+**D-561** RFQ Quick-Scope tool (`rfq_quick_scope.py`) and verification
+scripts finalized at `C:\Users\zavarivanje\rfq-quick-scope\`, validated
+end-to-end against a real client package. Ready for reuse on future RFQ
+folders — next real test is a package with genuine geometric diversity
+(flat sheet, machined, multi-facet parts), since this run's parts were
+predominantly the one validated curved-shell case plus untested-geometry
+assemblies/hardware.

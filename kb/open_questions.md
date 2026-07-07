@@ -646,3 +646,29 @@ pythonocc-core if no Windows wheel exists.
 diffing) validated on exactly one part, one continuous cylindrical zone.
 Needs testing against a genuinely flat sheet part and a multi-facet
 press-braked part before treated as general-purpose.
+
+
+## RFQ Quick-Scope Tool — First Batch, Resolved & Open Items (July 2026)
+
+**OQ-169** [OPEN] Whether the "steel family, subtype unconfirmed"
+density-reporting behavior (vs. naming a specific alloy) actually fired in
+the full batch was not directly confirmed in the final report — check next
+session.
+
+**OQ-170** [OPEN] 06030-01070-01 independently derived 7.89 g/cm³, matching
+sibling 06030-01069-01's 7.882 g/cm³ — second data point reinforcing the
+steel-vs-"ALU"-naming contradiction (OQ-166). Still not a confirmed spec.
+
+**OQ-171** [CLOSED] Tool-internal flags renamed to `TQ-` prefix and rerun —
+confirmed via direct sheet dump: 7 pre-existing OQ-161–168 rows untouched,
+TQ-1 through TQ-44 appended below with zero namespace collision.
+
+**OQ-172** [OPEN] Whether the 4 small R=5mm cylindrical faces on
+06030-01069-01 are corner fillets (area/thickness math suggests this) or
+bolt/pin holes (Claude Code's characterization) — unresolved, low priority,
+doesn't affect any validated field.
+
+**OQ-173** [CLOSED] Register_TOOLGEN.xlsx confirmed via real Excel
+recalculation: all 6 Scope Summary formulas calculate correctly (no
+#VALUE!/#REF!), wrap-text/row-auto-sizing render correctly, hardware row
+correctly minimal rather than garbage-filled.
