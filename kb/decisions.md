@@ -2651,3 +2651,42 @@ norm (D-393). Revisit with real data if it proves too coarse.
 **D-539** Bend cycle time simplified to flat 40 s/bend for all bends (middle ground between 30 s short and 60 s long from D-532), including operator repositioning. Applies until OQ-159 (bend line length extraction) is resolved. 40 s/bend = 0.01111 h/bend. Implemented in OP-012 norms row on Sheet 1.
 
 **D-540** Weld arc speed calibrated to 104 mm/min to match worker estimate of 3 working days for diesel+adblue tank welding (44,992 mm total at 30% operating factor, 8 h shift). Formula: 44,992 ÷ (3 × 8 × 0.30 × 60) = 104.1 mm/min. This is a calibrated placeholder, not a measured WPS value (OQ-157). Arc speed, operating factor, and shift hours are all editable on Sheet 1.
+
+
+## RFQ Quick-Scope Tool (July 2026)
+
+**D-541** New standalone tool confirmed: same-day RFQ Quick-Scope, separate from
+both the Estimator and the cost-report pipeline (D-491–511). Output = per-PN
+register + scope summary + open-questions list. Explicitly no costing/quoting.
+Purpose: categorize incoming client packages (drawings, STEP, BOM, emails) into
+scope of work before committing to STEP→Inventor conversion + op-marking.
+
+**D-542** Tool runs via Claude Code on Voja's machine against the client folder
+tree directly (not pasted into chat) — token cost and confidentiality (client
+proprietary drawings/contacts) both rule out chat-based bulk processing. Core
+extraction logic (BOM/PDF parsing) prototyped and verified in Claude.ai first
+against one real sample before porting.
+
+**D-543** Register schema locked (real sample: Elbit 06030-01069-01, Y88159A-00
+BOM): identifiers (multi-key per D-188) · name · BOM position/qty/parent ·
+part type (D-352 taxonomy, STEP-derived, confidence-flagged) · make/buy +
+reason · material · thickness · size/bbox/mass (STEP) · tolerances (general +
+notable GD&T) · surface treatment · additional requirements (marking, QA,
+packaging, certs) · export-control flag · source refs · per-PN open questions.
+
+**D-544** Join key = filename-derived part number (strip "un" prefix; split on
+`#`/`_`/concatenated "Rev" token), confirmed equal to both the containing
+folder name and the client BOM's PART NUM column on real data. Folder path is
+assembly-hierarchy context, not the primary join key — layout varies (per-part
+folders, all-in-one, STEP-only, split STEP/PDF folders) but filename-PN join
+holds across all observed cases.
+
+**D-545** Material and thickness are drawing/STEP-sourced only for the Elbit/
+Yugoimport package — this client's BOM (Y88159A-00__BOM.xlsm) has no material
+or thickness columns at all. Not assumed universal — future sources checked
+independently per D-180 procedure.
+
+**D-546** Register requires an export-control flag field. Client BOM carries
+paired Control Class/GOV Authority/License Request/Control List/Under
+Regulation columns (×2 sets) — present but blank on inspected rows. Compliance
+axis, not a costing axis.

@@ -604,3 +604,27 @@ Main Review instead.
 **OQ-160** [OPEN] NR01555346-1 flat pattern area back-calculated as ~1.67 m² from mass (39.2 kg, 3mm S235JR). If any flat pattern dimension exceeds 1500 mm, a 2000×4000 mm sheet is required instead of standard 1500×3000. Verify actual flat pattern bounding box dimensions from DXF or Inventor flat pattern view before purchasing material.
 
 **OQ-161** [REFERENCE] Sheet count estimates for one assembly set (1500×3000mm at 75% nesting efficiency, back-calculated from mass — not from DXF flat dimensions): S235JR diesel: 7 sheets (2mm×1, 3mm×2, 5mm×1, 8mm×1, 10mm×1, 12mm×1). 1.4404 SS AdBlue: 3 sheets (1mm×1, 3mm×1, 6mm×1). Per full order (×16 sets): ~112 sheets S235JR, ~48 sheets 1.4404 SS. Figures to be validated against actual nested DXF output.
+
+
+## RFQ Quick-Scope Tool — Open Questions (July 2026)
+
+**OQ-161** [OPEN] Material resolution when drawing states "SEE ATTACHED MEDIA"
+(06030-01069-01 upper shield plate) instead of a material callout — location/
+form of the referenced media not yet known.
+
+**OQ-162** [OPEN] Export-control classification workflow undefined: BOM control
+columns present but blank across inspected rows — process for populating/
+confirming classification not yet designed.
+
+**OQ-163** [OPEN] Capability envelope (max part size per process, in-house vs.
+outsource process list, stock materials) needed to convert part-type → make/buy
+in the register. Same gap as OQ-69 (Winkler case), now blocking this tool too.
+
+**OQ-164** [OPEN] PDF filename token grammar `#A0#S2`: A0 = sheet size
+confirmed; S2 meaning unconfirmed (sheet index vs. state code) — drawing itself
+says "SHEET 1 OF 1". Confirm across more sources before assuming.
+
+**OQ-165** [OPEN] STEP-direct (pythonocc, no Inventor) fidelity for part-type/
+thickness/mass vs. the Inventor-extracted ground truth (D-352 family) —
+unvalidated. Quick-Scope tool treats STEP-derived classification as coarse/
+confidence-flagged by design, not equivalent to the deep Inventor pass.
