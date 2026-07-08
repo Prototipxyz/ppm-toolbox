@@ -696,3 +696,19 @@ correctly minimal rather than garbage-filled.
 **OQ-179** [OPEN] Several Norms placeholder time values proposed this session need real shop-floor timing to calibrate (D-195/OQ-72 convention): OP-011 drilling setup tiers (20/40/90/180s), OP-019 hardware insertion (8 sec/fastener), OP-020 alignment allowance (5 min/part — see also OQ-158), OP-029 quick blank check (10 sec/blank). OP-009 laser piece-removal (5 sec/pc) is the one figure in this batch already confirmed by Voja, not placeholder.
 
 **OQ-180** [OPEN, deliberately deferred] OP-020 batch efficiency (assembling many identical parts faster after the first one) not modeled — explicit simplification per Voja's steer to keep the per-part model simple for now. Revisit once OQ-158's real timing data exists.
+
+---
+
+## PPM Estimator — Suppliers, Purchasing Database & BC/Offer_BOM Integration (July 2026)
+
+**OQ-181** [OPEN] Square bar (below 8mm) and RHS (below the previous minimum) sizes were added by standard-series inference (D-585), not confirmed against a specific real purchase record the way round bar (Ø3) and SHS (15×15) were. Low risk, but worth validating against real data if/when it surfaces.
+
+**OQ-182** [OPEN] 5 newly-added named coating products (Mankiewicz Seevenax primer, Alexit topcoat, MIL-DTL-5541F conversion coating, Fasada Alexit anti-slip) have specs but no sourced price — only Docofer Eisenglimmer has a real confirmed price among the additions.
+
+**OQ-183** [OPEN] The 9 real-price files identified in Suppliers.7z (D-586) are not yet folded into Hardware & Consumables — next incorporation pass.
+
+**OQ-184** [OPEN] Machine Parameters sheet — registry + capability/limits (bed sizes, press-brake tonnage/length, lathe swing/DBC, mill travel/table/max billet) + laser cut library + welding process parameters as a section within it — was designed early in this project but never actually built beyond the small rate-reference table living inside Norms. Confirmed real gap, next major build phase.
+
+**OQ-185** [OPEN] Materials Key's multi-supplier price columns (D-583 structure) are built but almost entirely unpopulated — real €/kg pricing per material per supplier still needs sourcing/backfilling.
+
+**OQ-186** [OPEN, low priority] AWAG Elektrotechnik AG, Koch Group AG, MAAGTECHNIC — confirmed absent from Suppliers.7z entirely (no folder, no data). Payment terms/incoterm for these three would need direct outreach, not document search.
