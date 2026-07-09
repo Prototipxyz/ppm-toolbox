@@ -712,3 +712,8 @@ correctly minimal rather than garbage-filled.
 **OQ-185** [OPEN] Materials Key's multi-supplier price columns (D-583 structure) are built but almost entirely unpopulated — real €/kg pricing per material per supplier still needs sourcing/backfilling.
 
 **OQ-186** [OPEN, low priority] AWAG Elektrotechnik AG, Koch Group AG, MAAGTECHNIC — confirmed absent from Suppliers.7z entirely (no folder, no data). Payment terms/incoterm for these three would need direct outreach, not document search.
+---
+
+**OQ-187** [OPEN] Outsourced parts raw material inclusion: Gewindeplatte M8 (8×, 17mm S235) and Gewindehinterlage (4×, 25mm S235) are outsourced for cutting/machining but Stirg performs in-house drilling/tapping after receipt. Question: does Stirg purchase the raw plate and send to outsourcer, or does the outsourcer supply their own material and Stirg pays per finished piece? Answer determines whether these parts' mass is included in S235 raw material cost. Pending confirmation from Stirg procurement.
+
+**OQ-188** [OPEN] Nesting efficiency default value: current placeholder is 80% (applied uniformly to all sheet/roll materials per D-591). Needs measurement from actual Stirg CAM nesting data (nest utilisation % from Bystronic software across representative jobs) before a validated default can be locked. Until then, 80% is used as an editable input with a visual flag that it is unvalidated.

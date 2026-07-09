@@ -2861,3 +2861,44 @@ assemblies/hardware.
 **D-585** New stock data added to Materials, all traced to real purchase records except where noted: round bar extended to Ø3mm (verified real), square bar extended to 3mm (standard-series extension, not tied to a specific found item — flagged OQ), SHS 15×15 added (verified real, "Kantoflex" branded, 1mm wall), RHS extended to smaller combos (standard-series extension), new **Rigid Small Tube** table (EN 10216 — a different standard from the structural EN 10220 table — covering 6–28mm OD, steel/stainless/**brass**, verified real at 10/15/22/28mm), new **Flexible Tube/Hose** reference section (PA12/Polyurethane/EPDM, bought by length not weight, no weight formula), sheet formats corrected to verified real data (1000×2000, 1250×2500, 1000×3000 — replacing the never-verified 1500×3000/2000×4000 pair), 12 new material grades added to the Materials Key (7 aluminium: 5754/5083/6005/6063/7075/7020/5005/6061-T651; 5 stainless: 1.4571/1.4305/1.4462/1.4401/1.4541), and 5 named coating products added to Coatings & Specialty (Docofer Eisenglimmer — real price €29.22/kg — Mankiewicz Seevenax primer, Alexit topcoat, MIL-DTL-5541F conversion coating, Fasada Alexit anti-slip).
 
 **D-586** Suppliers.7z (1,114 files) triaged: ~200 CAD files (Inventor/STEP/DWG) excluded as irrelevant to a pricing database; of 124 embedded xlsx files, only 9 contained real filled-in prices beyond what's already in Offer_BOM (RECA+Rotometal, Harting, VIEGA, SERBIA STIRG NORMACLAMP, HPL Paneli, Dehn+Soehne, and 3 others) — identified but not yet incorporated into Hardware & Consumables. Targeted search of the 17 suppliers missing payment-terms/incoterm data found only one recoverable term (HETTICH: 70% advance payment via proforma) — the remaining 16 are genuinely undocumented at this RFQ stage, not an extraction failure; AWAG Elektrotechnik, Koch Group AG, and MAAGTECHNIC have no folder/data in the archive at all.
+---
+
+**D-587** Drill run norms corrected: plain hole = **6 sec/hole**, tapped hole = **8 sec/hole** (total, covering drill+tap combined). Supersedes any prior value. Applied in PPM_Estimator_CostReport_v2.xlsx and all future cost reports. Source: Norms_and_Rates_4_.xlsx confirmed this session.
+
+**D-588** Laser rate confirmed: LAS-01 (Bystronic SPRINT4020) internal = **€180/h** (€162 machine + €18 labour), quoted = **€234/h** (×1.30 markup). Derived from Norms_and_Rates_4_.xlsx machine registry. Closes OQ-174.
+
+**D-589** OP-021 (Sealing) and OP-022 (Final Fitting) consolidated into OP-020 (Assembly) in Excel cost reports for this project. Both operations are too granular to time separately at current calibration level and are folded into the assembly per-part-instance model (D-576). Applies to PPM_Estimator_CostReport_v2.xlsx only — they remain separate in the Norms sheet and Estimator for future calibration.
+
+**D-590** Quote total calculation: Quotable base × order qty → + Risk % → + Margin % → Total Quoted. Risk and margin are applied to the quotable×order figure, not internal cost. Implemented in Quote sheet of PPM_Estimator_CostReport_v2.xlsx.
+
+**D-591** Raw Material Calculation Standard — applies to all PPM cost reports, PPM Estimator, and future PPM App material module:
+- Weight source: `Mass_kg` from PPM_ExportPartData feature extraction × BOM qty. **Never estimates, session data, or back-calculation.** If feature extraction has not been run, the weight cell must show a yellow placeholder explicitly labelled as unverified.
+- Calculation chain per material type: Net qty = Σ(Mass_kg × qty) → Gross qty = Net ÷ nesting_efficiency% → Total cost = Gross × price_per_unit (from Materials sheet).
+- Single nesting efficiency %: one editable cell on Norms sheet, applies uniformly to all sheet/roll/plate materials (steel, SS, ArmaFlex, etc.). In PPM Estimator this will be replaced by nesting algorithm output.
+- Units: steel by kg, ArmaFlex by m² — nesting efficiency applies to both.
+- Displayed in Main Review summary as a dedicated RAW MATERIALS block separate from operation costs.
+
+**D-592** Part_Type qualification table for raw material calculation inclusion:
+
+| Part_Type | Include in raw material cost? |
+|---|---|
+| sheet_metal | ✅ Yes |
+| flat_bar | ✅ Yes |
+| angle_bar | ✅ Yes |
+| channel | ✅ Yes |
+| round_bar | ✅ Yes |
+| tube_round | ✅ Yes |
+| tube_square | ✅ Yes |
+| plate | ✅ Yes |
+| machined | ❌ No |
+| turned | ❌ No |
+| purchased | ❌ No |
+| weldment | ❌ No (sub-assembly; children already counted) |
+| fastener | ❌ No |
+| unknown / blank | ⚠️ Flag — manual review required, never silently included |
+
+Classification source: Part_Type field from PPM_ExportPartData feature extraction. Macro development for complete Part_Type coverage is in progress (OQ-128 scope).
+
+**D-593** Total Assembly Weight is a separate info field shown in Main Review summary below the RAW MATERIALS block. Calculated as Σ(Mass_kg × qty) for all parts in the assembly including purchased components, hardware, fittings, and sub-assemblies. Used for logistics costing, crane/handling planning, and customer documentation. Not used in material cost calculation.
+
+**D-594** Weight data source rule (generalised from D-591 and mass audit finding July 2025): Part masses in any PPM cost output must always originate from `Mass_kg` in PPM_ExportPartData feature extraction output. Session estimates, BOM analysis approximations, geometry back-calculation, and cross-session data carry-over are explicitly forbidden as mass sources. Root cause of 14/19 mass errors in PPM_Estimator_CostReport_v1 was use of session estimates instead of the feature extraction files that were present in uploads throughout. Corrective action: all future Excel builds read mass directly from feature extraction file before writing any part row.

@@ -175,3 +175,18 @@ Per source:
     function's embedded token (recover via `get_edge_function` if not
     already in context -- never store the token in memory). Supersedes the
     per-session sb_secret_ key ritual (D-181).
+
+
+## Weight / Mass Data Source
+
+All part masses used in cost calculations, material estimates, assembly weight, or any downstream output must originate from the `Mass_kg` field in PPM_ExportPartData feature extraction output (Inventor iProperties). No other source is acceptable.
+
+**Forbidden sources:** session estimates, geometry approximations, BOM analysis outputs, cross-session data carry-over, manual entry without feature extraction backing.
+
+If feature extraction has not been run for a part or assembly, the mass cell must be left blank with a yellow fill and an explicit "UNVERIFIED — run PPM_ExportPartData" label. A zero or a guess is worse than a blank because it silently corrupts downstream calculations.
+
+This rule was established after a mass audit (July 2025) found 14/19 diesel tank parts wrong in PPM_Estimator_CostReport_v1 due to session estimates being used instead of the feature extraction files that were present in uploads throughout. Total mass error: 91 kg on diesel parts alone (140 kg estimated vs 231 kg actual from Inventor).
+
+## Raw Material Classification
+
+For raw material cost calculation, only parts with qualifying `Part_Type` values from PPM_ExportPartData are included. See D-592 for the full table. Parts classified as `purchased`, `machined`, `turned`, `fastener`, or `weldment` are excluded. Parts with `unknown` or blank Part_Type must be flagged for manual review — never silently included or excluded.
