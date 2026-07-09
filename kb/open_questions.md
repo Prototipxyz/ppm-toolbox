@@ -721,3 +721,9 @@ correctly minimal rather than garbage-filled.
 
 | OQ-189 | The 104 mm/min blended rate and 1.09 calibration factor (D-595) are from one confirmed job (80000-00 UWC, 40 h, 68,960 mm). Both provisional — single-job anchors. On next completed UWC job: log actual hours vs. formula prediction to check stability of 1.09. Separately, the gap between WPS arc speed (650 mm/min) and implied effective rate (104 mm/min) suggests ~3 % arc-on efficiency for EN 15085 certified SS tank work — far below D-315 default (45 %). Whether this reflects EN 15085 inspection pauses, crane repositioning density, or product-family geometry is unresolved. Timed arc-on vs. total-time split from external welder on next job would resolve it. | Next UWC tank job |
 
+
+---
+
+**OQ-189** [OPEN] Path efficiency factor calibration: current data covers 1mm SS (22.7%), 3mm SS (~57%), 6mm SS (~50%), 2mm S235 (~80%) from a single job. Need calibration across: (a) more material/thickness combinations, (b) varying part complexity (simple vs dense-hole), (c) both SPRINT4020 and Prima Power. Each new job with Bystronic CAM report provides calibration data. Target: efficiency factor table indexed by material, thickness, and pierce_density (piercings/m of cut). Until then default = 50%.
+
+**OQ-190** [OPEN] Lead-in/lead-out correction: DXF layer 0 underestimates Bystronic cut length by 2.6% because CAM-added lead-in/lead-out paths are not in the DXF geometry. Decision needed: (a) apply fixed +2.6% correction factor to all DXF-derived cut lengths, (b) calculate lead-in/lead-out from pierce count × standard lead length, or (c) leave uncorrected given acceptable estimation error. Needs more jobs to confirm 2.6% is consistent across part types.

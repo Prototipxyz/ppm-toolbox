@@ -2918,3 +2918,87 @@ Classification source: Part_Type field from PPM_ExportPartData feature extractio
 
 - **D-598: PPM Estimator weld costing uses norms formula (System 1) as primary; WPS rate table (System 2) as parallel reference only.** System 1 inputs: seam_mm (from drawing callouts) or steel_kg (early proxy). Formula per D-595. Wire auto-calculated (hours × 0.1875 × €16.1966). Internal/external toggle changes cost rate (OP-016 €50/h internal vs €25/h external labour) but not time. System 2 (D-312–D-321 rate table) kept as a reference sheet — not yet calibrated for EN 15085 certified SS tank arc-on efficiency; implied efficiency from this job is ~3 %, far below D-315's 45 % default, gap unexplained without a timed arc-on breakdown. Rate table promoted to primary once per-product-family efficiency factor is calibrated from real logged jobs.
 
+
+---
+
+**D-595** PPM Estimator laser cutting calculation pipeline — validated against Bystronic CAM (9 Jul 2026):
+
+```
+INPUT:  DXF flat pattern (PPM_ExportFlatPattern output)
+        material + thickness (feature extraction iProperties)
+
+STEP 1: Parse DXF, layer 0 only
+        Sum all entity lengths: LINE, ARC, CIRCLE, LWPOLYLINE (closed)
+        → total_cut_length_mm
+
+STEP 2: Count closed contours on layer 0
+        CIRCLE count + closed LWPOLYLINE count + 1 (outer profile)
+        → pierce_count
+
+STEP 3: Look up presets.json for the machine in use
+        → speed_mm_min = presets[machine][material][thickness]['cut_speed_mm_min']
+        → pierce_time_s = presets[machine][material][thickness]['pierce_time_sec']
+
+STEP 4: Apply path efficiency factor (see D-599)
+        → effective_speed = speed_mm_min × efficiency_factor
+
+STEP 5: time_min = (cut_length_mm / effective_speed) + (pierce_count × pierce_time_s / 60)
+```
+
+Validated: DXF-derived cut length vs Bystronic simulation = 2.6% difference (lead-in/lead-out gap). Time formula vs Prima Power CAM actual = 2.3% difference. Pipeline is production-ready pending efficiency factor calibration (OQ-189).
+
+**D-596** DXF layer filtering rule for laser cut length calculation: **layer `0` only** contains cutting geometry (outer profile + all interior features). Layer `IV_BEND_DOWN` contains bend reference lines and must be **excluded**. All other non-zero layers must also be excluded. Mixing IV_BEND_DOWN into cut length causes 48%+ overestimate. Validated on NR01481349.9, .10, .11 (9 Jul 2026).
+
+**D-597** Pierce count methodology: count CIRCLE entities + closed LWPOLYLINE entities on layer 0. The outer profile counts as 1 additional pierce. Total = circles + closed_polylines + 1. Validated: DXF contour count matches Prima Power CAM nesting ICONS pierce count exactly for all three AdBlue 1mm SS parts.
+
+**D-598** Cut length accuracy baseline: DXF layer 0 total vs Bystronic simulation total = **−2.6%** (DXF underestimates). Source of gap: lead-in/lead-out paths added by CAM software around each pierce point — these are not present in the raw DXF geometry. Acceptable for estimation purposes. If correction needed, apply +2.6% factor to DXF-derived cut length. Decision: leave uncorrected until more jobs are measured (OQ-190).
+
+**D-599** Path efficiency factor: `effective_speed = rated_speed × efficiency_factor`. Rated speed from presets.json is straight-line maximum speed. Real parts with corners, small radii, and dense hole patterns cause constant deceleration, reducing effective average speed. Calibration data from AdBlue 1mm SS job (9 Jul 2026):
+
+| Material | Thickness | Pierce density | Efficiency | Effective speed |
+|---|---|---|---|---|
+| 1.4404 SS | 1mm | high (24–26 holes/part) | 22.7% | 2,269 mm/min |
+| 1.4404 SS | 3mm | low (3 holes/part) | ~57% | ~2,336 mm/min |
+| 1.4404 SS | 6mm | very low (2 holes/4 pcs) | ~50% | ~1,163 mm/min |
+| S235JR | 2mm | very low (C-rail) | ~80% | ~4,879 mm/min |
+
+Default for Estimator: 50% (conservative) until further jobs calibrated. Efficiency will become part-complexity-aware once OQ-189 is resolved.
+
+**D-600** Validated SPRINT4020 presets.json entries for AdBlue/Diesel job materials (source: presets.json, cross-referenced against Bystronic simulation):
+
+| Material | t mm | Gas | Speed mm/min | Pierce s |
+|---|---|---|---|---|
+| Stainless Steel | 1 | N2 | 10,000 | 0.08 |
+| Stainless Steel | 3 | N2 | 4,100 | 0.08 |
+| Stainless Steel | 6 | N2 | 2,300 | 0.50 |
+| Stainless Steel | 10 | N2 | 1,200 | 1.00 |
+| Mild Steel | 2 | N2 | 6,100 | 0.08 |
+| Mild Steel | 3 | N2 | 4,000 | 0.08 |
+| Mild Steel | 5 | N2 | 2,500 | 0.30 |
+| Mild Steel | 8 | O2 | 2,400 | 0.50 |
+| Mild Steel | 12 | O2 | 1,600 | 0.60 |
+
+**D-601** Second laser at Stirg identified: **Prima Power LHS 1530 CP4000** (internal code PLTHS1530_CP4000). Previously listed as "unnamed second laser" in machine fleet. CAM software: Prima Power CAD\CAM Maestro Nesting. The AdBlue 1mm SS parts were cut on this machine. Bystronic SPRINT4020 is the primary laser; Prima Power is secondary. Presets.json covers SPRINT4020 only — Prima Power parameter file not yet sourced.
+
+**D-602** Bystronic CAM operating cost rates (consumables only, operator=0) observed for AdBlue job:
+
+| Material | Thickness | Rate €/h | Op cost/sheet |
+|---|---|---|---|
+| S235JR | 2mm | 13.67 | €0.16 |
+| 1.4404 SS | 1mm | 18.05 | €1.86 |
+| 1.4404 SS | 3mm | 25.21 | €2.08 |
+| 1.4404 SS | 6mm | 26.90 | €1.14 |
+| 1.4404 SS | 10mm | 38.34 | €11.60 |
+
+These are machine consumable costs only (electricity, gas, maintenance). Labour and overhead are separate. Our internal rate of €180/h covers machine + labour + overhead and is not comparable to these figures.
+
+**D-603** Validated per-part DXF cut data for AdBlue 1mm SS parts (NR01481349.9, .10, .11), confirmed against Bystronic simulation 14,192.73 mm total:
+
+| Part | Cut length (DXF L0) | Piercings | CAM time (Prima Power) |
+|---|---|---|---|
+| NR01481349.9 | 4,371.77 mm | 17 | 1:51 |
+| NR01481349.10 | 5,013.77 mm | 27 | 2:15 |
+| NR01481349.11 | 4,435.20 mm | 25 | 2:02 |
+| **Total** | **13,820.73 mm** | **69** | **6:08** |
+
+DXF total vs Bystronic: 13,820.73 vs 14,192.73 mm = −2.6% (lead-in/lead-out gap, D-598).

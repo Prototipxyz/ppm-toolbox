@@ -190,3 +190,44 @@ This rule was established after a mass audit (July 2025) found 14/19 diesel tank
 ## Raw Material Classification
 
 For raw material cost calculation, only parts with qualifying `Part_Type` values from PPM_ExportPartData are included. See D-592 for the full table. Parts classified as `purchased`, `machined`, `turned`, `fastener`, or `weldment` are excluded. Parts with `unknown` or blank Part_Type must be flagged for manual review — never silently included or excluded.
+
+## Laser Cut Time Calculation (PPM Estimator)
+
+### Pipeline
+1. Read DXF flat pattern exported by PPM_ExportFlatPattern
+2. Filter to layer `0` only — this is the only cutting layer
+3. Sum all entity lengths (LINE, ARC, CIRCLE, LWPOLYLINE closed segments)
+4. Count closed contours: CIRCLE count + closed LWPOLYLINE count + 1 (outer profile) = pierce count
+5. Look up `cut_speed_mm_min` and `pierce_time_sec` from presets.json for machine + material + thickness
+6. Apply path efficiency factor (see D-599)
+7. `time_min = (cut_length_mm / effective_speed) + (pierce_count × pierce_time_sec / 60)`
+
+### Layer rules
+- **Layer `0`**: all cutting entities — include in calculation
+- **Layer `IV_BEND_DOWN`**: bend reference lines — always exclude
+- All other layers: exclude unless explicitly documented as cutting layers
+
+### Efficiency factor
+`effective_speed = rated_speed × efficiency_factor`
+
+Efficiency factor accounts for machine deceleration through corners, small radii, and short segments. Rated speed from presets.json applies only to long straight cuts.
+
+| Complexity | Example | Efficiency |
+|---|---|---|
+| Low — few features, large straights | outer profile only | ~80% |
+| Medium — some holes, moderate corners | typical bracket | ~50% |
+| High — many holes, dense features | 1mm SS panel, 25 piercings | ~23% |
+
+Default: 50% until calibrated for specific part type. Each job with Bystronic CAM report adds calibration data (OQ-189).
+
+### Accuracy baseline (validated 9 Jul 2026)
+- DXF cut length vs Bystronic simulation: −2.6% (lead-in/lead-out gap)
+- Time formula vs Prima Power actual: +2.3% 
+- Both within acceptable estimation range
+
+### presets.json structure
+```
+presets['machines']['SPRINT4020']['rates'] → list of entries
+Each entry: {material, thickness_mm, gas, cut_speed_mm_min, pierce_time_sec, ...}
+```
+Machine key for Stirg primary laser: `SPRINT4020`
