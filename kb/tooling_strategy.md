@@ -189,7 +189,7 @@ This rule was established after a mass audit (July 2025) found 14/19 diesel tank
 
 ## Raw Material Classification
 
-For raw material cost calculation, only parts with qualifying `Part_Type` values from PPM_ExportPartData are included. See D-592 for the full table. Parts classified as `purchased`, `machined`, `turned`, `fastener`, or `weldment` are excluded. Parts with `unknown` or blank Part_Type must be flagged for manual review — never silently included or excluded.
+For raw material cost calculation, only parts with qualifying `Part_Type` values from PPM_ExportPartData are included. See D-604 for the full table. Parts classified as `purchased`, `machined`, `turned`, `fastener`, or `weldment` are excluded. Parts with `unknown` or blank Part_Type must be flagged for manual review — never silently included or excluded.
 
 ## Laser Cut Time Calculation (PPM Estimator)
 
@@ -199,7 +199,7 @@ For raw material cost calculation, only parts with qualifying `Part_Type` values
 3. Sum all entity lengths (LINE, ARC, CIRCLE, LWPOLYLINE closed segments)
 4. Count closed contours: CIRCLE count + closed LWPOLYLINE count + 1 (outer profile) = pierce count
 5. Look up `cut_speed_mm_min` and `pierce_time_sec` from presets.json for machine + material + thickness
-6. Apply path efficiency factor (see D-599)
+6. Apply path efficiency factor (see D-611)
 7. `time_min = (cut_length_mm / effective_speed) + (pierce_count × pierce_time_sec / 60)`
 
 ### Layer rules
@@ -218,7 +218,7 @@ Efficiency factor accounts for machine deceleration through corners, small radii
 | Medium — some holes, moderate corners | typical bracket | ~50% |
 | High — many holes, dense features | 1mm SS panel, 25 piercings | ~23% |
 
-Default: 50% until calibrated for specific part type. Each job with Bystronic CAM report adds calibration data (OQ-189).
+Default: 50% until calibrated for specific part type. Each job with Bystronic CAM report adds calibration data (OQ-190).
 
 ### Accuracy baseline (validated 9 Jul 2026)
 - DXF cut length vs Bystronic simulation: −2.6% (lead-in/lead-out gap)

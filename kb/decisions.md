@@ -2865,7 +2865,7 @@ assemblies/hardware.
 
 **D-587** Drill run norms corrected: plain hole = **6 sec/hole**, tapped hole = **8 sec/hole** (total, covering drill+tap combined). Supersedes any prior value. Applied in PPM_Estimator_CostReport_v2.xlsx and all future cost reports. Source: Norms_and_Rates_4_.xlsx confirmed this session.
 
-**D-588** Laser rate confirmed: LAS-01 (Bystronic SPRINT4020) internal = **€180/h** (€162 machine + €18 labour), quoted = **€234/h** (×1.30 markup). Derived from Norms_and_Rates_4_.xlsx machine registry. Closes OQ-174.
+**D-588** Laser rate confirmed: LAS-01 (Bystronic SPRINT4020) internal = **€180/h** (€162 machine + €18 labour), quoted = **€234/h** (×1.30 markup). Derived from Norms_and_Rates_4_.xlsx machine registry. Closes OQ-174. **SUPERSEDED (9 Jul 2026) by UWC D-593 boss correction: LAS-01 all-in = €162/h internal / €210.60 quoted — the €180 figure double-counted labour.**
 
 **D-589** OP-021 (Sealing) and OP-022 (Final Fitting) consolidated into OP-020 (Assembly) in Excel cost reports for this project. Both operations are too granular to time separately at current calibration level and are folded into the assembly per-part-instance model (D-576). Applies to PPM_Estimator_CostReport_v2.xlsx only — they remain separate in the Norms sheet and Estimator for future calibration.
 
@@ -2878,7 +2878,7 @@ assemblies/hardware.
 - Units: steel by kg, ArmaFlex by m² — nesting efficiency applies to both.
 - Displayed in Main Review summary as a dedicated RAW MATERIALS block separate from operation costs.
 
-**D-592** Part_Type qualification table for raw material calculation inclusion:
+**D-604** Part_Type qualification table for raw material calculation inclusion:
 
 | Part_Type | Include in raw material cost? |
 |---|---|
@@ -2899,9 +2899,9 @@ assemblies/hardware.
 
 Classification source: Part_Type field from PPM_ExportPartData feature extraction. Macro development for complete Part_Type coverage is in progress (OQ-128 scope).
 
-**D-593** Total Assembly Weight is a separate info field shown in Main Review summary below the RAW MATERIALS block. Calculated as Σ(Mass_kg × qty) for all parts in the assembly including purchased components, hardware, fittings, and sub-assemblies. Used for logistics costing, crane/handling planning, and customer documentation. Not used in material cost calculation.
+**D-605** Total Assembly Weight is a separate info field shown in Main Review summary below the RAW MATERIALS block. Calculated as Σ(Mass_kg × qty) for all parts in the assembly including purchased components, hardware, fittings, and sub-assemblies. Used for logistics costing, crane/handling planning, and customer documentation. Not used in material cost calculation.
 
-**D-594** Weight data source rule (generalised from D-591 and mass audit finding July 2025): Part masses in any PPM cost output must always originate from `Mass_kg` in PPM_ExportPartData feature extraction output. Session estimates, BOM analysis approximations, geometry back-calculation, and cross-session data carry-over are explicitly forbidden as mass sources. Root cause of 14/19 mass errors in PPM_Estimator_CostReport_v1 was use of session estimates instead of the feature extraction files that were present in uploads throughout. Corrective action: all future Excel builds read mass directly from feature extraction file before writing any part row.
+**D-606** Weight data source rule (generalised from D-591 and mass audit finding July 2025): Part masses in any PPM cost output must always originate from `Mass_kg` in PPM_ExportPartData feature extraction output. Session estimates, BOM analysis approximations, geometry back-calculation, and cross-session data carry-over are explicitly forbidden as mass sources. Root cause of 14/19 mass errors in PPM_Estimator_CostReport_v1 was use of session estimates instead of the feature extraction files that were present in uploads throughout. Corrective action: all future Excel builds read mass directly from feature extraction file before writing any part row.
 ## Machine Rate Corrections & UWC Weld Costing Norms (D-592 to D-598)
 
 - **D-592: WLD machine rate corrected from €50 → €32/h; OP-016 now €50/h internal, €65/h quoted.** Root cause: machine rate had already absorbed operator labour (same structure as laser: machine-only + €18 labour = all-in total). Labour was then added again in OP-016, producing the erroneous €68/h. Boss confirmed €50/h all-in for welding (analogous to laser at €162/h all-in). Machine-only = 50−18 = €32/h. Source note updated in Norms_and_Rates_5_.xlsx.
@@ -2921,7 +2921,7 @@ Classification source: Part_Type field from PPM_ExportPartData feature extractio
 
 ---
 
-**D-595** PPM Estimator laser cutting calculation pipeline — validated against Bystronic CAM (9 Jul 2026):
+**D-607** PPM Estimator laser cutting calculation pipeline — validated against Bystronic CAM (9 Jul 2026):
 
 ```
 INPUT:  DXF flat pattern (PPM_ExportFlatPattern output)
@@ -2939,21 +2939,21 @@ STEP 3: Look up presets.json for the machine in use
         → speed_mm_min = presets[machine][material][thickness]['cut_speed_mm_min']
         → pierce_time_s = presets[machine][material][thickness]['pierce_time_sec']
 
-STEP 4: Apply path efficiency factor (see D-599)
+STEP 4: Apply path efficiency factor (see D-611)
         → effective_speed = speed_mm_min × efficiency_factor
 
 STEP 5: time_min = (cut_length_mm / effective_speed) + (pierce_count × pierce_time_s / 60)
 ```
 
-Validated: DXF-derived cut length vs Bystronic simulation = 2.6% difference (lead-in/lead-out gap). Time formula vs Prima Power CAM actual = 2.3% difference. Pipeline is production-ready pending efficiency factor calibration (OQ-189).
+Validated: DXF-derived cut length vs Bystronic simulation = 2.6% difference (lead-in/lead-out gap). Time formula vs Prima Power CAM actual = 2.3% difference. Pipeline is production-ready pending efficiency factor calibration (OQ-190).
 
-**D-596** DXF layer filtering rule for laser cut length calculation: **layer `0` only** contains cutting geometry (outer profile + all interior features). Layer `IV_BEND_DOWN` contains bend reference lines and must be **excluded**. All other non-zero layers must also be excluded. Mixing IV_BEND_DOWN into cut length causes 48%+ overestimate. Validated on NR01481349.9, .10, .11 (9 Jul 2026).
+**D-608** DXF layer filtering rule for laser cut length calculation: **layer `0` only** contains cutting geometry (outer profile + all interior features). Layer `IV_BEND_DOWN` contains bend reference lines and must be **excluded**. All other non-zero layers must also be excluded. Mixing IV_BEND_DOWN into cut length causes 48%+ overestimate. Validated on NR01481349.9, .10, .11 (9 Jul 2026).
 
-**D-597** Pierce count methodology: count CIRCLE entities + closed LWPOLYLINE entities on layer 0. The outer profile counts as 1 additional pierce. Total = circles + closed_polylines + 1. Validated: DXF contour count matches Prima Power CAM nesting ICONS pierce count exactly for all three AdBlue 1mm SS parts.
+**D-609** Pierce count methodology: count CIRCLE entities + closed LWPOLYLINE entities on layer 0. The outer profile counts as 1 additional pierce. Total = circles + closed_polylines + 1. Validated: DXF contour count matches Prima Power CAM nesting ICONS pierce count exactly for all three AdBlue 1mm SS parts.
 
-**D-598** Cut length accuracy baseline: DXF layer 0 total vs Bystronic simulation total = **−2.6%** (DXF underestimates). Source of gap: lead-in/lead-out paths added by CAM software around each pierce point — these are not present in the raw DXF geometry. Acceptable for estimation purposes. If correction needed, apply +2.6% factor to DXF-derived cut length. Decision: leave uncorrected until more jobs are measured (OQ-190).
+**D-610** Cut length accuracy baseline: DXF layer 0 total vs Bystronic simulation total = **−2.6%** (DXF underestimates). Source of gap: lead-in/lead-out paths added by CAM software around each pierce point — these are not present in the raw DXF geometry. Acceptable for estimation purposes. If correction needed, apply +2.6% factor to DXF-derived cut length. Decision: leave uncorrected until more jobs are measured (OQ-191).
 
-**D-599** Path efficiency factor: `effective_speed = rated_speed × efficiency_factor`. Rated speed from presets.json is straight-line maximum speed. Real parts with corners, small radii, and dense hole patterns cause constant deceleration, reducing effective average speed. Calibration data from AdBlue 1mm SS job (9 Jul 2026):
+**D-611** Path efficiency factor: `effective_speed = rated_speed × efficiency_factor`. Rated speed from presets.json is straight-line maximum speed. Real parts with corners, small radii, and dense hole patterns cause constant deceleration, reducing effective average speed. Calibration data from AdBlue 1mm SS job (9 Jul 2026):
 
 | Material | Thickness | Pierce density | Efficiency | Effective speed |
 |---|---|---|---|---|
@@ -2962,9 +2962,9 @@ Validated: DXF-derived cut length vs Bystronic simulation = 2.6% difference (lea
 | 1.4404 SS | 6mm | very low (2 holes/4 pcs) | ~50% | ~1,163 mm/min |
 | S235JR | 2mm | very low (C-rail) | ~80% | ~4,879 mm/min |
 
-Default for Estimator: 50% (conservative) until further jobs calibrated. Efficiency will become part-complexity-aware once OQ-189 is resolved.
+Default for Estimator: 50% (conservative) until further jobs calibrated. Efficiency will become part-complexity-aware once OQ-190 is resolved.
 
-**D-600** Validated SPRINT4020 presets.json entries for AdBlue/Diesel job materials (source: presets.json, cross-referenced against Bystronic simulation):
+**D-612** Validated SPRINT4020 presets.json entries for AdBlue/Diesel job materials (source: presets.json, cross-referenced against Bystronic simulation):
 
 | Material | t mm | Gas | Speed mm/min | Pierce s |
 |---|---|---|---|---|
@@ -2978,9 +2978,9 @@ Default for Estimator: 50% (conservative) until further jobs calibrated. Efficie
 | Mild Steel | 8 | O2 | 2,400 | 0.50 |
 | Mild Steel | 12 | O2 | 1,600 | 0.60 |
 
-**D-601** Second laser at Stirg identified: **Prima Power LHS 1530 CP4000** (internal code PLTHS1530_CP4000). Previously listed as "unnamed second laser" in machine fleet. CAM software: Prima Power CAD\CAM Maestro Nesting. The AdBlue 1mm SS parts were cut on this machine. Bystronic SPRINT4020 is the primary laser; Prima Power is secondary. Presets.json covers SPRINT4020 only — Prima Power parameter file not yet sourced.
+**D-613** Second laser at Stirg identified: **Prima Power LHS 1530 CP4000** (internal code PLTHS1530_CP4000). Previously listed as "unnamed second laser" in machine fleet. CAM software: Prima Power CAD\CAM Maestro Nesting. The AdBlue 1mm SS parts were cut on this machine. Bystronic SPRINT4020 is the primary laser; Prima Power is secondary. Presets.json covers SPRINT4020 only — Prima Power parameter file not yet sourced.
 
-**D-602** Bystronic CAM operating cost rates (consumables only, operator=0) observed for AdBlue job:
+**D-614** Bystronic CAM operating cost rates (consumables only, operator=0) observed for AdBlue job:
 
 | Material | Thickness | Rate €/h | Op cost/sheet |
 |---|---|---|---|
@@ -2992,7 +2992,7 @@ Default for Estimator: 50% (conservative) until further jobs calibrated. Efficie
 
 These are machine consumable costs only (electricity, gas, maintenance). Labour and overhead are separate. Our internal rate of €180/h covers machine + labour + overhead and is not comparable to these figures.
 
-**D-603** Validated per-part DXF cut data for AdBlue 1mm SS parts (NR01481349.9, .10, .11), confirmed against Bystronic simulation 14,192.73 mm total:
+**D-615** Validated per-part DXF cut data for AdBlue 1mm SS parts (NR01481349.9, .10, .11), confirmed against Bystronic simulation 14,192.73 mm total:
 
 | Part | Cut length (DXF L0) | Piercings | CAM time (Prima Power) |
 |---|---|---|---|
@@ -3002,3 +3002,18 @@ These are machine consumable costs only (electricity, gas, maintenance). Labour 
 | **Total** | **13,820.73 mm** | **69** | **6:08** |
 
 DXF total vs Bystronic: 13,820.73 vs 14,192.73 mm = −2.6% (lead-in/lead-out gap, D-598).
+
+
+---
+
+**D-616** OP-011 drill run norms confirmed by Voja (9 Jul 2026): **6 s/hole plain, 8 s/hole tapped**. Supersedes the 36/72 s figures in D-574 and Norms_and_Rates_5. Setup weight tiers (Light 20s / Medium 40s / Heavy 90s / Crane 180s) unchanged.
+
+**D-617** OP-013 weld grinding basis confirmed **per metre**: 3 min/m of weld length (D-535 stands). Per-piece 6/15 min values removed from the Norms sheet.
+
+**D-618** OP-021 Sealing and OP-022 Final Fitting remain **separate operations** in all cost reports going forward. Supersedes the D-589 Excel-v2-only consolidation into OP-020.
+
+**D-619** Weld time formula `total_h = (seam_mm ÷ 104 ÷ 0.30) × 1.09` (UWC D-595) applies to **all jobs**, not UWC-only, until refined by data from future jobs. Wire auto-cost (h × 0.1875 kg/h × €16.1966/kg) travels with it. OQ-189 (UWC) calibration tracking continues.
+
+**D-620** Materials sheet multi-supplier price model confirmed: named supplier columns per material — Metalmania d.o.o. added first (VP ex-VAT, Cenovnik 2026-07-09, FX 117), further suppliers to follow; Best Price column stays manual. Per-thickness supplier price block added for thickness-dependent pricing: S235 TVL €1.13–1.24/kg (2–12mm) vs €1.88–1.91/kg heavy plate (≥15mm); DC01 HVL €1.36/kg flat; 1.4301 €6.73/kg flat; AL (5754/ALMg3) €7.70/kg; Cu-ETP €16.91/kg. SS_1.4404 not stocked at Metalmania in project thicknesses — no price recorded (0.8mm premium ref only, not a basis). Seven material codes added: ST_DX51D (galvanized 1.31–1.67), ST_C45 (1.58–2.09), ST_51CrV4 (4.18), ST_50Mn7 (6.79), ST_HARDOX (2.74), ST_P265GH/KOTLIM (1.25), ST_S235REB tread (~1.50 approx). Ten sheet formats added (1250×2000, 1250×3000, 1500×2000, 1500×3000, 1510×3000, 1510×6000, 1500×6000, 2000×3000, 2000×6000, 2800×1500). Anomalies flagged, excluded from pricing basis: PR LIM 10×1000×1000 (€2.02/kg) and TVL 40mm (€1.22/kg at heavy-plate thickness).
+
+**D-621** D/OQ-number collision remediation: this chat's original D-592–D-603 renumbered to **D-604–D-615**; the UWC chat's D-592–D-598 retain their numbers. This chat's OQ-189/OQ-190 renumbered to **OQ-190/OQ-191**; UWC's OQ-189 retained. Root cause: two parallel sessions read the same last-number and pushed independently. Mitigation: always re-read last D/OQ number immediately before push.
