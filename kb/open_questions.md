@@ -727,3 +727,8 @@ correctly minimal rather than garbage-filled.
 **OQ-190** [OPEN] Path efficiency factor calibration: current data covers 1mm SS (22.7%), 3mm SS (~57%), 6mm SS (~50%), 2mm S235 (~80%) from a single job. Need calibration across: (a) more material/thickness combinations, (b) varying part complexity (simple vs dense-hole), (c) both SPRINT4020 and Prima Power. Each new job with Bystronic CAM report provides calibration data. Target: efficiency factor table indexed by material, thickness, and pierce_density (piercings/m of cut). Until then default = 50%.
 
 **OQ-191** [OPEN] Lead-in/lead-out correction: DXF layer 0 underestimates Bystronic cut length by 2.6% because CAM-added lead-in/lead-out paths are not in the DXF geometry. Decision needed: (a) apply fixed +2.6% correction factor to all DXF-derived cut lengths, (b) calculate lead-in/lead-out from pierce count × standard lead length, or (c) leave uncorrected given acceptable estimation error. Needs more jobs to confirm 2.6% is consistent across part types.
+
+
+---
+
+**OQ-190 progress update (10 Jul 2026):** S235 branch now has 4 anchor points (2/3/5/8mm) from Bystronic Diesel Tank CAM. Remaining gaps: 10/12mm N2 and 17/25/40mm O2 still extrapolated. Efficiency curve shape now clearer — peaks ~5mm, drops both ways. See D-622 for full calibration table and updated interim values.

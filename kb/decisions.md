@@ -3017,3 +3017,26 @@ DXF total vs Bystronic: 13,820.73 vs 14,192.73 mm = −2.6% (lead-in/lead-out ga
 **D-620** Materials sheet multi-supplier price model confirmed: named supplier columns per material — Metalmania d.o.o. added first (VP ex-VAT, Cenovnik 2026-07-09, FX 117), further suppliers to follow; Best Price column stays manual. Per-thickness supplier price block added for thickness-dependent pricing: S235 TVL €1.13–1.24/kg (2–12mm) vs €1.88–1.91/kg heavy plate (≥15mm); DC01 HVL €1.36/kg flat; 1.4301 €6.73/kg flat; AL (5754/ALMg3) €7.70/kg; Cu-ETP €16.91/kg. SS_1.4404 not stocked at Metalmania in project thicknesses — no price recorded (0.8mm premium ref only, not a basis). Seven material codes added: ST_DX51D (galvanized 1.31–1.67), ST_C45 (1.58–2.09), ST_51CrV4 (4.18), ST_50Mn7 (6.79), ST_HARDOX (2.74), ST_P265GH/KOTLIM (1.25), ST_S235REB tread (~1.50 approx). Ten sheet formats added (1250×2000, 1250×3000, 1500×2000, 1500×3000, 1510×3000, 1510×6000, 1500×6000, 2000×3000, 2000×6000, 2800×1500). Anomalies flagged, excluded from pricing basis: PR LIM 10×1000×1000 (€2.02/kg) and TVL 40mm (€1.22/kg at heavy-plate thickness).
 
 **D-621** D/OQ-number collision remediation: this chat's original D-592–D-603 renumbered to **D-604–D-615**; the UWC chat's D-592–D-598 retain their numbers. This chat's OQ-189/OQ-190 renumbered to **OQ-190/OQ-191**; UWC's OQ-189 retained. Root cause: two parallel sessions read the same last-number and pushed independently. Mitigation: always re-read last D/OQ number immediately before push.
+
+
+---
+
+**D-622** S235JR path efficiency calibrated against Bystronic CAM (Diesel Tank job, 10 Jul 2026). Four new anchor points added; previous S235 model (single anchor at 2mm=80%) was demonstrated 32% too optimistic on average across the sheet. Blended efficiency (path + pierce + lead-in/out combined, from full CAM cycle time) per material/thickness/gas:
+
+| Material | t mm | Gas | Old eff | **New eff (CAM)** | Basis |
+|---|---|---|---|---|---|
+| S235JR | 2  | N2 | 80.0% | **37.4%** | 18,157.57 mm / 7:58 |
+| S235JR | 3  | N2 | 72.0% | **41.5%** | 15,950.24 mm / 9:37 |
+| S235JR | 5  | N2 | 62.0% | **54.7%** | 17,867.05 mm / 13:04 |
+| S235JR | 8  | N2 | 80.0% | **56.2%** | 6,425.51 mm / 4:46 |
+
+Curve shape: efficiency peaks around 5mm (54.7%) and drops off in both directions. Thinner material → more small parts per sheet → more corners and rapid moves → lower blended eff. Thicker material → slower rated speed baseline → harder to hit peak fraction.
+
+Extrapolated adjustments for uncalibrated thicknesses (pending future CAM data):
+- 10mm N2: 83% → **55%** · 12mm N2: 85% → **52%** · 17mm O2: 75% → **45%** · 25mm O2: 55% → **35%** · 40mm O2: 30% → **20%** (flagged plasma).
+
+Prior 2mm anchor of 80% was derived from a 3-part C-Schiene nest with very simple geometry — not representative of production sheets with dense multi-part nests. This is now flagged as the general lesson: single-sheet anchors from atypical nests are misleading; calibration requires representative production sheets.
+
+Impact on PPM_Estimator_A004627.xlsx: laser cut hours per assembly go from 1.53 h → ~1.86 h (+0.33 h), Laser Cut cost from €248 → ~€301 internal (+0.8% of total assembly cost). Excel not updated — impact too small to justify a rebuild; new efficiencies will be applied on next job's cost report.
+
+Blended-efficiency approach (path + pierce + lead-in/out lumped together, derived from full CAM cycle time) confirmed as the operational model for the Estimator — it matches what a quote needs (total sheet cycle time) rather than requiring separate pierce count / lead length breakdowns per part.
