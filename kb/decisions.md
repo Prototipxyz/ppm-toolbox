@@ -3040,3 +3040,149 @@ Prior 2mm anchor of 80% was derived from a 3-part C-Schiene nest with very simpl
 Impact on PPM_Estimator_A004627.xlsx: laser cut hours per assembly go from 1.53 h → ~1.86 h (+0.33 h), Laser Cut cost from €248 → ~€301 internal (+0.8% of total assembly cost). Excel not updated — impact too small to justify a rebuild; new efficiencies will be applied on next job's cost report.
 
 Blended-efficiency approach (path + pierce + lead-in/out lumped together, derived from full CAM cycle time) confirmed as the operational model for the Estimator — it matches what a quote needs (total sheet cycle time) rather than requiring separate pierce count / lead length breakdowns per part.
+
+
+## Elbit/Yugoimport Y88178A-00 Turret Holder — Full Job Analysis (July 2026)
+
+**D-623** Full product hierarchy confirmed via direct PDF parts-list
+cross-reference (later independently re-verified by a full Claude Code
+folder audit): Y88178A-00 "Holder Alu, Painting" (top, no parent) →
+Y88179A-00 "Holder Alu Joint" → Y88159A-00 "SK Holder Alu Machining" →
+Y17742B-00 "Holder Al Welded" → two parallel shield-holder sub-assemblies
+(Y15451F-00 top / Y17751F-00 bottom, sharing 3 of 6 child PNs: strip and
+both pin types). One product, standard nested BOM — not parallel product
+variants or sequential lifecycle stages (an earlier hypothesis to that
+effect was raised and retracted as unsupported). Gear Sector (Y02974A-00),
+two altered screws (Y03234A-00/Y03233A-00), and Cradle Bushing (Y72699A-00)
+are direct children of Y88179A-00, not Y88159A-00.
+
+**D-624** Y88178A-00/Y88179A-00 confirmed to have NO STEP/CAD data anywhere
+in the client-provided ZIKA IZRAEL tree — PDF drawings only. Later-surfacing
+BOM export files (Structured_BOM.xlsx, Y88178A-00_PPM_BOM.xlsx) that appear
+rooted at Y88179A-00 are metadata/parts-list exports, not evidence of real
+geometry — confirmed by full tree audit finding no corresponding STEP file.
+
+**D-625** Order quantity for this job confirmed: 100 units.
+
+**D-626** Shield plate material lead: 06030-01069-01/-01070-01 drawings say
+"SEE ATTACHED MEDIA" for material, but each part's parent assembly parts
+list gives a real spec reference — "ELA121-034 per spec 060030-03015-0" —
+identical on both mirror parts. Actual material identity still unconfirmed.
+Yugoimport-sourcing note on these two drawings ("shall be manufacture at
+Yugoimport SDPR J.P.") confirmed moot — Stirg is the new manufacturer for
+this job, superseding the drawings' original intent.
+
+**D-627** Parts-list "Substitutes/Remarks" material notes confirmed
+unreliable against the referenced part's own drawing (case: Y15422A-00/
+Y15450A-00 remarks say "5086-H32", each part's own drawing says 5083 H321).
+Individual part drawing is authoritative when they conflict.
+
+**D-628** Y88178A-00 full paint spec: 3-coat system, each coat separately
+RAL-coded for inspection (anti-corrosive primer RAL 6013 → intermediate
+primer RAL 6003 → topcoat RAL 6031-F9), named Mankiewicz products
+(Seevenax/Alexit lines) with named Steicolor/Streicolor alternates per
+coat, total DFT 140-200 microns.
+
+**D-629** PORON 4701-50 (firm polyurethane foam) + 3M VHB Tape GPH-060GF
+(0.6mm, paint-bake-compatible acrylic foam tape) gasket confirmed present
+in BOTH shield-holder branches, ×4 each = ×8 total — verified by 5
+independent sources after an intermediate manual-tree-scan-based
+correction proved wrong. Function: cushion/seal between shield-plate shell
+and mounting strip. This component exists ONLY in the native Inventor
+assembly tree — invisible to PDF drawings and the client BOM.xlsm — a
+confirmed real methodology gap for PDF/BOM-only scope analysis, though the
+full tree audit confirms it is not a true orphan (properly tracked as a
+register line item, just identified by material spec instead of a PN).
+
+**D-630** Y15422A-00 (and, per instruction, Y17753A-00) restructured from a
+single 21mm-thick part into a 3-piece laminated assembly: Y15422A-00-A
+(10mm, solid outer-rectangle profile), Y15422A-00-B (1mm, outer+inner frame
+profile), Y15422A-00-C (10mm, outer+inner frame profile), joined by a new
+lamination-weld operation under parent PN Y15422A-00. Driven by a real
+43% material weight reduction (12.69kg laminated vs. 22.21kg solid-plate
+equivalent, both computed from confirmed real DXF geometry and cross-
+checked against the drawing's stated 11.811kg actual weight, ~7.5% delta).
+Bend radius confirmed: R292 outer/R271 inner, 104° sweep (self-validating —
+computed arc length 530.0mm matches the drawing's "530±1mm" callout).
+Working bend count: 7-8 per layer, all 3 layers matching, based on internal
+precedent (06030-01069-01's 9-bend curved shell) and practical smoothness/
+tooling tradeoffs. **This is an internally-proposed alternative
+manufacturing method, not customer-specified** — the released drawing
+specifies a single plate with zero welding information anywhere — and
+requires Elbit/Yugoimport approval (formal deviation/ECN) before being
+treated as a committed process. **Critical gap:** the source DXF
+(Y15422A-00-A_Frame.dxf) and this entire redesign exist ONLY in a Claude.ai
+chat conversation — confirmed via full server audit that no corresponding
+file exists anywhere in the ZIKA IZRAEL tree. Must be formally added to the
+project folder before it can inform actual manufacturing or survive beyond
+this conversation.
+
+**D-631** Lamination-weld operation geometry (per unit, both Plate Armor
+parts), all welds in this job confirmed at 3 passes given material
+thickness (10-21mm range): fillet weld (a3) 2336mm along the inner/second-
+sheet profile → 3.744h; V3 groove weld, intermittent 50mm/100mm-gap
+pattern on both 775mm sides (~500mm effective length) → 0.801h. Total
+4.545h/unit, 9.09h for both Plate Armor units. Stitch-segment arc-strike
+overhead (10 separate starts/stops for the V3 pattern) is not currently
+captured by the pure length-based weld formula — flagged, not resolved.
+
+**D-632** Y17742B-00 (outer welded holder) weld costing corrected to 3
+passes throughout: fillet welds 4212.8mm × 3 = 6.756h, groove welds
+5703.1mm × 3 = 9.14h (2× circumference at confirmed Ø608mm + 2× lengthwise
+at confirmed 942mm), total 15.90h. Weld bead source data (8 groove + 4
+fillet welds, Turela_Weld_Bead_Report.xls) confirmed generated from the
+ROOT-tree STEP file specifically (via embedded source path inside the
+report), not the doc\ copy — no re-costing needed despite a confirmed
+real (non-metadata) geometry difference between root and doc\ versions
+(root has additional small-radius holes at ~3.5/4/7.3/8.1mm that doc\
+lacks; cause unexplained, does not affect existing weld costing).
+
+**D-633** Y17744A-00/Y17745A-00 (flanges) real outsourced quote received:
+76,000 RSD PER PIECE — 152,000 RSD (€1,299.15) total for the pair, pending
+confirmation this is firm/final.
+
+**D-634** Real Serbian market pricing for 10mm EN AW 5083 (AlMg4.5Mn) plate
+cross-validated by two independent suppliers within 2% of each other:
+851-870 RSD/kg pre-VAT (€7.27-7.44/kg) — metalionline.com and
+prodajametala.rs. 1mm gauge in the same alloy confirmed stocked/available
+at multiple Serbian suppliers (aluminijum.rs, Nikoma, Buđućnost R Kać) but
+no firm price obtained yet.
+
+**D-635** Full ZIKA IZRAEL folder audit complete via Claude Code:
+"- Copy" folder confirmed byte-for-byte identical to the original (193/193
+files, full MD5 hash comparison, 0 mismatches) — either tree is
+authoritative. Stray *_1.STEP.ipt/.iam "twin" files sitting one folder
+level above their proper nested location confirmed systemic (14 of 16
+nested parts) — consistent with a normal Inventor "import STEP as part"
+workflow artifact, not corruption or data loss. Two exceptions
+(06030-01088-01/-089-01) lack a twin, cause unexplained, confirmed
+cosmetic only — both parts independently verified to have complete,
+correct real STEP geometry matching their BOM descriptions exactly. No
+true orphan files found anywhere in the 193-file tree.
+
+**D-636** Y17743A-00's properly-nested, PDF-paired STEP file
+(unY17743A-00RevB-.STEP, Released status) verified genuinely real and
+matching its drawing in depth (44 ADVANCED_FACE/24 CIRCLE/16
+CONICAL_SURFACE; 24.5mm chamfer and 336×802mm envelope both confirmed
+against the PDF) — an earlier "featureless plate" concern, raised from a
+CAD screenshot, does not reproduce against this file. Separately, its
+mass figure as previously reported (22.102kg, from a chat-uploaded
+Turela_Operations_list.txt never found on the server) is confirmed
+unreliable on physical grounds — surface area matches the verified STEP
+within 0.3%, but the implied density (~3.9-4.1 g/cm³) matches no real
+material in this job, indicating a calculation bug specific to that mass
+field rather than a wrong-source-file problem. Corrected estimate from
+verified geometry: ~15-16kg, pending real recalculation.
+
+**D-637** 06030-01069-01's small R5.0mm features confirmed as edge
+fillets, not holes, via direct STEP inspection (4-edge ADVANCED_FACE loops
+made of lines/splines; no paired CIRCLE entities at that radius anywhere
+in the file) — resolves a long-open ambiguity.
+
+**D-638** Y88159A-00 total surface area computed directly via OCP: 7.47 m²
+(7,473,926 mm²), volume 60,454,970 mm³. This is TOTAL area including
+internal bores/threads, not necessarily paintable external area — whether
+the Y88178A-00 finishing stage is dip (would use full area) or spray
+(would need a reduced external-only figure) determines which number
+should drive paint operation costing. No drawing weight value exists to
+sanity-check the implied mass at any candidate density.

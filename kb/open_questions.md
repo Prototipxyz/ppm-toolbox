@@ -732,3 +732,46 @@ correctly minimal rather than garbage-filled.
 ---
 
 **OQ-190 progress update (10 Jul 2026):** S235 branch now has 4 anchor points (2/3/5/8mm) from Bystronic Diesel Tank CAM. Remaining gaps: 10/12mm N2 and 17/25/40mm O2 still extrapolated. Efficiency curve shape now clearer — peaks ~5mm, drops both ways. See D-622 for full calibration table and updated interim values.
+
+
+## Elbit/Yugoimport Y88178A-00 Turret Holder — Open Items (July 2026)
+
+**OQ-192** [OPEN, blocks real costing] No CNC machining operation/rate
+exists in the Norms table (no OP-028) — blocks costing Y17743A-00/
+Y17744A-00/Y17745A-00 beyond the one real flange quote already received
+(D-633). Machine cut-speed library (Bystronic .par-derived) was never
+supplied for this job either — blocks real laser-time costing tree-wide.
+
+**OQ-193** [OPEN] Groove weld lengthwise dimension on Y17742B-00 (942mm,
+confirmed by Voja) and fillet-weld pass count (currently assumed 1×, not
+explicitly confirmed like the groove welds' confirmed 3×) — worth an
+explicit confirmation on the fillet pass count specifically.
+
+**OQ-194** [OPEN] Estimator's third sheet — "Report" (Voja's term) vs.
+"Quote" (established convention: order qty/margin%/risk%/profit) — asked
+multiple times this session, never resolved. Blocks finalizing the
+three-sheet structure.
+
+**OQ-195** [OPEN, low priority] Y17742B-00 Detail B (balloon "6", groove-
+like graphic near an edge) — best-supported reading is a key-dimension QA
+flag (matches the drawing's own Note 6 text), not an additional weld
+symbol, but not visually 100% confirmed by direct inspection.
+
+**OQ-196** [OPEN, high priority] Gear Sector (Y02974A-00), both altered
+screws (Y03234A-00/Y03233A-00), and Cradle Bushing (Y72699A-00) confirmed
+by full tree audit to have zero files anywhere in ZIKA IZRAEL. Must be
+requested directly from Elbit — no further file searching will locate them.
+
+**OQ-197** [OPEN, high priority] Y15422A-00-A_Frame.dxf and the full
+3-layer lamination redesign (D-630) exist only in this Claude.ai
+conversation, confirmed absent from the server. Must be formally saved to
+the project tree before any future session (including Monday's Claude Code
+continuation) can act on or verify it.
+
+**OQ-198** [OPEN] 1mm EN AW 5083 sheet price — confirmed available/stocked
+at multiple Serbian suppliers (D-634), no firm quote obtained yet.
+
+**OQ-199** [OPEN, low priority] Y17742B-00's root-vs-doc\ extra small
+holes (~3.5/4/7.3/8.1mm radii) — confirmed real, confirmed root is the
+version behind the existing (unaffected) weld costing, but why doc\ lacks
+them is unexplained. Not urgent given costing is already resolved.
