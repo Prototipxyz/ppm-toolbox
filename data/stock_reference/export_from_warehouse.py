@@ -138,6 +138,7 @@ def main(xlsx_path, out_dir):
             length_mm=FIT.cell(row=r,column=10).value, dn=FIT.cell(row=r,column=11).value,
             pn=FIT.cell(row=r,column=12).value, thickness_mm=FIT.cell(row=r,column=13).value,
             size_inch=FIT.cell(row=r,column=14).value, size_metric_mm=FIT.cell(row=r,column=15).value,
+            notes=FIT.cell(row=r,column=16).value,
         )
         fit_rows.append(rec)
     json.dump(fit_rows, open(os.path.join(out_dir,"fittings.json"),'w'), indent=1)

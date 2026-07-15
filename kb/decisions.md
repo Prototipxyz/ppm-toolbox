@@ -3284,3 +3284,75 @@ identified as likely needing this check, not yet verified against their
 current logic — see OQ-205), not just the review tool itself. Two
 implementation mechanisms (iLogic SQLite access, custom iProperty read/
 write API) are unconfirmed against real Inventor docs — see OQ-204.
+
+---
+
+## OQ-204 Resolution + Fitting Data Sourcing (July 2026)
+
+**D-645** OQ-204 resolved. iProperty read/write confirmed via core iLogic
+surface — `iProperties.Value("Custom", name) = value` (auto-creates on
+write, throws on read if missing — needs Try/Catch) and direct
+`PropertySets.Item("Inventor User Defined Properties")` API, both confirmed
+against official Autodesk Knowledge Network docs plus multiple independent
+community sources. No live-compile verification needed (documented core
+Autodesk API, not a third-party assembly like Newtonsoft.Json). SQLite
+access confirmed NOT built into iLogic — requires manually placing
+`System.Data.SQLite.dll`/`SQLite.Interop.dll` (x64-matched) into the iLogic
+add-in resolution folder per machine, confirmed via Autodesk's own APS blog
+and a real Autodesk Community thread. Decided against SQLite for the Guided
+Review Workflow's disposable session-queue cache given that per-machine DLL
+distribution burden on something explicitly designed to be non-authoritative
+(rebuildable from iProperties) — switched to JSON instead, reusing the
+already-proven Newtonsoft.Json path with zero additional dependency, more
+consistent with D-149 graceful degradation (a parse failure on the JSON
+cache just triggers a rebuild from iProperties, same fallback either way,
+without a DLL that can be missing or wrong-arch on one machine). Closes
+OQ-204.
+
+**D-646** Prohrom's Socket (Muf)/Nipple/Double nipple/Hex double nipple
+rows (54 rows, `PPM_Warehouse_1.xlsx` Fittings sheet, previously
+null OD/length) backfilled from Kohler catalog data already present
+in the same sheet — R-201 (Socket) and R-210 (Nipple family), rather
+than newly-sourced external data. Cross-validated against DIN
+2986/DIN 2982 published standard tables independently (agreement
+within rounding at every size checked). Socket has a fixed OD+length
+per size (EXACT/CLOSE tiered match, same pattern as D-642). Nipple
+family's length is explicitly NOT fixed — Kohler's own notes state a
+30-1000mm stock/cut range — so it cannot be tiered the way Socket or
+round bar/pipe are; matched as OD+bore-tight plus length-in-range
+instead (see D-649).
+
+**D-647** Nipple family bore data sourced: `wall_mm` populated (34
+rows) from the DIN 2440 medium-weight threaded pipe series (Guia
+Metalica reference table), internally cross-validated — published
+OD minus 2×published wall equals published bore exactly at every
+size from 1/4" to 4". Gives the fitting classifier a second
+independent geometric signal (bore, computed as OD − 2×wall_mm)
+alongside OD, closing the false-positive risk of an OD-only match: a
+part sharing a nipple's OD but with the wrong bore is now a reject
+signal rather than a silent accept.
+
+**D-648** `data/stock_reference/export_from_warehouse.py` patched:
+Fittings export now includes the sheet's Notes column (col P) as a
+`notes` field in `fittings.json`, carrying sourcing provenance
+(D-646/647's citations) into the JSON — previously silently dropped
+by the export loop. Additive field only, no change to existing
+behavior or other fields.
+
+**D-649** OQ-130 fitting-classification function drafted
+(`LookupFittingMatch`, not yet integrated into
+`PPM_TestFeatureExtraction` or compile-tested — PROPOSED/UNVALIDATED,
+same bar as any pre-live-test code in this codebase). Two match
+modes: Socket gets EXACT/CLOSE tiered OD+length scoring (D-642's
+`LookupStockMatch` pattern, reused as-is). Nipple family gets OD-tight
++ bore-confirmed (bore computed from D-647's wall_mm) + length-in-
+range, with an explicit `OD_MATCH_BORE_MISMATCH` reject tier rather
+than accepting on OD alone — added specifically because OD-only
+matching was identified as a false-positive risk (a solid bar or
+wrong-spec part sharing a nipple's OD would otherwise pass). Bore
+match tolerance (±1.0mm) is a first-pass, uncalibrated value, same
+caveat class as D-377/D-642's thresholds — needs a real measured part
+before being trusted. D-379's original "OD+ID+length signature" scope
+is met for the Nipple family; Socket still matches on OD+length only
+since no bore/ID data was sourced or needed for its already-tight
+fixed-size match.

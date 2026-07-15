@@ -490,6 +490,21 @@ signature against fitting dimension entries, as distinct from OQ-125/129's
 stock-size cross-check role) has not yet been built into the diagnostic —
 still open, but unblocked.
 
+**OQ-130 status update 2 (2026-07-15):** data sourcing now complete for the
+two fitting categories that actually matter to the diagnostic — Socket
+(Muf) and the Nipple family — including bore data (D-646/D-647). Matching
+function drafted (`LookupFittingMatch`, D-649) with OD+bore+length logic
+and an explicit reject tier for OD-only false positives, but **not yet
+integrated into `PPM_TestFeatureExtraction` and not compile-tested** —
+next session's work: add `FittingMatchTier`/`FittingMatchLabel`/
+`FittingMatchCategory`/`FittingMatchSource` fields to `PartFeatureData`,
+wire `LookupFittingMatch` in behind D-643's name-based candidate detection,
+live-test against a real nipple/socket part. The broader 25-category
+Prohrom fittings database (valves, unions, flanges, clamps) and tube/pipe
+category gaps found in heco's catalog do NOT block this — spun out as
+OQ-206, since D-643's keyword detection already handles those by name, not
+geometry.
+
 ---
 
 ## Stadler Tank Estimation — July 2026
@@ -837,14 +852,14 @@ subcontracted parts — Blechteile, Elektro, GFK, HPL, Kleinteile,
 Pneumatik & Hydraulik, Türantrieb & WC, Waschbecken) still need triage/
 categorization. Flagged during the D-639 restructure, not yet actioned.
 
-**OQ-204** [OPEN, blocks Guided Review Workflow implementation] Two
-mechanisms the spec (`kb/specs/guided-review-workflow-spec.md`) depends on
-are unconfirmed against real Inventor API docs, per project convention
-(no assumed API members): (1) does Inventor's iLogic environment provide
-usable SQLite access out of the box, or does it need an external DLL
-reference (same category of question as the Newtonsoft.Json dependency
-already resolved for the diagnostic macro)? (2) exact custom-iProperty
-read/write mechanism for the proposed `PPM_*` property set.
+**OQ-204** [CLOSED → D-645] Both mechanisms confirmed against real docs.
+iProperty read/write: core iLogic surface, confirmed via official Autodesk
+Knowledge Network + multiple independent community sources, no live-compile
+needed. SQLite: confirmed NOT built-in, requires manual x64 DLL placement
+per machine — decided against for this use case; session cache switched to
+JSON instead (D-645). Guided Review Workflow spec §4.2/§8 to be updated to
+reflect JSON, not SQLite, for the session-queue cache next time that spec
+is touched.
 
 **OQ-205** [OPEN] Guided Review Workflow spec §6 (PurchasedUnit
 subassembly exclusion must propagate to BOM/DXF export, not just the
@@ -852,3 +867,26 @@ review queue) names `PPM_ExportPartData` and `PPM_BatchExportFlatPatterns`
 as the macros needing this check added — that list was reasoned from
 general knowledge of the macro suite, not verified against their actual
 current logic. Needs confirmation before implementation.
+
+---
+
+## Fittings/Tube/Pipe Comprehensive Database — July 2026
+
+**OQ-206** [OPEN, low priority, does not block any current diagnostic]
+Comprehensive fittings/tube/pipe stock-reference database, spun out from
+OQ-130 once its own scope was found to be much larger than nipple/socket
+alone. Two parts: (1) 25 Prohrom Fittings-sheet categories with zero
+dimensional data (valves — ball/check/butterfly/sanitary, unions, threaded
+elbows/tees, flanges, clamp rings/ferrules, sight glass unions) — none of
+these feed the diagnostic's geometry matching, since D-643's keyword
+detection already classifies them as purchased by name; populating their
+dimensions is a reference-completeness goal, not a diagnostic dependency.
+(2) Tube/pipe categories found in heco's Long Products catalog not yet in
+`data/stock_reference/`: Hollow bars (genuinely relevant to OQ-129's
+hollow/solid gating — a real gap, unlike the valve/union/flange categories),
+Dairy/DVGW hygienic-grade tube (relevant only if a job needs hygienic-spec
+material), ASTM/ASME tube dimensions (relevant only if a job specs US
+standards, e.g. via Elbit/Yugoimport). Approach when picked up: one category
+at a time, same sourcing rigor as D-646/647 (cross-validate against a second
+source, flag ambiguity, no extrapolation), own KB entry per category closed,
+not one bundled pass.
