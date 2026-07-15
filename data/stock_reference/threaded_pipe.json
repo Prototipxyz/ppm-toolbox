@@ -1,0 +1,288 @@
+[
+ {
+  "label": 8,
+  "zoll": "1/8\"",
+  "od": 13.6,
+  "wall": 2.3,
+  "id": 9,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 8,
+  "zoll": "1/8\"",
+  "od": 13.9,
+  "wall": 2.9,
+  "id": 8.1,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 10,
+  "zoll": "1/4\"",
+  "od": 17.1,
+  "wall": 2.3,
+  "id": 12.5,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 10,
+  "zoll": "1/4\"",
+  "od": 17.4,
+  "wall": 2.9,
+  "id": 11.6,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 15,
+  "zoll": "1/2\"",
+  "od": 21.4,
+  "wall": 2.6,
+  "id": 16.2,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 15,
+  "zoll": "1/2\"",
+  "od": 21.7,
+  "wall": 3.2,
+  "id": 15.3,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 20,
+  "zoll": "3/4\"",
+  "od": 26.9,
+  "wall": 2.6,
+  "id": 21.7,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 20,
+  "zoll": "3/4\"",
+  "od": 27.2,
+  "wall": 3.2,
+  "id": 20.8,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 25,
+  "zoll": "1\"",
+  "od": 33.8,
+  "wall": 3.2,
+  "id": 27.4,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 25,
+  "zoll": "1\"",
+  "od": 34.2,
+  "wall": 4,
+  "id": 26.2,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 32,
+  "zoll": "1 1/4\"",
+  "od": 42.5,
+  "wall": 3.2,
+  "id": 36.1,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 32,
+  "zoll": "1 1/4\"",
+  "od": 42.9,
+  "wall": 4,
+  "id": 34.9,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 40,
+  "zoll": "1 1/2\"",
+  "od": 48.4,
+  "wall": 3.2,
+  "id": 42,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 40,
+  "zoll": "1 1/2\"",
+  "od": 48.8,
+  "wall": 4,
+  "id": 40.8,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 50,
+  "zoll": "2\"",
+  "od": 60.2,
+  "wall": 3.6,
+  "id": 53,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 50,
+  "zoll": "2\"",
+  "od": 60.8,
+  "wall": 4.5,
+  "id": 51.8,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 65,
+  "zoll": "2 1/2\"",
+  "od": 76,
+  "wall": 3.6,
+  "id": 68.8,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 65,
+  "zoll": "2 1/2\"",
+  "od": 76.6,
+  "wall": 4.5,
+  "id": 67.6,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 80,
+  "zoll": "3\"",
+  "od": 88.7,
+  "wall": 4,
+  "id": 80.7,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 80,
+  "zoll": "3\"",
+  "od": 89.5,
+  "wall": 5,
+  "id": 79.5,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 100,
+  "zoll": "4\"",
+  "od": 113.9,
+  "wall": 4.5,
+  "id": 104.9,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 100,
+  "zoll": "4\"",
+  "od": 114.9,
+  "wall": 5.4,
+  "id": 104.1,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 125,
+  "zoll": "5\"",
+  "od": 140.6,
+  "wall": 5,
+  "id": 130.6,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 125,
+  "zoll": "5\"",
+  "od": 140.6,
+  "wall": 5.4,
+  "id": 129.8,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 150,
+  "zoll": "6\"",
+  "od": 165.1,
+  "wall": 5,
+  "id": 155.1,
+  "series": "Medium",
+  "grades": [
+   "ST_S235"
+  ]
+ },
+ {
+  "label": 150,
+  "zoll": "6\"",
+  "od": 165.1,
+  "wall": 5.4,
+  "id": 154.3,
+  "series": "Heavy",
+  "grades": [
+   "ST_S235"
+  ]
+ }
+]

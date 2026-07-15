@@ -1,0 +1,799 @@
+[
+ {
+  "label": 2,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 3,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 4,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 6,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 7,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 8,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 9,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 10,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 12,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 13,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 14,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 15,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 16,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 17,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 18,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 19,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 20,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 22,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 24,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 25,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 26,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 27,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 28,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 30,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 32,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 35,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 36,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 38,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 40,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 41,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 45,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 46,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 50,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 55,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 60,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 65,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 70,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 75,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 80,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 85,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 90,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 95,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 100,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 105,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 110,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 115,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 120,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 130,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 140,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 150,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 160,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 180,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 200,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 220,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 240,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 250,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 270,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 300,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 320,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": 350,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6082",
+   "AL_6060",
+   "BRS_CuZn37",
+   "PL_POM"
+  ]
+ },
+ {
+  "label": "Formula: kg/m = \u03c0/4 \u00d7 \u00d8\u00b2 \u00d7 density /1000.",
+  "grades": []
+ }
+]

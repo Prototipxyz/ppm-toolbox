@@ -462,6 +462,34 @@ signature (D-379) — split out from OQ-125 since it's a distinct task (is-this-
 classification vs. OQ-125's stock-size cross-check role). Blocked on same dimension
 sourcing step as OQ-125.
 
+**OQ-125 status update: RESOLVED → D-641.** Dimension database sourced and
+structured as `data/stock_reference/*.json`, generated from
+PPM_Warehouse_1.xlsx. Round bar/pipe/tube series now confirmed working as a
+positive-match confirmation signal per the original OQ-129 use case (see
+below) — validated against real parts, not just built.
+
+**OQ-129 status update: gates (b) and (c) now built and validated → D-642.**
+Gate (b) (wall-ratio/length plausibility) and gate (c) (standard-size
+cross-check via OQ-125's now-resolved database) both implemented and run
+against two real assemblies. Notably, `SP000011992` — the exact solid RD30
+grounding lug with an M10 tap originally cited as this OQ's failure case —
+now correctly resolves as NOT hollow (`HOLLOW_REJECTED_WALL_RATIO_36PCT`)
+across both test runs. Remaining open: gate (b)'s two thresholds (wall >
+30% of OD, disc-shape length/OD < 0.15) are first-pass values confirmed
+only against the specific false positives that motivated them, not
+calibrated against a wider real-part sample — a legitimate short turned
+bushing near either boundary could still be misjudged either way. Test plan
+from the original OQ text (real 60.3mm tube part + real ~25mm tapped solid
+part) has now been run, on two separate assemblies, not just the one
+originally planned.
+
+**OQ-130 status update:** dimension-sourcing blocker removed — the Fittings
+sheet (D-640, Prohrom + partial Kohler) and its `fittings.json` export now
+exist. The classification logic itself (matching a detected OD+ID+length
+signature against fitting dimension entries, as distinct from OQ-125/129's
+stock-size cross-check role) has not yet been built into the diagnostic —
+still open, but unblocked.
+
 ---
 
 ## Stadler Tank Estimation — July 2026
@@ -775,3 +803,52 @@ at multiple Serbian suppliers (D-634), no firm quote obtained yet.
 holes (~3.5/4/7.3/8.1mm radii) — confirmed real, confirmed root is the
 version behind the existing (unaffected) weld costing, but why doc\ lacks
 them is unexplained. Not urgent given costing is already resolved.
+---
+
+## Warehouse Restructure, Kohler Catalog & Guided Review Workflow — July 2026
+
+**OQ-200** [OPEN] Kohler catalog remaining sections (weld fittings,
+flanges, valves, STRAUB couplings, ANSI/sanitary, electropolished/line/
+construction tubes — roughly 184 pages) not yet extracted into the
+Fittings sheet. Per the established one-source-per-session (D-180)
+convention, planned as dedicated per-category sessions, not one pass.
+
+**OQ-201** [OPEN] Several Kohler-catalog parts in the Winkler 200L test
+assembly follow an "R###-DN" or "R###\_digit" naming pattern (e.g.
+`3d_r621-dn32`, `3d_r691-dn15`) without the literal "Kohler" brand word —
+not currently caught by PPM_TestFeatureExtraction's brand/keyword
+matching. A structural regex match was proposed but not built: bare
+"R"+digits alone is too generic (collides with revision markers and
+literal radius callouts already present in this data, e.g. `"Luk
+35.0x1.5, r=55"`) — the narrower `R\d{2,4}-DN` / `R\d{2,4}_\d` shape would
+avoid that but is inferred from 8 examples, not confirmed against a
+source list the way the brand names were. Needs Voja's confirmation
+before adding.
+
+**OQ-202** [OPEN, low priority] "Actuator" (electrical/pneumatic rotary
+actuator) proposed as an always-purchased keyword from one real example
+in the Winkler assembly (`3003-10 Nm-14-Electrical Rotary Actuator`) —
+single data point, not yet added pending more confirmed examples.
+
+**OQ-203** [OPEN] PPM_Warehouse's "Unsorted - To Review" sheet (1,309
+rows: Cutting Tools, Electronics/Sensors, PPE/Safety, Uncategorized,
+Miscellaneous) and "Purchased Components" sheet (878 rows: OEM/
+subcontracted parts — Blechteile, Elektro, GFK, HPL, Kleinteile,
+Pneumatik & Hydraulik, Türantrieb & WC, Waschbecken) still need triage/
+categorization. Flagged during the D-639 restructure, not yet actioned.
+
+**OQ-204** [OPEN, blocks Guided Review Workflow implementation] Two
+mechanisms the spec (`kb/specs/guided-review-workflow-spec.md`) depends on
+are unconfirmed against real Inventor API docs, per project convention
+(no assumed API members): (1) does Inventor's iLogic environment provide
+usable SQLite access out of the box, or does it need an external DLL
+reference (same category of question as the Newtonsoft.Json dependency
+already resolved for the diagnostic macro)? (2) exact custom-iProperty
+read/write mechanism for the proposed `PPM_*` property set.
+
+**OQ-205** [OPEN] Guided Review Workflow spec §6 (PurchasedUnit
+subassembly exclusion must propagate to BOM/DXF export, not just the
+review queue) names `PPM_ExportPartData` and `PPM_BatchExportFlatPatterns`
+as the macros needing this check added — that list was reasoned from
+general knowledge of the macro suite, not verified against their actual
+current logic. Needs confirmation before implementation.

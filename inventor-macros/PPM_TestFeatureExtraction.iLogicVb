@@ -1,0 +1,1334 @@
+' PPM_TestFeatureExtraction.iLogicVb
+' STANDALONE DIAGNOSTIC v21 — demotes bare "VALVE" from always-purchased
+' to ambiguous. Confirmed false positive on real data (second Winkler
+' Design run): "001.A02.S00.P001-Valve bracket" matched always-purchased
+' on the word "Valve" alone and got PartType=purchased — but a bracket
+' that HOLDS a valve is a custom fabricated part, not a valve. Unlike
+' WASHER/SCREW/NUT, "valve" is common enough as a mere descriptor in
+' another part's name that bare VALVE only warrants a review flag now;
+' the specific compound phrases (BALL VALVE, CHECK VALVE, NONRETURN VALVE,
+' TOGGLE VALVE) stay in always-purchased since they're much less likely to
+' be used as a generic descriptor. No regression to the real valve matches
+' from this session — Kohler-branded valves still resolve via the brand
+' match regardless, and the generic ball/toggle valve parts still hit the
+' specific-phrase list.
+' v20 — three fixes/additions from a second real
+' assembly (Winkler Design 41100 Tank 200L, mixed Kohler-catalog fittings):
+' (1) BOUNDARY BUG, confirmed on real data: standard \b treats underscore
+' as a word character, so "Kohler_Bend_R1651" and "M6x20_DIN912" were NOT
+' matching their respective signals at all (this shop's naming is
+' underscore-heavy throughout). Boundaries redefined as "not adjacent to
+' A-Z0-9" instead of \b, so underscore/hyphen/space/period all correctly
+' separate tokens. Applies to every regex in this file's hardware
+' detection, not just the new additions.
+' (2) COMPOUND-WORD BUG, confirmed on real data: "Halbmuffe R203 4307 2"
+' got zero warnings — v19's keyword match required a boundary on BOTH
+' sides, but German compounds glue a prefix onto the front of the base
+' noun with no boundary between them. Split matching into STRICT (both-
+' side boundary, for short English tokens where substring collision is
+' the real risk) and SUFFIX (right-side only, for German/Italian/Serbian
+' compound-prone words) — a compound noun IS a kind of its base noun
+' grammatically (Halbmuffe is-a Muffe), so this is linguistically
+' correct, not just a workaround.
+' (3) NEW: IsKnownBrandName — a part named after a specific commercial
+' product (Kohler, JUMO, Harting, FLEXA, KROMA — all confirmed present in
+' real assemblies this session) is essentially always bought, per Voja.
+' Explicit maintained list, not a generalizable pattern — brand names have
+' no structural signal the way DIN/ISO callouts do. Add more here as they
+' show up in real assemblies; don't guess ahead of evidence. Checked
+' against every real part name seen across all sessions so far for
+' collision risk against Stirg's own NR/SP/TM/602.x/001.x numbering —
+' none found.
+' Also added: Valve/Ventil/Valvola to always-purchased (precision multi-
+' part assemblies, not shop-fabricable); Bend/Elbow/Bogen/Luk to
+' ambiguous (same reasoning as mufs/nipples — a tube shop might bend a
+' custom elbow in-house sometimes).
+' English plural tolerance added throughout (optional trailing "S" before
+' the right-boundary check) — confirmed needed on "...toggle valves".
+' PROPOSED / NOT YET VALIDATED — the brand list and valve/bend keywords
+' haven't run against a real assembly yet; the boundary/compound/plural
+' fixes were caught via hand-testing the regex logic in Python before
+' shipping (can't compile VB.NET here), not via a live Inventor run.
+' v19 — splits standard-hardware name detection into
+' two confidence tiers per Voja: grounding lugs (Erdungsauge) and pipe
+' fitting mufs/nipples (Muffe/Nippel) are USUALLY bought but SOMETIMES
+' made in-house — unlike true fasteners (screw/nut/washer/rivet/pin/
+' hydraulic push-in fittings), which are always bought. Forcing
+' PartType="purchased" on a sometimes-in-house category would have
+' silently hidden the in-house-made instances from downstream costing —
+' worse than the original false-match problem. These two categories now
+' only add a REVIEW_MAYBE_PURCHASED_HARDWARE warning; PartType and the
+' full geometric/round-stock/StockMatch pipeline still run normally, so a
+' human sees the complete picture and decides per-instance instead of the
+' macro silently guessing either way.
+' PROPOSED / NOT YET VALIDATED — not yet run against a real assembly.
+' v18 — expands IsStandardHardwareName: confirmed
+' with Voja that hydraulic/pneumatic screw-in fittings (Einschraubstutzen,
+' Winkelstutzen) and grounding lugs (Erdungsauge) are always-purchased at
+' Stirg too, same as washers/nuts/screws — added those categories. Keyword
+' list expanded to English/German/Italian/Serbian throughout (per Voja,
+' this shop's assemblies mix languages depending on source drawing/
+' supplier catalog, not consistently one). Added SRPS (Serbian) and UNI
+' (Italian) standard-body callouts alongside DIN/ISO/NFE/ANSI/ASME.
+' Also switched keyword matching from plain substring (.Contains) to
+' word-boundary regex — caught before shipping, not after: "PIN" as a bare
+' substring would have false-matched inside "SPINDEL" (spindle, a real
+' machined part, German), and likely other unintended hits given how many
+' short 3-4 letter keywords are now in the list (NUT, BOLT, DADO, etc.).
+' PROPOSED / NOT YET VALIDATED — the expanded keyword list hasn't run
+' against a real assembly yet.
+' v17 — adds name-based standard-hardware detection
+' and a geometric disc/washer backstop. Confirmed on the v16 live run:
+' washers/retaining rings correctly rejected by gate (b) as non-hollow
+' were falling through into the solid round-bar branch and getting a
+' misleading "EXACT match, round_bar.json" — a 1.6mm-thick washer isn't
+' cut from round bar stock either. Per Voja: these parts (Sicherungsscheibe,
+' Flache Scheibe, Sechskantmutter, etc.) are always purchased standard
+' hardware at Stirg, never made in-house — confirmed, not assumed.
+' Two changes: (1) IsStandardHardwareName checks the part name for DIN/
+' ISO/NFE/ANSI/ASME callouts (sufficient alone — per Voja, parts sourced
+' from McMaster-Carr etc. are sometimes named with only a standard number)
+' or German/English hardware keywords, setting PartType="purchased" before
+' the part ever reaches round-stock detection. (2) A geometric backstop
+' (length/OD < 0.15) flags disc-shaped parts the name check misses,
+' without forcing a classification — real custom thin discs are possible,
+' this only suppresses the misleading turning/StockMatch inference.
+' Also fixed: the round-stock block had no PartType guard at all, so even
+' a true Content-Center purchased part with a cylindrical face would have
+' gotten spurious round-stock output — never observed in practice (no
+' Content-Center parts in the test assemblies so far) but real regardless.
+' PROPOSED / NOT YET VALIDATED — the name-keyword list and the 0.15 ratio
+' are both first-pass judgment calls pending a wider real-part sample.
+' v16 — adds gate (b): rejects IsHollow when the
+' computed wall is implausible for real tube/pipe stock (wall > part
+' length, or wall > 30% of OD). Fixes a confirmed false positive from the
+' v15 live run: SP000000607, an M6 flat washer, was matching CLOSE against
+' round_tube_decorative.json purely by coincidence of OD/wall numbers.
+' Gate (a)'s coaxial-bore detection is necessary but not sufficient —
+' washers/retaining rings/thin discs also have a coaxial bore.
+' SELF-CAUGHT BUG (before this reached you): the first draft of gate (b)
+' ran too early, using a crude largest-of-3-bbox-dims "length" that's
+' wrong for disc/washer shapes (their largest bbox dimension is the
+' diameter, not the thickness) — so it silently failed to catch the exact
+' washer it was built for. Moved to run after RoundStockLength's proper
+' axis-projected length is computed; see the comment at the gate (b)
+' insertion point for the full trace. Re-verify against the same washer
+' part when you next run this — StockMatch should now be gone, replaced
+' by HOLLOW_REJECTED_WALL_EXCEEDS_LENGTH.
+' PROPOSED / NOT YET VALIDATED beyond the one confirmed case above —
+' pending a wider real-part sample, especially near the 30% ratio boundary.
+' v15 — adds stock-reference cross-check against the
+' PPM_Warehouse export (OQ-125 close-out, OQ-129 gate (c)). Both the solid
+' round-bar path and the previously-unhandled hollow pipe/tube path now
+' look up actual measured OD/wall against data/stock_reference/*.json
+' (generated by export_from_warehouse.py from PPM_Warehouse_1.xlsx) instead
+' of relying solely on the hardcoded EN 10060 common-size array. The
+' hardcoded array is kept as a fallback (D-149 graceful degradation) if the
+' JSON path isn't found — this diagnostic must never hard-fail just because
+' the repo isn't cloned where expected.
+' CONFIRMED WORKING — 112/112 parts compiled and ran clean against
+' Anfragemodell Diesel- und AdBluetank.iam (2026-07-15). Real matches
+' confirmed: 60.3x1.5mm tube -> EXACT vs round_tube_decorative.json;
+' 8mm/16mm/22mm round bar -> EXACT vs round_bar.json. Path was initially
+' wrong (guessed C:\Users\zavarivanje\inventor-macros\... — corrected to
+' the real C:\PPM Cuts and Bends\iLogic\ location); Newtonsoft.Json
+' AddReference resolved without needing a manually-placed DLL.
+' v14 — adds round stock detection + turning-operation
+' inference (OQ-112). Scans convex cylindrical faces for max OD, matches
+' against EN 10060 standard round bar diameter series (real primary-source
+' table, verified), infers turning when OD is clearly under the nearest
+' larger standard diameter. PLACEHOLDER: uses a flat ±1mm confirm-band
+' instead of EN 10060's real per-diameter tolerance table — that table's
+' PDF extraction was ambiguous (Normal/Precision columns merged), so exact
+' band boundaries are NOT yet verified. Flagged as CONFIRM_TURNING_OPERATION
+' rather than guessed. See OQ-112 for the follow-up to source real tolerances.
+' Also renames MATERIAL_UNRECOGNIZED -> MATERIAL_NOT_SET (same D-355 trigger
+' logic, clearer/actionable label; downstream Excel/PPM App display text
+' "Please set material for this part" to be wired in later, not in this
+' diagnostic's scope).
+' PROPOSED / NOT YET VALIDATED — pending live run against a real round-stock part.
+' v12 — replaces D-353's fixed-threshold OVERSIZE_ORDERABLE
+' check (1500x3000 yellow / 2000x4000 red) with a tier-fit check against real
+' standard sheet stock sizes. Old thresholds confirmed wrong: NR01555346-1
+' (2373.15 x 996mm) was flagged OVERSIZE_ORDERABLE despite fitting cleanly
+' inside standard 1250x2500mm stock. New tiers sourced from ArcelorMittal
+' e-steel France (EU mill, real stocked panel sizes) and regional stainless
+' stockist data (Metal-Centar) — both converge on the same tier pattern.
+' PROPOSED / NOT YET VALIDATED — pending live run against the real batch.
+' v4 — adds full-revolution arc-span filter: distinguishes
+' real holes from corner fillets (both concave, so v3's concave/convex filter
+' alone can't tell them apart). Uses Face.Evaluator.ParamRangeRect + a 2D-to-3D
+' curve conversion (verified pattern from Autodesk forum) to read the actual
+' angular sweep of each cylindrical face — full 2π = hole, partial = fillet.
+' v3: B-Rep face-based approach (Face.SurfaceType=kCylinderSurface + Face.ThreadInfos)
+' instead of feature-tree walking. HoleFeature.PositionPoints could not be verified
+' to exist in official docs and produced wrong counts on real parts (1 instead of
+' 24/8 on NR01555346-7/-8); this approach counts actual B-Rep faces, so it is
+' correct regardless of feature history (patterns, derived/imported bodies, etc).
+' v2 fixes (verified against Autodesk official docs + working forum/blog samples
+' after v1 surfaced real bugs):
+'   - HoleTypeEnum.kTappedHole does not exist -> use HoleFeature.Tapped (Bool)
+'   - SurfaceBody.Area unreliable -> use PartComponentDefinition.MassProperties.Area
+'   - Bend count via "HasFlatPattern => 1" was a stub -> FlatPattern.FlatBendResults.Count
+'   - FlatPattern IsNot Nothing unreliable -> SheetMetalComponentDefinition.HasFlatPattern
+'   - ContentCenterComponents.Count not real -> PartComponentDefinition.IsContentMember
+'   - PositionPoints.Count misses pattern-created holes -> walk Rectangular/CircularPatternFeatures
+' Loops all parts referenced by the active assembly, dumps extracted values
+' + any errors per part into a scrollable, copyable results window.
+' Read-only — no file writes, no xlsx, no org config dependency.
+
+AddReference "System.Drawing"
+AddReference "System.Windows.Forms"
+AddReference "Newtonsoft.Json"
+
+' v15: stock-reference path is defined as a Function below (GetStockRefPath),
+' not a top-level Const — a bare Const here compiled to "Statement is not
+' valid in a namespace" (confirmed via real compile error against
+' Anfragemodell Diesel- und AdBluetank.iam), same class of placement issue
+' already documented above for Functions between End Class and Sub Main().
+
+Public Class PartFeatureData
+    Public PartType    As String  = "machined"
+    Public MassKg      As Double  = 0.0
+    Public ThicknessMM As Double  = 0.0
+    Public FlatLength  As Double  = 0.0
+    Public FlatWidth   As Double  = 0.0
+    Public SurfaceArea As Double  = 0.0
+    Public BendCount   As Integer = 0
+    Public PlainHoles  As String  = ""
+    Public TappedHoles As String  = ""
+    Public LaserHoles  As String  = ""
+    Public Countersinks As Integer = 0
+    Public Material     As String  = ""
+    Public Counterbores As Integer = 0
+    Public RoundStockOD As Double = 0.0
+    Public RoundStockLength As Double = 0.0
+    Public NearestStandardDia As Double = 0.0
+    Public IsHollow As Boolean = False
+    Public BoreID As Double = 0.0
+    Public WallThicknessMM As Double = 0.0
+    ' v15: stock-reference cross-check results (OQ-125/OQ-129 gate c)
+    Public StockMatchTier   As String = ""   ' "EXACT" / "CLOSE" / "" (no match)
+    Public StockMatchLabel  As String = ""   ' e.g. "60.3x2.9"
+    Public StockMatchSource As String = ""   ' which JSON file matched
+    Public StockMatchGrades As String = ""   ' grades available at that size
+    Public Warnings    As String  = ""
+End Class
+
+Sub Main()
+
+    If Not TypeOf ThisApplication.ActiveDocument Is AssemblyDocument Then
+        System.Windows.Forms.MessageBox.Show( _
+            "Otvori sklop (.iam) pre pokretanja." & vbCrLf & _
+            "Open an assembly (.iam) before running.", "PPM Test - Error")
+        Exit Sub
+    End If
+
+    Dim oAsmDoc As AssemblyDocument = CType(ThisApplication.ActiveDocument, AssemblyDocument)
+
+    Dim asmRefPaths As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
+    Try : CollectReferencedPaths(oAsmDoc, asmRefPaths) : Catch : End Try
+
+    Dim sb As New System.Text.StringBuilder
+    Dim nOk As Integer = 0
+    Dim nErr As Integer = 0
+
+    For Each oDoc As Document In ThisApplication.Documents
+        Dim docPath As String = ""
+        Try : docPath = oDoc.FullFileName : Catch : Continue For : End Try
+        If Not asmRefPaths.Contains(docPath) Then Continue For
+        If Not TypeOf oDoc Is PartDocument Then Continue For
+
+        Dim oPart As PartDocument = CType(oDoc, PartDocument)
+        Dim pn As String = ReadDTP(oDoc, "Part Number")
+        If pn = "" Then Try : pn = System.IO.Path.GetFileNameWithoutExtension(docPath) : Catch : End Try
+
+        sb.AppendLine("════════════════════════════════════════")
+        sb.AppendLine("PN: " & pn)
+
+        Try
+            Dim r As PartFeatureData = GetPartFeatureData(oPart, pn)
+
+            sb.AppendLine("  Part_Type:     " & r.PartType)
+            sb.AppendLine("  Material:      " & r.Material)
+            sb.AppendLine("  Mass_kg:       " & r.MassKg.ToString("0.###"))
+            sb.AppendLine("  Thickness_mm:  " & r.ThicknessMM.ToString("0.###"))
+            sb.AppendLine("  FlatPattern:   " & r.FlatLength.ToString("0.##") & " x " & r.FlatWidth.ToString("0.##") & " mm")
+            sb.AppendLine("  Surface_Area:  " & r.SurfaceArea.ToString("0.##") & " mm2")
+            sb.AppendLine("  BendCount:     " & r.BendCount)
+            sb.AppendLine("  Holes_Plain:   " & r.PlainHoles)
+            sb.AppendLine("  Holes_Tapped:  " & r.TappedHoles)
+            sb.AppendLine("  Holes_Laser:   " & r.LaserHoles)
+            sb.AppendLine("  Countersinks:  " & r.Countersinks)
+            sb.AppendLine("  Counterbores:  " & r.Counterbores)
+            If r.RoundStockOD > 0 Then
+                sb.AppendLine("  RoundStock_OD: " & r.RoundStockOD.ToString("0.##") & " mm")
+                sb.AppendLine("  RoundStock_L:  " & r.RoundStockLength.ToString("0.##") & " mm")
+                If r.IsHollow Then
+                    sb.AppendLine("  IsHollow:      True (Bore ID " & r.BoreID.ToString("0.##") & _
+                        " mm, Wall " & r.WallThicknessMM.ToString("0.##") & " mm)")
+                Else
+                    sb.AppendLine("  Nearest_Std_D: " & r.NearestStandardDia.ToString("0.##") & " mm")
+                End If
+                If r.StockMatchTier <> "" Then
+                    sb.AppendLine("  StockMatch:    " & r.StockMatchTier & " | " & r.StockMatchLabel & _
+                        " | " & r.StockMatchSource & " | grades=[" & r.StockMatchGrades & "]")
+                Else
+                    sb.AppendLine("  StockMatch:    NO MATCH (custom size or reference unavailable)")
+                End If
+            End If
+            sb.AppendLine("  Warnings:      " & r.Warnings)
+            nOk += 1
+        Catch ex As Exception
+            sb.AppendLine("  *** ERROR: " & ex.Message)
+            sb.AppendLine("  *** STACK: " & ex.StackTrace)
+            nErr += 1
+        End Try
+        sb.AppendLine("")
+    Next
+
+    sb.AppendLine("════════════════════════════════════════")
+    sb.AppendLine(nOk & " parts OK, " & nErr & " parts errored.")
+
+    ShowResults(sb.ToString())
+
+End Sub
+
+Sub CollectReferencedPaths(oDoc As Document, _
+        ByRef paths As System.Collections.Generic.HashSet(Of String))
+    For Each refDoc As Document In oDoc.ReferencedDocuments
+        Dim refPath As String = ""
+        Try : refPath = refDoc.FullFileName : Catch : Continue For : End Try
+        If refPath = "" OrElse paths.Contains(refPath) Then Continue For
+        paths.Add(refPath)
+        If TypeOf refDoc Is AssemblyDocument Then
+            CollectReferencedPaths(refDoc, paths)
+        End If
+    Next
+End Sub
+
+Function ReadDTP(oDoc As Document, propName As String) As String
+    Try
+        Return CStr(oDoc.PropertySets.Item("Design Tracking Properties"). _
+            Item(propName).Value).Trim()
+    Catch : Return "" : End Try
+End Function
+
+Function ProjectedLengthAlongAxis(oRange As Box, axisDir As System.Collections.Generic.List(Of Double)) As Double
+    ' v14: projects all 8 corners of the body's bounding box onto the given
+    ' axis direction; (max-min) of the projections is the true axial extent,
+    ' correct regardless of part orientation. Replaces the largest-of-3-
+    ' bbox-dims shortcut, which was wrong whenever diameter > length.
+    Dim minP As Point = oRange.MinPoint
+    Dim maxP As Point = oRange.MaxPoint
+    Dim xs() As Double = {minP.X, maxP.X}
+    Dim ys() As Double = {minP.Y, maxP.Y}
+    Dim zs() As Double = {minP.Z, maxP.Z}
+    Dim minProj As Double = Double.MaxValue
+    Dim maxProj As Double = Double.MinValue
+    For Each xx As Double In xs
+        For Each yy As Double In ys
+            For Each zz As Double In zs
+                Dim proj As Double = xx * axisDir(0) + yy * axisDir(1) + zz * axisDir(2)
+                If proj < minProj Then minProj = proj
+                If proj > maxProj Then maxProj = proj
+            Next
+        Next
+    Next
+    Return (maxProj - minProj) * 10.0 ' cm to mm
+End Function
+
+' ════════════════════════════════════════════════════════════════
+' NEW v13 — EN 10060 preferred round bar diameter series (real primary
+' source, verified: BS EN 10060:2003 Table 1). Used to find the nearest
+' standard stock diameter a turned part's actual OD was reduced from.
+' Beyond 250mm the standard allows custom/agreed sizing (±6mm), not a
+' fixed series — FindNearestLargerRoundStock returns -1 in that case.
+' Placement note: must sit after Sub Main() — a Function between End
+' Class and Sub Main() fails to compile ("Statement is not valid in a
+' namespace"), confirmed via real compile error. Matches CheckOversize
+' Orderable's proven-working placement below.
+' ════════════════════════════════════════════════════════════════
+Function FindNearestLargerRoundStock(actualOD As Double) As Double
+    Dim series() As Double = {10, 12, 13, 14, 15, 16, 18, 19, 20, 22, 24, 25, _
+        26, 27, 28, 30, 32, 35, 36, 38, 40, 42, 45, 48, 50, 52, 55, 60, 63, 65, _
+        70, 73, 75, 80, 85, 90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, _
+        145, 150, 155, 160, 165, 170, 175, 180, 190, 200, 220, 250}
+    For Each d As Double In series
+        If d >= actualOD Then Return d
+    Next
+    Return -1 ' beyond 250mm — custom/agreed sizing, no standard series
+End Function
+
+' ════════════════════════════════════════════════════════════════
+' NEW v15 — stock-reference cross-check (OQ-125 close-out, OQ-129 gate c).
+' PROPOSED / UNVALIDATED. Reads data/stock_reference/*.json (generated by
+' export_from_warehouse.py from PPM_Warehouse_1.xlsx — grades/dimensions
+' only, no pricing). Tolerance bands are a starting guess, not yet
+' calibrated against real measured-vs-nominal deviation:
+'   <= 0.2mm combined OD+wall deviation -> EXACT
+'   <= 1.0mm combined OD+wall deviation -> CLOSE (flag for review)
+'   >  1.0mm  -> no match (custom size, not a false positive to silently accept)
+' Graceful degradation (D-149): if GetStockRefPath() doesn't exist or a
+' specific JSON file is missing, returns an empty match rather than
+' throwing — the rest of the diagnostic must keep running.
+' ════════════════════════════════════════════════════════════════
+
+' Adjust to wherever ppm-toolbox is actually cloned on this machine.
+' Trailing backslash required. Function, not a top-level Const — see
+' placement note above (real compile error otherwise).
+Function GetStockRefPath() As String
+    Return "C:\PPM Cuts and Bends\iLogic\"
+End Function
+
+Function LoadJArray(fileName As String) As Newtonsoft.Json.Linq.JArray
+    Try
+        Dim fullPath As String = GetStockRefPath() & fileName
+        If Not System.IO.File.Exists(fullPath) Then Return Nothing
+        Return Newtonsoft.Json.Linq.JArray.Parse(System.IO.File.ReadAllText(fullPath))
+    Catch
+        Return Nothing
+    End Try
+End Function
+
+Function LookupStockMatch(od As Double, wall As Double, isHollow As Boolean, _
+        ByRef tier As String, ByRef label As String, ByRef source As String, ByRef grades As String) As Boolean
+    tier = "" : label = "" : source = "" : grades = ""
+
+    Dim files As New System.Collections.Generic.List(Of String)
+    If isHollow Then
+        files.Add("round_pipe_structural.json")
+        files.Add("round_tube_decorative.json")
+        files.Add("rigid_small_tube.json")
+        files.Add("aluminium_tube.json")
+    Else
+        files.Add("round_bar.json")
+    End If
+
+    Dim bestScore As Double = Double.MaxValue
+
+    For Each fname As String In files
+        Dim arr As Newtonsoft.Json.Linq.JArray = LoadJArray(fname)
+        If arr Is Nothing Then Continue For
+
+        For Each tok As Newtonsoft.Json.Linq.JToken In arr
+            Dim item As Newtonsoft.Json.Linq.JObject = CType(tok, Newtonsoft.Json.Linq.JObject)
+            Dim itemOD As Double
+            If isHollow Then
+                If item("od") Is Nothing Then Continue For
+                itemOD = CDbl(item("od"))
+            Else
+                ' round_bar.json is single-dimension: the diameter IS the label
+                ' (no separate split-dim key, since there's nothing to split)
+                Try
+                    itemOD = CDbl(item("label"))
+                Catch
+                    Continue For ' label wasn't numeric (shouldn't happen, fail safe)
+                End Try
+            End If
+
+            Dim odDiff As Double = Math.Abs(itemOD - od)
+            Dim wallDiff As Double = 0.0
+            If isHollow AndAlso item("wall") IsNot Nothing Then
+                wallDiff = Math.Abs(CDbl(item("wall")) - wall)
+            End If
+            Dim score As Double = odDiff + wallDiff
+            If score > 1.0 Then Continue For ' beyond CLOSE band — not worth reporting
+            If score < bestScore Then
+                bestScore = score
+                tier = If(score <= 0.2, "EXACT", "CLOSE")
+                label = item("label").ToString()
+                source = fname
+                Dim gradeList As New System.Collections.Generic.List(Of String)
+                If item("grades") IsNot Nothing Then
+                    For Each g As Newtonsoft.Json.Linq.JToken In item("grades")
+                        gradeList.Add(g.ToString())
+                    Next
+                End If
+                grades = String.Join(",", gradeList)
+            End If
+        Next
+    Next
+
+    Return tier <> ""
+End Function
+
+' ════════════════════════════════════════════════════════════════
+' NEW v12 — tier-fit replacement for D-353's fixed threshold pair.
+' PROPOSED / UNVALIDATED. Checks both flat-pattern orientations
+' against each tier; returns the warning string to add, or "" if
+' the part fits within the smallest tier cleanly.
+' Tiers sourced from ArcelorMittal e-steel France (EU mill) and
+' regional stainless stockist data (Metal-Centar) — phase 1 only,
+' not yet checked against aluminum or Stirg-specific supplier data
+' (OQ-124 phase 2).
+' ════════════════════════════════════════════════════════════════
+Function CheckOversizeOrderable(flatL As Double, flatW As Double) As String
+    Dim tiers As New System.Collections.Generic.List(Of Double())From {
+        New Double() {1250, 2500},
+        New Double() {1500, 3000},
+        New Double() {2000, 4000}
+    }
+
+    For i As Integer = 0 To tiers.Count - 1
+        Dim tierShort As Double = tiers(i)(0)
+        Dim tierLong As Double = tiers(i)(1)
+        Dim fitsNormal As Boolean = (flatL <= tierLong AndAlso flatW <= tierShort)
+        Dim fitsRotated As Boolean = (flatW <= tierLong AndAlso flatL <= tierShort)
+        If fitsNormal OrElse fitsRotated Then
+            If i = tiers.Count - 1 Then
+                Return "LARGE_FORMAT_CONFIRM_STOCK"
+            Else
+                Return ""
+            End If
+        End If
+    Next
+
+    Return "OVERSIZE_ORDERABLE"
+End Function
+
+' ════════════════════════════════════════════════════════════════
+' UNDER TEST v3 — verified API members, see header comment. Hole/thread
+' section now B-Rep face-based (see below), everything else unchanged from v2.
+' ════════════════════════════════════════════════════════════════
+' ── v17: name-based standard-hardware detection (OQ-129/PartType) ──
+' PROPOSED / UNVALIDATED. IsContentMember (below) only returns True if the
+' part was actually inserted from Inventor's Content Center generator —
+' it says nothing about whether the part REPRESENTS standard hardware.
+' Confirmed on real data: SP000000739 "Sicherungsscheibe Rip-Lock M8" and
+' similar DIN/ISO/NFE-spec washers/nuts in this assembly were modeled as
+' plain custom geometry (someone extruded a disc + cut a hole to match the
+' standard dimensions) rather than dragged in from Content Center, so
+' IsContentMember correctly reports False even though these are always-
+' purchased hardware (confirmed with Voja — never made in-house). Per
+' Voja: many of these come from McMaster-Carr or similar online libraries
+' and are sometimes named with ONLY a standard number, no descriptive word
+' at all — so a bare "DIN 125" or "ISO 4032" match is trusted on its own,
+' same weight as a keyword match.
+' v18: confirmed with Voja that hydraulic/pneumatic screw-in fittings
+' (Einschraubstutzen, Winkelstutzen) are also always-purchased at Stirg —
+' added that category. Keyword list expanded to English/German/Italian/
+' Serbian per Voja (parts in this shop's assemblies get named in whichever
+' of these the source drawing/supplier catalog used, not one language).
+' v19: grounding lugs (Erdungsauge) and pipe fitting mufs/nipples (Muffe/
+' Nippel) do NOT belong in the always-purchased list — per Voja, these
+' are usually bought but SOMETIMES made in-house, unlike true fasteners
+' (screw/nut/washer/rivet/pin) which are always bought. Forcing
+' PartType="purchased" on a sometimes-in-house category would silently
+' hide the in-house-made instances from the whole downstream costing
+' pipeline — worse than the false-match problem this was built to fix.
+' Split into two functions: IsAlwaysPurchasedHardwareName (unchanged
+' behavior — forces PartType="purchased", skips round-stock detection)
+' and IsAmbiguousMaybePurchasedName (adds a review warning only — normal
+' geometric classification and round-stock/StockMatch lookup still run,
+' so a human sees the full picture and decides per-instance).
+' v20: two matching modes. STRICT (both-side boundary) for short/generic
+' English tokens where a false substring hit is the real risk (PIN inside
+' SPINDEL, etc). SUFFIX (right-side boundary only) for German/Italian/
+' Serbian words, which compound by gluing a prefix onto the FRONT of the
+' base noun (Halbmuffe = "half" + "muffe" — no boundary exists between
+' them, so a strict-both-sides match silently misses it, confirmed on real
+' data: "Halbmuffe R203 4307 2" got zero flags in v19). A compound noun
+' IS a kind of its base noun grammatically, so suffix matching is
+' linguistically correct here, not a workaround — Halbmuffe is-a Muffe.
+' Verified this doesn't reopen the Spindel case: "PIN" in "SPINDEL" isn't
+' followed by a boundary either (followed by "D"), so suffix-only also
+' correctly misses it.
+' v20 boundary fix: standard regex \b treats underscore as a word
+' character, so "Kohler_Bend" has NO \b between "Kohler" and "_" — this
+' silently failed to match on real data (KROMA_MWA-USZO, Kohler_Bend_...,
+' this shop's underscore-heavy naming throughout). Boundaries are defined
+' here as "not preceded/followed by A-Z0-9" instead, so underscore/hyphen/
+' space/period all correctly count as separators.
+' v20 plural fix: English nouns get an optional trailing "S" allowed
+' before the right-boundary check ("valve" must also match "valves") —
+' confirmed needed on "...toggle valves" (plural) in real data.
+Function MatchesAny(n As String, keywords() As String, suffixOnly As Boolean, allowPlural As Boolean) As Boolean
+    For Each kw As String In keywords
+        Dim rightBound As String = If(allowPlural, "S?(?![A-Z0-9])", "(?![A-Z0-9])")
+        Dim pattern As String = System.Text.RegularExpressions.Regex.Escape(kw) & rightBound
+        If Not suffixOnly Then pattern = "(?<![A-Z0-9])" & pattern
+        If System.Text.RegularExpressions.Regex.IsMatch(n, pattern) Then Return True
+    Next
+    Return False
+End Function
+
+' v20: confirmed brand/supplier names — a part named after a specific
+' commercial product is essentially always bought, not fabricated to match
+' a brand name (per Voja). Unlike DIN/ISO or the translated keyword lists,
+' there's no structural pattern to detect a brand — this can only be an
+' explicit, maintained list. Safe against Stirg's own naming because these
+' are multi-letter proper nouns that don't resemble Stirg's real part-
+' number patterns (NR#########, SP#########, TM#########, 602.X.X.X-X,
+' 001.A0X.S0X.P00X-...) — confirmed by checking against every real part
+' name seen across all test runs so far, zero collisions. ADD MORE BRANDS
+' HERE as they show up in real assemblies — do not guess ahead of evidence.
+Function IsKnownBrandName(name As String) As Boolean
+    If String.IsNullOrEmpty(name) Then Return False
+    Dim n As String = name.ToUpperInvariant()
+    Dim brands() As String = {"KOHLER", "JUMO", "HARTING", "FLEXA", "KROMA"}
+    Return MatchesAny(n, brands, False, True)
+End Function
+
+Function IsAlwaysPurchasedHardwareName(name As String) As Boolean
+    If String.IsNullOrEmpty(name) Then Return False
+    Dim n As String = name.ToUpperInvariant()
+
+    ' Standard-body callout alone is sufficient, no keyword needed (Voja:
+    ' McMaster-Carr / online-library parts sometimes carry only a spec
+    ' number). EN deliberately excluded — this document uses bare "EN" for
+    ' MATERIAL grades (EN S235JR, EN 1.4404) constantly, too ambiguous to
+    ' use as a standalone hardware signal without a following ISO/DIN.
+    ' NOTE: a standard-number callout is treated as HIGH confidence even
+    ' for otherwise-ambiguous categories (a DIN/ISO-spec'd muf/nipple is
+    ' being ordered to a bought-part catalog number, not custom-made to
+    ' match one) — so this check alone doesn't need a "which category"
+    ' distinction the way the keyword list below does.
+    ' v20: fixed boundary from \b to (?&lt;![A-Z0-9]) — confirmed broken on
+    ' real data: "M6x20_DIN912" and "M5x20_DIN912" were NOT matching
+    ' (underscore counts as a \b word character, so no boundary existed
+    ' between "0" and "DIN"), leaving both as PartType=machined instead of
+    ' purchased. Same root cause as the keyword-list fix below.
+    If System.Text.RegularExpressions.Regex.IsMatch(n, "(?<![A-Z0-9])DIN\s*\d+") Then Return True
+    If System.Text.RegularExpressions.Regex.IsMatch(n, "(?<![A-Z0-9])ISO\s*\d+") Then Return True
+    If System.Text.RegularExpressions.Regex.IsMatch(n, "(?<![A-Z0-9])NFE\s*[\d\-]+") Then Return True
+    If System.Text.RegularExpressions.Regex.IsMatch(n, "(?<![A-Z0-9])ANSI(?![A-Z0-9])") Then Return True
+    If System.Text.RegularExpressions.Regex.IsMatch(n, "(?<![A-Z0-9])ASME(?![A-Z0-9])") Then Return True
+    If System.Text.RegularExpressions.Regex.IsMatch(n, "(?<![A-Z0-9])SRPS\s*[A-Z]?\.?\s*\d+") Then Return True  ' Serbian standard
+    If System.Text.RegularExpressions.Regex.IsMatch(n, "(?<![A-Z0-9])UNI\s*\d+") Then Return True                ' Italian standard
+
+    ' v20: confirmed brand match => always purchased (see IsKnownBrandName).
+    If IsKnownBrandName(name) Then Return True
+
+    ' STRICT (both-boundary) — short English tokens, substring-collision risk.
+    Dim strictKeywords() As String = { _
+        "WASHER", "NUT", "SCREW", "BOLT", "CAP SCREW", "SET SCREW", _
+        "RIVET", "PIN", "DOWEL PIN", "COTTER PIN", "SPLIT PIN", _
+        "RETAINING RING", "CIRCLIP", "SNAP RING", _
+        "FITTING", "CONNECTOR", "COUPLING", "PUSH-IN FITTING", _
+        "BALL VALVE", "CHECK VALVE", "NONRETURN VALVE", "TOGGLE VALVE"}
+    If MatchesAny(n, strictKeywords, False, True) Then Return True
+
+    ' SUFFIX (right-boundary only) — German/Italian/Serbian, compound-prone.
+    ' Deliberately EXCLUDES grounding lugs, mufs/nipples, and bends/elbows —
+    ' see IsAmbiguousMaybePurchasedName below for those.
+    Dim suffixKeywords() As String = { _
+        "SCHEIBE", "UNTERLEGSCHEIBE", "FEDERRING", "FÄCHERSCHEIBE", _
+            "RONDELLA", "ROSETTA", "PODLOSKA", "PODLOŠKA", "PLOCICA", _
+        "MUTTER", "SECHSKANTMUTTER", "SICHERUNGSMUTTER", _
+            "DADO", "NAVRTKA", "MATICA", _
+        "SCHRAUBE", "SECHSKANTSCHRAUBE", "ZYLINDERSCHRAUBE", "MADENSCHRAUBE", _
+            "VITE", "BULLONE", _
+            "ZAVRTANJ", "SRAF", "ŠRAF", "VIJAK", _
+        "NIET", "RIVETTO", "ZAKIVAK", "NIT", _
+        "STIFT", "PASSSTIFT", "SPLINT", "BOLZEN", _
+            "PERNO", "SPINA", _
+            "KLIN", "ZATIK", _
+        "SICHERUNGSRING", "SICHERUNGSSCHEIBE", _
+            "ANELLO DI SICUREZZA", "SEEGER", "SIGURNOSNI PRSTEN", "SEGER PRSTEN", _
+        "STUTZEN", "VERSCHRAUBUNG", "ANSCHLUSS", _
+            "RACCORDO", "ATTACCO", "GIUNTO", _
+            "FITING", "PRIKLJUCAK", "PRIKLJUČAK", "SPOJNICA", "HOLENDER", _
+        "VENTIL", "VALVOLA"}
+    Return MatchesAny(n, suffixKeywords, True, True)
+End Function
+
+' v19: sometimes-purchased, sometimes-made-in-house. Match => review
+' warning only, does NOT set PartType or skip round-stock detection —
+' see the header comment above IsAlwaysPurchasedHardwareName for why.
+' v20: added bends/elbows (Bend, Bogen, Luk — Luk is the literal Prohrom
+' catalog term, confirmed as a real part name in this session's data:
+' "Luk 35.0x1.5, r=55") — same reasoning as mufs/nipples, a shop with tube
+' fabrication capability might bend a custom elbow in-house sometimes.
+' v21: added bare VALVE here (demoted from always-purchased) — confirmed
+' on real data: "001.A02.S00.P001-Valve bracket" was matching
+' always-purchased on the word "Valve" alone, but a bracket that HOLDS a
+' valve is a custom fabricated part, not a valve. Unlike WASHER/SCREW/NUT,
+' "valve" is common enough as a mere descriptor in another part's name
+' (valve bracket, valve mount, valve cover) that it needs the specific
+' compound phrase (BALL VALVE, CHECK VALVE, etc, still always-purchased)
+' to be trusted at high confidence — bare VALVE only warrants a review flag.
+Function IsAmbiguousMaybePurchasedName(name As String) As Boolean
+    If String.IsNullOrEmpty(name) Then Return False
+    Dim n As String = name.ToUpperInvariant()
+
+    Dim strictKeywords() As String = { _
+        "SOCKET", "NIPPLE", "BEND", "ELBOW", "VALVE", _
+        "MUF", "MUFA", "NIPL", "LUK", _
+        "GROUNDING LUG", "GROUND LUG", "EARTH LUG", "RING TERMINAL", _
+        "CAPOCORDA", "OCCHIELLO DI TERRA"}
+    If MatchesAny(n, strictKeywords, False, True) Then Return True
+
+    Dim suffixKeywords() As String = { _
+        "MUFFE", "NIPPEL", "BOGEN", _
+            "MANICOTTO", "NIPPLO", "GOMITO", _
+        "ERDUNGSAUGE", "ERDUNGSOSE", "ERDUNGSÖSE", "KABELSCHUH", _
+            "UZEMLJENJE", "KABELSKA STOPICA"}
+    Return MatchesAny(n, suffixKeywords, True, True)
+End Function
+
+Function GetPartFeatureData(oPart As PartDocument, pn As String) As PartFeatureData
+    Dim r As New PartFeatureData
+    Dim warnings As New System.Collections.Generic.List(Of String)
+    Dim oCompDef As PartComponentDefinition = oPart.ComponentDefinition
+    ' v14: hoisted here (was declared later, near Pass 2) — VB requires
+    ' Dim to lexically precede use; it's assigned during Part_Type
+    ' detection below but read later during round-stock length calc.
+    ' Confirmed via real compile error, not guessed.
+    Dim oBodyRangeBox As Box = Nothing
+
+    ' ── Sheet metal detection (verified: HasFlatPattern) ───────────
+    Dim isSheetMetal As Boolean = False
+    Dim oSM As SheetMetalComponentDefinition = Nothing
+    Try
+        If TypeOf oCompDef Is SheetMetalComponentDefinition Then
+            oSM = CType(oCompDef, SheetMetalComponentDefinition)
+            isSheetMetal = True
+        End If
+    Catch : End Try
+
+    ' ── Content Center / purchased detection (verified: IsContentMember) ──
+    Dim isContentMember As Boolean = False
+    Try : isContentMember = oCompDef.IsContentMember : Catch : End Try
+
+    ' ── Thickness + bend count (verified: FlatBendResults, Unfold fallback) ──
+    If isSheetMetal Then
+        Try : r.ThicknessMM = oSM.Thickness.ModelValue * 10 : Catch : End Try
+        Try
+            If Not oSM.HasFlatPattern Then oSM.Unfold()
+            r.BendCount = oSM.FlatPattern.FlatBendResults.Count
+        Catch
+            warnings.Add("BEND_COUNT_UNAVAILABLE")
+        End Try
+    End If
+
+    ' ── Part type (D-352) ───────────────────────────────────────────
+    ' v13: stockLengthCandidate captures the longest bounding-box extent
+    ' for reuse by round stock detection below (OQ-112) — avoids a second
+    ' RangeBox computation.
+    ' v19: ambiguous-name check runs independently of the main If/ElseIf
+    ' chain below (not as a branch of it) — a part can be sheet_metal OR
+    ' machined OR tube_pipe AND still be worth flagging "might actually be
+    ' a purchased muf/nipple/grounding lug, check before costing this as
+    ' fabricated." It only adds a warning; it never touches r.PartType.
+    If IsAmbiguousMaybePurchasedName(pn) Then
+        warnings.Add("REVIEW_MAYBE_PURCHASED_HARDWARE")
+    End If
+
+    Dim stockLengthCandidate As Double = 0.0
+    If isContentMember Then
+        r.PartType = "purchased"
+    ElseIf IsAlwaysPurchasedHardwareName(pn) Then
+        r.PartType = "purchased"
+        warnings.Add("PURCHASED_STANDARD_HARDWARE_NAME_MATCH")
+    ElseIf isSheetMetal Then
+        r.PartType = "sheet_metal"
+    Else
+        Try
+            If oCompDef.SurfaceBodies.Count = 0 Then
+                r.PartType = "purchased"
+            Else
+                Dim oBody As SurfaceBody = oCompDef.SurfaceBodies.Item(1)
+                Dim oRange As Box = oBody.RangeBox
+                oBodyRangeBox = oRange
+                Dim dx As Double = Math.Abs(oRange.MaxPoint.X - oRange.MinPoint.X) * 10
+                Dim dy As Double = Math.Abs(oRange.MaxPoint.Y - oRange.MinPoint.Y) * 10
+                Dim dz As Double = Math.Abs(oRange.MaxPoint.Z - oRange.MinPoint.Z) * 10
+                Dim dims() As Double = {dx, dy, dz}
+                Array.Sort(dims)
+                stockLengthCandidate = dims(2)
+                If dims(1) > 0 AndAlso (dims(2) / dims(1)) > 6 Then
+                    r.PartType = "tube_pipe"
+                Else
+                    r.PartType = "machined"
+                End If
+            End If
+        Catch : r.PartType = "machined" : End Try
+    End If
+
+    ' ── Mass + surface area (verified: MassProperties.Area) ────────
+    Try : r.MassKg = oCompDef.MassProperties.Mass : Catch : End Try
+    Try
+        r.SurfaceArea = oCompDef.MassProperties.Area * 100.0
+    Catch
+        warnings.Add("SURFACE_AREA_FAILED")
+    End Try
+
+    ' ── Flat pattern L×W + boundary checks — v12: tier-fit replaces
+    '    D-353's fixed threshold pair. PROPOSED / UNVALIDATED. ────────
+    If isSheetMetal Then
+        Try
+            Dim oFP As FlatPattern = oSM.FlatPattern
+            Dim rb As Box = oFP.RangeBox
+            Dim rawL As Double = Math.Abs(rb.MaxPoint.X - rb.MinPoint.X) * 10
+            Dim rawW As Double = Math.Abs(rb.MaxPoint.Y - rb.MinPoint.Y) * 10
+            r.FlatLength = Math.Max(rawL, rawW)
+            r.FlatWidth  = Math.Min(rawL, rawW)
+            Dim sizeWarning As String = CheckOversizeOrderable(r.FlatLength, r.FlatWidth)
+            If sizeWarning <> "" Then warnings.Add(sizeWarning)
+        Catch
+            warnings.Add("INVALID_FLAT_PATTERN")
+        End Try
+    End If
+
+    ' ── Thickness validation (D-354) ────────────────────────────────
+    If isSheetMetal AndAlso r.ThicknessMM > 0 Then
+        Dim nominal() As Double = {1.0, 1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, _
+            10.0, 12.0, 15.0, 20.0, 25.0}
+        Dim bestDelta As Double = Math.Abs(r.ThicknessMM - nominal(0))
+        For Each nv As Double In nominal
+            Dim d As Double = Math.Abs(r.ThicknessMM - nv)
+            If d < bestDelta Then bestDelta = d
+        Next
+        If bestDelta > 0.1 Then warnings.Add("THICKNESS_OFF_NOMINAL")
+    End If
+
+    ' ── Material warning (D-355), corrected (OQ-121) ─────────────────
+    ' PartComponentDefinition.Material has been "hidden"/deprecated by
+    ' Autodesk for years (confirmed via Autodesk community). Correct
+    ' current property is PartDocument.ActiveMaterial. Legacy property
+    ' kept as fallback only, not primary.
+    Dim matName As String = ""
+    Try : matName = oPart.ActiveMaterial.Name : Catch : End Try
+    If matName = "" Then
+        Try : matName = oCompDef.Material.Name : Catch : End Try
+    End If
+    ' ActiveMaterial.Name returns "N:MaterialName" (index prefix),
+    ' confirmed via real 29-part test data (e.g. "1:EN S235JR",
+    ' "1:Generic") — substring match, not exact equality, or a
+    ' genuinely-unset "1:Generic" material silently passes the check.
+    Dim matLower As String = matName.ToLower().Trim()
+    If matLower = "" OrElse matLower.EndsWith(":generic") OrElse matLower.EndsWith(":general") _
+        OrElse matLower = "generic" OrElse matLower = "general" Then
+        ' v13 rename (was MATERIAL_UNRECOGNIZED) — same D-355 trigger logic,
+        ' clearer/actionable label. Future Excel/PPM App display text:
+        ' "Please set material for this part" (not wired in this diagnostic).
+        warnings.Add("MATERIAL_NOT_SET")
+    End If
+    r.Material = matName
+
+    ' ── Pass 1: catalog known hole/thread TYPE + DIMENSION from the
+    '    feature tree. Never read quantity here — D-367 established that
+    '    feature-tree instance counts (PositionPoints) are unreliable.
+    '    Quantity always comes from Pass 2's B-Rep face count. (D-368) ──
+    Dim knownDiameters As New System.Collections.Generic.HashSet(Of String)
+    Dim knownDesignations As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
+
+    Try
+        For Each oFeat As HoleFeature In oCompDef.Features.HoleFeatures
+            Try
+                Dim isTapped As Boolean = False
+                Try : isTapped = oFeat.Tapped : Catch : End Try
+                If isTapped Then
+                    Dim desig As String = ""
+                    Try
+                        Dim oTapObj As Object = oFeat.TapInfo
+                        If TypeOf oTapObj Is HoleTapInfo Then
+                            desig = CType(oTapObj, HoleTapInfo).ThreadDesignation
+                        ElseIf TypeOf oTapObj Is TaperedThreadInfo Then
+                            desig = CType(oTapObj, TaperedThreadInfo).ThreadDesignation
+                        End If
+                    Catch : End Try
+                    If desig <> "" Then knownDesignations.Add(desig)
+                Else
+                    Dim dia As Double = 0
+                    Try : dia = oFeat.HoleDiameter.Value * 10 : Catch : End Try
+                    If dia > 0 Then
+                        knownDiameters.Add(Math.Round(dia, 1).ToString( _
+                            System.Globalization.CultureInfo.InvariantCulture))
+                    End If
+                End If
+            Catch : End Try
+        Next
+    Catch : End Try
+
+    Try
+        For Each oThreadFeat As ThreadFeature In oCompDef.Features.ThreadFeatures
+            Try
+                Dim desig As String = ""
+                Try : desig = oThreadFeat.ThreadInfo.ThreadDesignation : Catch : End Try
+                If desig <> "" Then knownDesignations.Add(desig)
+            Catch : End Try
+        Next
+    Catch : End Try
+
+    ' ── Pass 2: B-Rep face scan — quantity source of truth, plus
+    '    concave/convex filter (D-367 extension) and laser-cut
+    '    classification (D-368). ──
+    Dim plainList  As New System.Collections.Generic.Dictionary(Of String, Integer)
+    Dim tappedList As New System.Collections.Generic.Dictionary(Of String, Integer)
+    Dim laserList  As New System.Collections.Generic.Dictionary(Of String, Integer)
+    Dim csCount As Integer = 0
+    Dim cbCount As Integer = 0
+    Dim nSkippedTiny As Integer = 0
+    Dim nSkippedConvex As Integer = 0
+    Dim nSkippedPartialArc As Integer = 0
+    Dim inconclusiveTypeSample As String = ""
+    ' v13: tracks the largest convex cylindrical face diameter seen —
+    ' candidate round-stock OD for turning-operation inference (OQ-112)
+    Dim maxConvexDiaMM As Double = 0.0
+    ' v14: axis point/direction of the face that produced maxConvexDiaMM,
+    ' used to project the body's bounding box for a correct axial length
+    ' (replaces v13's largest-of-3-bbox-dims shortcut, confirmed wrong on
+    ' disc/flange-shaped parts where diameter > length)
+    Dim maxConvexAxisPt(2) As Double
+    Dim maxConvexAxisDir(2) As Double
+    ' v14: every convex cylindrical face's {diaMM, ptXYZ, dirXYZ} — used
+    ' to cross-check concave faces against a coaxial larger-diameter
+    ' convex face (pipe/tube bore, not a real hole). PROPOSED/UNVALIDATED.
+    Dim convexFaces As New System.Collections.Generic.List(Of Double())
+    ' v14: concave full-revolution faces are queued here instead of
+    ' classified immediately, so every convex face has been seen by the
+    ' time the pipe-bore cross-check runs (face iteration order isn't
+    ' guaranteed to put the OD face before the bore face).
+    Dim pendingConcaveFaces As New System.Collections.Generic.List(Of Object())
+
+    Try
+        For Each oBody As SurfaceBody In oCompDef.SurfaceBodies
+            For Each oFace As Face In oBody.Faces
+                Try
+                    If oFace.SurfaceType <> SurfaceTypeEnum.kCylinderSurface Then Continue For
+
+                    Dim oCyl As Cylinder = CType(oFace.Geometry, Cylinder)
+                    Dim diaMM As Double = oCyl.Radius * 2 * 10
+
+                    ' Filter: sub-1mm faces are fillet artifacts, not holes (OQ-110)
+                    If diaMM < 1.0 Then
+                        nSkippedTiny += 1
+                        Continue For
+                    End If
+
+                    ' Filter: concave (hole) vs convex (boss/stock) via
+                    ' Face.Evaluator.GetNormal — normal always points out
+                    ' of the solid (Autodesk B-Rep training material,
+                    ' confirmed); compare to the radial vector from the
+                    ' cylinder axis. (OQ-108)
+                    Dim isConcave As Boolean = True
+                    Try
+                        Dim oPt As Point = oFace.PointOnFace
+                        Dim oEval As SurfaceEvaluator = oFace.Evaluator
+                        Dim points(2) As Double
+                        points(0) = oPt.X : points(1) = oPt.Y : points(2) = oPt.Z
+                        Dim guessParams(1) As Double
+                        Dim maxDev(1) As Double
+                        Dim uvParams(1) As Double
+                        Dim sol(1) As SolutionNatureEnum
+                        oEval.GetParamAtPoint(points, guessParams, maxDev, uvParams, sol)
+                        Dim normal(2) As Double
+                        oEval.GetNormal(uvParams, normal)
+
+                        Dim oAxisPt As Point = oCyl.BasePoint
+                        Dim oAxisDir As UnitVector = oCyl.AxisVector
+                        Dim toPtX As Double = oPt.X - oAxisPt.X
+                        Dim toPtY As Double = oPt.Y - oAxisPt.Y
+                        Dim toPtZ As Double = oPt.Z - oAxisPt.Z
+                        Dim alongAxis As Double = toPtX * oAxisDir.X + toPtY * oAxisDir.Y + toPtZ * oAxisDir.Z
+                        Dim radialX As Double = toPtX - alongAxis * oAxisDir.X
+                        Dim radialY As Double = toPtY - alongAxis * oAxisDir.Y
+                        Dim radialZ As Double = toPtZ - alongAxis * oAxisDir.Z
+
+                        Dim dot As Double = normal(0) * radialX + normal(1) * radialY + normal(2) * radialZ
+                        isConcave = (dot < 0)
+                    Catch
+                        isConcave = True ' fail open — never silently drop, flag instead
+                        warnings.Add("CONCAVITY_CHECK_FAILED")
+                    End Try
+
+                    If Not isConcave Then
+                        nSkippedConvex += 1
+                        Dim cvxPt As Point = oCyl.BasePoint
+                        Dim cvxDir As UnitVector = oCyl.AxisVector
+                        convexFaces.Add(New Double() {diaMM, cvxPt.X, cvxPt.Y, cvxPt.Z, _
+                            cvxDir.X, cvxDir.Y, cvxDir.Z})
+                        If diaMM > maxConvexDiaMM Then
+                            maxConvexDiaMM = diaMM
+                            maxConvexAxisPt(0) = cvxPt.X : maxConvexAxisPt(1) = cvxPt.Y : maxConvexAxisPt(2) = cvxPt.Z
+                            maxConvexAxisDir(0) = cvxDir.X : maxConvexAxisDir(1) = cvxDir.Y : maxConvexAxisDir(2) = cvxDir.Z
+                        End If
+                        Continue For
+                    End If
+
+                    ' Filter: full 360° revolution (hole) vs partial arc
+                    ' (corner fillet) — both can be concave, so concavity
+                    ' alone can't tell them apart. Confirmed via PPM_
+                    ' ProbeFace.iLogicVb single-face probe on a real hole:
+                    ' ParamRangeRect's Y is the angular parameter (span
+                    ' verified = 2Pi to 14 sig figs), X is axial. Sweeping
+                    ' full Y and converting via Get3dCurveFrom2dCurve
+                    ' returns type "Circle" for a real hole, "Arc3d" for a
+                    ' partial arc — confirmed by TypeName(), not assumed.
+                    ' NOTE: it's "Circle", NOT "Circle3d" despite Arc3d's
+                    ' naming — Inventor's curve type naming isn't fully
+                    ' consistent (Face.Geometry likewise returns plain
+                    ' "Cylinder", not "Cylinder3d"). Trust TypeName() output
+                    ' literally, don't pattern-match a naming convention.
+                    ' (D-369, supersedes the earlier two-trial design)
+                    Dim isFullRevolution As Boolean = True
+                    Try
+                        Dim tg As TransientGeometry = ThisApplication.TransientGeometry
+                        Dim oEval2 As SurfaceEvaluator = oFace.Evaluator
+                        Dim pRange As Box2d = oEval2.ParamRangeRect
+                        Dim midU As Double = (pRange.MinPoint.X + pRange.MaxPoint.X) / 2.0
+
+                        Dim seg As LineSegment2d = tg.CreateLineSegment2d( _
+                            tg.CreatePoint2d(midU, pRange.MinPoint.Y), _
+                            tg.CreatePoint2d(midU, pRange.MaxPoint.Y))
+                        Dim c As Object = oEval2.Get3dCurveFrom2dCurve(seg)
+
+                        If TypeOf c Is Circle Then
+                            isFullRevolution = True
+                        ElseIf TypeOf c Is Arc3d Then
+                            isFullRevolution = False
+                        Else
+                            isFullRevolution = True ' fail open — never silently drop
+                            If inconclusiveTypeSample = "" Then
+                                Try : inconclusiveTypeSample = TypeName(c) : Catch : End Try
+                            End If
+                            warnings.Add("ARC_SWEEP_CHECK_INCONCLUSIVE")
+                        End If
+                    Catch
+                        warnings.Add("ARC_SWEEP_CHECK_FAILED")
+                    End Try
+
+                    If Not isFullRevolution Then
+                        nSkippedPartialArc += 1
+                        Continue For
+                    End If
+
+                    ' Thickness sanity — flag only, never exclude (OQ-109)
+                    If isSheetMetal AndAlso r.ThicknessMM > 0 AndAlso diaMM < r.ThicknessMM * 0.3 Then
+                        warnings.Add("HOLE_SMALLER_THAN_THICKNESS")
+                    End If
+
+                    Dim isThreaded As Boolean = False
+                    Dim desig As String = ""
+                    Try
+                        Dim oThreadInfos As ObjectCollection = oFace.ThreadInfos
+                        If oThreadInfos IsNot Nothing AndAlso oThreadInfos.Count > 0 Then
+                            isThreaded = True
+                            Dim oTi As ThreadInfo = CType(oThreadInfos.Item(1), ThreadInfo)
+                            desig = oTi.ThreadDesignation
+                        End If
+                    Catch : End Try
+
+                    ' v14: queue instead of classify — pipe-bore cross-check
+                    ' (against convexFaces) runs after the full face scan.
+                    Dim ccvPt As Point = oCyl.BasePoint
+                    Dim ccvDir As UnitVector = oCyl.AxisVector
+                    pendingConcaveFaces.Add(New Object() {diaMM, ccvPt.X, ccvPt.Y, ccvPt.Z, _
+                        ccvDir.X, ccvDir.Y, ccvDir.Z, isThreaded, desig})
+                Catch : End Try
+            Next
+        Next
+    Catch
+        warnings.Add("BREP_FACE_SCAN_FAILED")
+    End Try
+
+    ' ── v14: pipe/tube bore cross-check (extends OQ-112) ──────────────
+    ' PROPOSED / UNVALIDATED. A concave face coaxial with a larger-diameter
+    ' convex face is a pipe/tube bore, not a real hole or turned-stock
+    ' candidate — fixes the double-misclassification confirmed on
+    ' NR01555346-9 (60.3mm OD pipe with 57.3mm bore was previously counted
+    ' as both a Ø57.3 laser hole AND a round-bar turning candidate).
+    ' Colinearity: axis directions parallel (|dot| > 0.999) AND axis lines
+    ' coincide (perpendicular offset between axis points < 0.05cm / 0.5mm).
+    Const COAX_DOT_MIN As Double = 0.999
+    Const COAX_OFFSET_MAX_CM As Double = 0.05
+    Dim bestBoreDia As Double = 0.0
+    For Each pf As Object() In pendingConcaveFaces
+        Dim pDia As Double = CDbl(pf(0))
+        Dim pPt(2) As Double : pPt(0) = CDbl(pf(1)) : pPt(1) = CDbl(pf(2)) : pPt(2) = CDbl(pf(3))
+        Dim pDir(2) As Double : pDir(0) = CDbl(pf(4)) : pDir(1) = CDbl(pf(5)) : pDir(2) = CDbl(pf(6))
+        Dim pIsThreaded As Boolean = CBool(pf(7))
+        Dim pDesig As String = CStr(pf(8))
+
+        Dim matchedBore As Boolean = False
+        For Each cf As Double() In convexFaces
+            Dim cDia As Double = cf(0)
+            If cDia <= pDia + 0.5 Then Continue For ' must be meaningfully larger — not the same surface
+            Dim cPt(2) As Double : cPt(0) = cf(1) : cPt(1) = cf(2) : cPt(2) = cf(3)
+            Dim cDir(2) As Double : cDir(0) = cf(4) : cDir(1) = cf(5) : cDir(2) = cf(6)
+
+            Dim dotDir As Double = pDir(0) * cDir(0) + pDir(1) * cDir(1) + pDir(2) * cDir(2)
+            If Math.Abs(dotDir) < COAX_DOT_MIN Then Continue For
+
+            Dim vX As Double = cPt(0) - pPt(0)
+            Dim vY As Double = cPt(1) - pPt(1)
+            Dim vZ As Double = cPt(2) - pPt(2)
+            Dim alongV As Double = vX * pDir(0) + vY * pDir(1) + vZ * pDir(2)
+            Dim perpX As Double = vX - alongV * pDir(0)
+            Dim perpY As Double = vY - alongV * pDir(1)
+            Dim perpZ As Double = vZ - alongV * pDir(2)
+            Dim perpMag As Double = Math.Sqrt(perpX * perpX + perpY * perpY + perpZ * perpZ)
+            If perpMag > COAX_OFFSET_MAX_CM Then Continue For
+
+            matchedBore = True
+            If pDia > bestBoreDia Then bestBoreDia = pDia
+            Exit For
+        Next
+
+        If matchedBore Then
+            r.IsHollow = True
+            ' not added to plainList/laserList/tappedList — real pipe bore,
+            ' not a hole feature (fixes NR01555346-9-style double-count)
+        Else
+            ' Original classification path (unchanged from v13/v12)
+            If pIsThreaded Then
+                Dim desig2 As String = pDesig
+                If desig2 = "" Then
+                    desig2 = "M?"
+                    warnings.Add("THREAD_WITHOUT_DESIGNATION")
+                End If
+                If tappedList.ContainsKey(desig2) Then tappedList(desig2) += 1 _
+                    Else tappedList(desig2) = 1
+            Else
+                Dim diaKey As String = Math.Round(pDia, 1).ToString( _
+                    System.Globalization.CultureInfo.InvariantCulture)
+                If knownDiameters.Contains(diaKey) Then
+                    If plainList.ContainsKey(diaKey) Then plainList(diaKey) += 1 _
+                        Else plainList(diaKey) = 1
+                Else
+                    If laserList.ContainsKey(diaKey) Then laserList(diaKey) += 1 _
+                        Else laserList(diaKey) = 1
+                End If
+            End If
+        End If
+    Next
+
+    If r.IsHollow Then
+        r.BoreID = bestBoreDia
+        r.WallThicknessMM = (maxConvexDiaMM - bestBoreDia) / 2.0
+    End If
+
+    If nSkippedTiny > 0 Then warnings.Add("SKIPPED_" & nSkippedTiny & "_SUB1MM_FACES")
+    If nSkippedConvex > 0 Then warnings.Add("SKIPPED_" & nSkippedConvex & "_CONVEX_FACES")
+    If nSkippedPartialArc > 0 Then warnings.Add("SKIPPED_" & nSkippedPartialArc & "_PARTIAL_ARC_FACES")
+    If inconclusiveTypeSample <> "" Then warnings.Add("INCONCLUSIVE_TYPE=" & inconclusiveTypeSample)
+
+    ' ── Round stock detection + turning-operation inference (OQ-112) ──
+    ' PROPOSED / UNVALIDATED. Only applies to non-sheet-metal solid parts
+    ' with at least one convex cylindrical face. Nearest LARGER EN 10060
+    ' diameter only — stock can never be smaller than the finished part.
+    ' Placeholder ±1mm confirm-band (see header comment) — real per-band
+    ' tolerance table not yet verified, so anything within 1mm of a
+    ' standard diameter is flagged for manual confirmation rather than
+    ' auto-classified either way.
+    ' v14: length now projects the body's bounding box onto the actual
+    ' axis of the max-diameter face (ProjectedLengthAlongAxis), replacing
+    ' v13's largest-of-3-bbox-dims shortcut — confirmed wrong on disc/
+    ' flange-shaped parts (SP000011992: reported 30mm, real length 15mm
+    ' per part name "L=15", because diameter exceeded length so the bbox
+    ' shortcut picked a diameter direction instead of the axial one).
+    ' v14: hollow parts (pipe/tube bore detected above) are routed to a
+    ' separate flag instead of EN 10060 round-bar turning logic, which
+    ' does not apply to tube/pipe stock (OQ-125, undesigned pending a
+    ' pipe/tube standard-size reference table).
+    ' v17: skip entirely for parts already classified purchased (name match
+    ' or true Content Center member) — round-stock/turning inference and
+    ' the stock-reference lookup are both meaningless for hardware that's
+    ' bought as a complete part, and previously ran anyway (this block had
+    ' no PartType guard at all) producing misleading StockMatch output on
+    ' any purchased part that happened to have a convex cylindrical face.
+    If Not isSheetMetal AndAlso r.PartType <> "purchased" AndAlso maxConvexDiaMM > 0 Then
+        r.RoundStockOD = maxConvexDiaMM
+        If oBodyRangeBox IsNot Nothing Then
+            Dim axDir As New System.Collections.Generic.List(Of Double) From _
+                {maxConvexAxisDir(0), maxConvexAxisDir(1), maxConvexAxisDir(2)}
+            r.RoundStockLength = ProjectedLengthAlongAxis(oBodyRangeBox, axDir)
+        End If
+
+        ' ── v16 (corrected placement) — Gate (b): hollow-classification
+        ' plausibility check (OQ-129). MUST run after RoundStockLength above,
+        ' not before: the first attempt at this gate used stockLengthCandidate
+        ' (largest-of-3-bbox-dims, computed earlier from the raw bounding box)
+        ' and silently failed on disc/washer shapes for the exact reason v14's
+        ' comment already warns about a few lines up — for a flat washer the
+        ' largest bbox dimension IS the diameter, not the thickness, so the
+        ' "wall > length" test compared 2.8mm against 12mm (the diameter) and
+        ' never fired. RoundStockLength (axis-projected, correct here) gives
+        ' the real 1.6mm, which the same test now correctly catches.
+        ' Confirmed against real data (this session): SP000000607 (M6 washer,
+        ' OD12, wall 2.8mm, real length 1.6mm) previously produced a false
+        ' CLOSE match against round_tube_decorative.json's 12x2 entry — purely
+        ' coincidental, not real tube. The wall/OD ratio test alone would NOT
+        ' catch it either (2.8/12 = 23%, under the 30% cutoff) — length is the
+        ' test that matters for this shape class.
+        ' Threshold is a first-pass guess validated against exactly one
+        ' confirmed false positive — needs a wider real-part sample before
+        ' trusting it near the boundary. Rejected parts keep BoreID/
+        ' WallThicknessMM populated in the output (for visibility) but no
+        ' longer take the hollow lookup path in gate (c) below.
+        Const WALL_TO_OD_MAX_RATIO As Double = 0.3
+        If r.IsHollow Then
+            If r.RoundStockLength > 0 AndAlso r.WallThicknessMM > r.RoundStockLength Then
+                r.IsHollow = False
+                warnings.Add("HOLLOW_REJECTED_WALL_EXCEEDS_LENGTH")
+            ElseIf maxConvexDiaMM > 0 AndAlso (r.WallThicknessMM / maxConvexDiaMM) > WALL_TO_OD_MAX_RATIO Then
+                r.IsHollow = False
+                warnings.Add("HOLLOW_REJECTED_WALL_RATIO_" & _
+                    Math.Round(r.WallThicknessMM / maxConvexDiaMM * 100, 0).ToString( _
+                        System.Globalization.CultureInfo.InvariantCulture) & "PCT")
+            End If
+        End If
+
+        ' ── v17: disc/washer geometric backstop — catches parts the name
+        ' check misses (foreign/ambiguous naming, no DIN/ISO callout) that
+        ' were also rejected by gate (b) above (or were never flagged
+        ' hollow at all). PROPOSED / UNVALIDATED threshold: real washers in
+        ' this session's data run length/OD from 0.02-0.09; a genuinely
+        ' turned short bushing/spacer would typically sit well above 0.15.
+        ' Chosen with margin above the washer cluster, below plausible
+        ' bushings — not calibrated against a bushing-heavy sample yet.
+        ' Flags only (no PartType override) — a real custom thin disc/
+        ' flange machined in-house is possible and this isn't confident
+        ' enough to force a classification, unlike the name check above.
+        Const DISC_LENGTH_TO_OD_MAX_RATIO As Double = 0.15
+        Dim isDiscShaped As Boolean = (Not r.IsHollow) AndAlso r.RoundStockLength > 0 _
+            AndAlso maxConvexDiaMM > 0 AndAlso (r.RoundStockLength / maxConvexDiaMM) < DISC_LENGTH_TO_OD_MAX_RATIO
+
+        If r.IsHollow Then
+            warnings.Add("PIPE_TUBE_CANDIDATE_OD_" & maxConvexDiaMM.ToString("0.##", _
+                System.Globalization.CultureInfo.InvariantCulture) & "_ID_" & _
+                r.BoreID.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture))
+            ' v15: cross-reference against the Warehouse pipe/tube export (closes
+            ' the OQ-125 gap noted here in v14 — this branch previously did nothing).
+            Dim tier As String = "", label As String = "", source As String = "", grades As String = ""
+            If System.IO.Directory.Exists(GetStockRefPath()) Then
+                If LookupStockMatch(maxConvexDiaMM, r.WallThicknessMM, True, tier, label, source, grades) Then
+                    r.StockMatchTier = tier
+                    r.StockMatchLabel = label
+                    r.StockMatchSource = source
+                    r.StockMatchGrades = grades
+                    If tier = "CLOSE" Then warnings.Add("STOCK_MATCH_CLOSE_REVIEW")
+                End If
+            Else
+                warnings.Add("STOCK_REF_PATH_NOT_FOUND")
+            End If
+        Else
+            If isDiscShaped Then
+                warnings.Add("DISC_SHAPED_LOW_CONFIDENCE_TURNING")
+                ' No NearestStandardDia / ROUND_STOCK_TURNED_FROM / StockMatch —
+                ' all three would suggest "cut from round bar," which is an
+                ' unlikely way to make something whose length is a small
+                ' fraction of its OD (real washers in this session's data:
+                ' length/OD 0.02-0.09). Left for manual review rather than
+                ' guessed either as purchased or as plate/laser-cut.
+            Else
+                Dim nearestStd As Double = FindNearestLargerRoundStock(maxConvexDiaMM)
+                If nearestStd < 0 Then
+                    warnings.Add("ROUND_STOCK_OVER_250_CUSTOM")
+                Else
+                    r.NearestStandardDia = nearestStd
+                    Dim odDiff As Double = nearestStd - maxConvexDiaMM
+                    If odDiff > 1.0 Then
+                        warnings.Add("ROUND_STOCK_TURNED_FROM_" & nearestStd.ToString("0.##", _
+                            System.Globalization.CultureInfo.InvariantCulture))
+                        r.PartType = "machined"
+                    Else
+                        warnings.Add("CONFIRM_TURNING_OPERATION")
+                    End If
+                End If
+            End If
+            ' v15: separately, also check the Warehouse round_bar export directly
+            ' (real supplier-confirmed sizes, a superset of the hardcoded EN 10060
+            ' common-size array above) — informational, doesn't change PartType.
+            ' v17: skipped for disc-shaped parts — same reasoning as above, an
+            ' "EXACT match" against round_bar.json is just as misleading as the
+            ' turning inference it's paired with.
+            If Not isDiscShaped Then
+                Dim tier As String = "", label As String = "", source As String = "", grades As String = ""
+                If System.IO.Directory.Exists(GetStockRefPath()) Then
+                    If LookupStockMatch(maxConvexDiaMM, 0.0, False, tier, label, source, grades) Then
+                        r.StockMatchTier = tier
+                        r.StockMatchLabel = label
+                        r.StockMatchSource = source
+                        r.StockMatchGrades = grades
+                    End If
+                Else
+                    warnings.Add("STOCK_REF_PATH_NOT_FOUND")
+                End If
+            End If
+        End If
+    End If
+
+    ' Countersink/counterbore: feature-level presence only (not yet
+    ' instance-counted via B-Rep) — lower confidence, no known-good
+    ' test data yet since every run so far has shown 0 on both.
+    Try
+        For Each oFeat As HoleFeature In oCompDef.Features.HoleFeatures
+            Try
+                Select Case oFeat.HoleType
+                    Case HoleTypeEnum.kCounterboreHole : cbCount += 1
+                    Case HoleTypeEnum.kCountersinkHole  : csCount += 1
+                End Select
+            Catch : End Try
+        Next
+    Catch : End Try
+
+    Dim plainParts As New System.Collections.Generic.List(Of String)
+    For Each kv As System.Collections.Generic.KeyValuePair(Of String, Integer) In plainList
+        plainParts.Add(kv.Value & "×Ø" & kv.Key)
+    Next
+    r.PlainHoles = String.Join(", ", plainParts)
+
+    Dim laserParts As New System.Collections.Generic.List(Of String)
+    For Each kv As System.Collections.Generic.KeyValuePair(Of String, Integer) In laserList
+        laserParts.Add(kv.Value & "×Ø" & kv.Key)
+    Next
+    r.LaserHoles = String.Join(", ", laserParts)
+
+    Dim tappedParts As New System.Collections.Generic.List(Of String)
+    For Each kv As System.Collections.Generic.KeyValuePair(Of String, Integer) In tappedList
+        tappedParts.Add(kv.Value & "×" & kv.Key)
+    Next
+    r.TappedHoles = String.Join(", ", tappedParts)
+
+    r.Countersinks = csCount
+    r.Counterbores = cbCount
+    r.Warnings = String.Join("|", warnings)
+
+    Return r
+End Function
+
+Sub ShowResults(txt As String)
+    Dim f As New System.Windows.Forms.Form
+    f.Text          = "PPM Test - Feature Extraction Results v21 (VALVE confidence fix)"
+    f.Size          = New System.Drawing.Size(720, 560)
+    f.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen
+    f.BackColor     = System.Drawing.Color.FromArgb(59, 68, 83)
+
+    Dim tb As New System.Windows.Forms.TextBox
+    tb.Multiline    = True
+    tb.ReadOnly     = True
+    tb.ScrollBars   = System.Windows.Forms.ScrollBars.Both
+    tb.WordWrap     = False
+    tb.Font         = New System.Drawing.Font("Consolas", 9)
+    tb.BackColor    = System.Drawing.Color.FromArgb(33, 38, 45)
+    tb.ForeColor    = System.Drawing.Color.FromArgb(230, 237, 243)
+    tb.Text         = txt.Replace(vbLf, vbCrLf)
+    tb.Location     = New System.Drawing.Point(10, 10)
+    tb.Size         = New System.Drawing.Size(690, 480)
+    tb.Anchor       = System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom _
+                     Or System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right
+    f.Controls.Add(tb)
+
+    Dim btnCopy As New System.Windows.Forms.Button
+    btnCopy.Text     = "Copy to Clipboard"
+    btnCopy.Location = New System.Drawing.Point(10, 500)
+    btnCopy.Size     = New System.Drawing.Size(150, 30)
+    btnCopy.Anchor   = System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Left
+    AddHandler btnCopy.Click, Sub(s, e) System.Windows.Forms.Clipboard.SetText(txt)
+    f.Controls.Add(btnCopy)
+
+    Dim btnClose As New System.Windows.Forms.Button
+    btnClose.Text         = "Close"
+    btnClose.Location     = New System.Drawing.Point(620, 500)
+    btnClose.Size         = New System.Drawing.Size(80, 30)
+    btnClose.Anchor       = System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right
+    btnClose.DialogResult = System.Windows.Forms.DialogResult.OK
+    f.Controls.Add(btnClose)
+
+    f.ShowDialog()
+End Sub

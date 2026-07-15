@@ -1,0 +1,705 @@
+[
+ {
+  "label": "L15\u00d715\u00d71.5",
+  "leg": 15,
+  "thickness": 1.5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L16\u00d716\u00d73",
+  "leg": 16,
+  "thickness": 3,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L20\u00d720\u00d71.5",
+  "leg": 20,
+  "thickness": 1.5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L20\u00d720\u00d73",
+  "leg": 20,
+  "thickness": 3,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L20\u00d720\u00d74",
+  "leg": 20,
+  "thickness": 4,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L25\u00d725\u00d71.5",
+  "leg": 25,
+  "thickness": 1.5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L25\u00d725\u00d73",
+  "leg": 25,
+  "thickness": 3,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L25\u00d725\u00d74",
+  "leg": 25,
+  "thickness": 4,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L30\u00d730\u00d72",
+  "leg": 30,
+  "thickness": 2,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L30\u00d730\u00d73",
+  "leg": 30,
+  "thickness": 3,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L30\u00d730\u00d74",
+  "leg": 30,
+  "thickness": 4,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L30\u00d730\u00d75",
+  "leg": 30,
+  "thickness": 5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L35\u00d735\u00d74",
+  "leg": 35,
+  "thickness": 4,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L35\u00d735\u00d75",
+  "leg": 35,
+  "thickness": 5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L40\u00d740\u00d72",
+  "leg": 40,
+  "thickness": 2,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L40\u00d740\u00d74",
+  "leg": 40,
+  "thickness": 4,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L40\u00d740\u00d75",
+  "leg": 40,
+  "thickness": 5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L40\u00d740\u00d76",
+  "leg": 40,
+  "thickness": 6,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L45\u00d745\u00d74",
+  "leg": 45,
+  "thickness": 4,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L45\u00d745\u00d75",
+  "leg": 45,
+  "thickness": 5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L45\u00d745\u00d76",
+  "leg": 45,
+  "thickness": 6,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L50\u00d750\u00d72",
+  "leg": 50,
+  "thickness": 2,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L50\u00d750\u00d74",
+  "leg": 50,
+  "thickness": 4,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L50\u00d750\u00d75",
+  "leg": 50,
+  "thickness": 5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L50\u00d750\u00d76",
+  "leg": 50,
+  "thickness": 6,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L50\u00d750\u00d78",
+  "leg": 50,
+  "thickness": 8,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L60\u00d760\u00d75",
+  "leg": 60,
+  "thickness": 5,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L60\u00d760\u00d76",
+  "leg": 60,
+  "thickness": 6,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L60\u00d760\u00d78",
+  "leg": 60,
+  "thickness": 8,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L65\u00d765\u00d76",
+  "leg": 65,
+  "thickness": 6,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L65\u00d765\u00d78",
+  "leg": 65,
+  "thickness": 8,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L70\u00d770\u00d76",
+  "leg": 70,
+  "thickness": 6,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L70\u00d770\u00d77",
+  "leg": 70,
+  "thickness": 7,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L70\u00d770\u00d79",
+  "leg": 70,
+  "thickness": 9,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L75\u00d775\u00d76",
+  "leg": 75,
+  "thickness": 6,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L75\u00d775\u00d78",
+  "leg": 75,
+  "thickness": 8,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L75\u00d775\u00d710",
+  "leg": 75,
+  "thickness": 10,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L80\u00d780\u00d76",
+  "leg": 80,
+  "thickness": 6,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L80\u00d780\u00d78",
+  "leg": 80,
+  "thickness": 8,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L80\u00d780\u00d710",
+  "leg": 80,
+  "thickness": 10,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L90\u00d790\u00d77",
+  "leg": 90,
+  "thickness": 7,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L90\u00d790\u00d78",
+  "leg": 90,
+  "thickness": 8,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L90\u00d790\u00d79",
+  "leg": 90,
+  "thickness": 9,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L100\u00d7100\u00d78",
+  "leg": 100,
+  "thickness": 8,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L100\u00d7100\u00d710",
+  "leg": 100,
+  "thickness": 10,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404",
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "L100\u00d7100\u00d712",
+  "leg": 100,
+  "thickness": 12,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L120\u00d7120\u00d710",
+  "leg": 120,
+  "thickness": 10,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L120\u00d7120\u00d712",
+  "leg": 120,
+  "thickness": 12,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L130\u00d7130\u00d710",
+  "leg": 130,
+  "thickness": 10,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L130\u00d7130\u00d712",
+  "leg": 130,
+  "thickness": 12,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L140\u00d7140\u00d710",
+  "leg": 140,
+  "thickness": 10,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L140\u00d7140\u00d713",
+  "leg": 140,
+  "thickness": 13,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L150\u00d7150\u00d710",
+  "leg": 150,
+  "thickness": 10,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L150\u00d7150\u00d712",
+  "leg": 150,
+  "thickness": 12,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L150\u00d7150\u00d715",
+  "leg": 150,
+  "thickness": 15,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L160\u00d7160\u00d712",
+  "leg": 160,
+  "thickness": 12,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L160\u00d7160\u00d715",
+  "leg": 160,
+  "thickness": 15,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L180\u00d7180\u00d713",
+  "leg": 180,
+  "thickness": 13,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L180\u00d7180\u00d716",
+  "leg": 180,
+  "thickness": 16,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L200\u00d7200\u00d716",
+  "leg": 200,
+  "thickness": 16,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L200\u00d7200\u00d718",
+  "leg": 200,
+  "thickness": 18,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L200\u00d7200\u00d720",
+  "leg": 200,
+  "thickness": 20,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ },
+ {
+  "label": "L200\u00d7200\u00d724",
+  "leg": 200,
+  "thickness": 24,
+  "grades": [
+   "ST_S235",
+   "ST_S355",
+   "SS_1.4301",
+   "SS_1.4404"
+  ]
+ }
+]

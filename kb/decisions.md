@@ -3186,3 +3186,101 @@ the Y88178A-00 finishing stage is dip (would use full area) or spray
 (would need a reduced external-only figure) determines which number
 should drive paint operation costing. No drawing weight value exists to
 sanity-check the implied mass at any candidate density.
+
+
+---
+
+## Warehouse Restructure, Kohler Catalog, Stock Reference Export & Diagnostic Hardening — July 2026
+
+**D-639** PPM_Warehouse_1.xlsx restructured from the single Norms_and_Rates
+workbook into a dedicated 10-sheet stock-reference workbook, split by
+consumer: Materials Key, Sheets & Plates, Bars/Tubes/Profiles, Hoses,
+Fittings, Hardware, Consumables, Wood & Lumber, Purchased Components, and
+Unsorted - To Review. Rationale: Materials/Fittings/Hardware feed both the
+iLogic macro (dimensional cross-check) and the Estimator (costing), while
+Norms/Laser Parameters/Suppliers pricing feed the Estimator only — confirmed
+zero cross-sheet formula references existed before the split, so no formula
+rework was needed. Norms_and_Rates trimmed to Suppliers/1. Norms/2. Laser
+Parameters only. Materials Key consolidated (7 legacy "Additions" grades
+merged into the main 43-grade list, one continuous range). Round Pipe split
+into two tables — "Round Pipe — Structural (EN10220)" and "Round Tube —
+Decorative/Architectural (Cenovnik)" — since their grade sets barely
+overlap. All multi-dimension tables (sheet formats, tube/pipe, SHS/RHS,
+angles) carry both a named/combined label and individually split, filterable
+numeric columns (adjacent to the label, not off in a separate block).
+
+**D-640** Fittings sheet populated from the Prohrom catalog (pages 1-18,
+512 rows across 39 categories: elbows, reductions, tees, sockets, nipples,
+ball/butterfly/check valves, plugs, unions, threaded elbows/tees/reductions,
+all 4 flange types, weld collars, tri-clamp fittings, clamp rings/ferrules)
+and a partial pass of the Kohler "Rohre und Rohrzubehör INOX" catalog
+(Gewindefittings/threaded fittings only — sockets, nuts, nipples — 182
+rows). Both specs-only, no pricing. Kohler catalog scope mapped in full:
+240 PDF pages, printed-page-to-PDF-page offset confirmed as +2 throughout.
+Remaining sections (weld fittings, flanges, valves, STRAUB couplings,
+ANSI/sanitary, electropolished/line/construction tubes — ~184 pages)
+deferred; see OQ-200.
+
+**D-641** `data/stock_reference/*.json` (18 files: round_bar,
+round_pipe_structural, round_tube_decorative, sheet_plate, sheet_formats,
+flat_bar, square_bar, hex_bar, threaded_pipe, aluminium_tube,
+aluminium_square_rect_tube, shs, rhs, equal_angle, unequal_angle,
+aluminium_t_profile, rigid_small_tube, fittings) generated via
+`data/stock_reference/export_from_warehouse.py` from PPM_Warehouse_1.xlsx —
+dimension and grade-availability data only, no pricing, structured for
+iLogic macro consumption (no Excel/COM dependency at macro runtime). Closes
+OQ-125.
+
+**D-642** PPM_TestFeatureExtraction gate (b) (hollow-classification
+plausibility check) and gate (c) (stock-reference cross-check) built and
+validated against two real assemblies (Diesel + AdBlue tank, 112 parts;
+Winkler Design 200L tank, 120-122 parts). Gate (b): rejects hollow
+classification when wall thickness exceeds the part's own axial length
+(axis-projected, not bounding-box-derived — the first draft used the wrong
+length source and silently missed its own target case) OR wall exceeds 30%
+of OD. Both thresholds are first-pass values validated only against the
+confirmed false-positive cases they were built to catch, not yet calibrated
+against a wider sample — see OQ-129 status update below. Gate (c): EXACT
+(≤0.2mm) / CLOSE (≤1.0mm) tiered match against combined OD+wall deviation
+from the stock_reference JSON.
+
+**D-643** Two-tier purchased-hardware name detection built into
+PPM_TestFeatureExtraction (`IsAlwaysPurchasedHardwareName` /
+`IsAmbiguousMaybePurchasedName`). Always-purchased (forces
+PartType=purchased, skips round-stock detection entirely): fasteners
+(washer/nut/screw/bolt/rivet/pin/retaining ring), hydraulic/pneumatic
+push-in fittings, specific valve phrases (ball/check/nonreturn/toggle
+valve — bare "valve" demoted to ambiguous after a confirmed false positive
+on "Valve bracket"), any DIN/ISO/NFE/ANSI/ASME/SRPS/UNI standard-number
+callout, and confirmed brand names (Kohler, JUMO, Harting, FLEXA, KROMA —
+explicit maintained list, not a generalizable pattern; brand names have no
+structural signal the way standard callouts do). Ambiguous (review-flag
+only, never overrides PartType — grounding lugs and mufs/nipples are
+usually bought but sometimes made in-house per Voja): grounding lugs,
+mufs/nipples (English/German/Italian/Serbian, including the literal
+Prohrom catalog terms Muf/Nipl), bends/elbows (including Luk, the literal
+Prohrom term), bare "valve". Keyword matching required two fixes found via
+real-data testing, not anticipated in advance: (1) standard regex `\b`
+treats underscore as a word character, so this shop's underscore-heavy
+naming (`Kohler_Bend_R1651`, `M6x20_DIN912`) silently failed to match —
+boundaries redefined as "not adjacent to a letter/digit" instead; (2)
+German compounds glue a prefix onto the front of the base noun with no
+boundary between them (Halbmuffe = "half" + "muffe") — matching split into
+strict (both-side boundary, short English tokens) vs suffix-only
+(right-side boundary, German/Italian/Serbian compound-prone words) modes.
+
+**D-644** Guided Review Workflow spec drafted
+(`kb/specs/guided-review-workflow-spec.md`). Core principle: feature
+recognition stays permanently read-only/proposal-only; Mark Operations, run
+through a new interactive review UI, is the sole write authority. State
+model: custom `PPM_*` iProperties on each part/subassembly are the
+permanent record (travel with the file, survive session loss); a session
+SQLite file is a disposable queue-position cache only — never authoritative,
+rebuildable by rescanning iProperties if lost. Subassemblies marked
+`PPM_SubassemblyTreatment = PurchasedUnit` exclude their children from the
+review queue AND from BOM/DXF export — a cross-cutting requirement on any
+tree-walking macro (PPM_ExportPartData, PPM_BatchExportFlatPatterns
+identified as likely needing this check, not yet verified against their
+current logic — see OQ-205), not just the review tool itself. Two
+implementation mechanisms (iLogic SQLite access, custom iProperty read/
+write API) are unconfirmed against real Inventor docs — see OQ-204.

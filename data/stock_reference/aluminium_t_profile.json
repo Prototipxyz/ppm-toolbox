@@ -1,0 +1,29 @@
+[
+ {
+  "label": "80\u00d760\u00d72",
+  "width": 80,
+  "height": 60,
+  "wall": 2,
+  "grades": [
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "100\u00d760\u00d72",
+  "width": 100,
+  "height": 60,
+  "wall": 2,
+  "grades": [
+   "AL_6060"
+  ]
+ },
+ {
+  "label": "120\u00d760\u00d72",
+  "width": 120,
+  "height": 60,
+  "wall": 2,
+  "grades": [
+   "AL_6060"
+  ]
+ }
+]
