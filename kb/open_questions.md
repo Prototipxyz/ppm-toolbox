@@ -405,11 +405,22 @@ dedicated pass.
 
 ## Round Stock / Pipe / Tube Detection — OQ-112 Extension (Post-D-375)
 
-**OQ-112 status:** round-bar turning-inference logic (`ROUND_STOCK_TURNED_FROM_*`, `CONFIRM_TURNING_
-OPERATION`) was validated once, in isolation, against real data (`NR01555346-9`'s 60.3mm OD, `602.1063.
-000.001-A`'s 154mm OD). OQ-129 (the gating that was routing parts away from this logic) is now closed —
-re-validation of OQ-112's turning-inference logic against current gating is the next concrete step, not
-blocked on anything further.
+**OQ-112** [CLOSED, 2026-07-16] Turning-inference logic
+(`ROUND_STOCK_TURNED_FROM_*`, `CONFIRM_TURNING_OPERATION`) confirmed
+correctly wired and firing, via two independent checks, no new live
+test needed: (1) direct code trace of the current macro confirms this
+logic sits in the `Else` branch reached whenever a part is confirmed
+solid (post gate (b)) and not disc-shaped — genuinely reachable, not
+orphaned by OQ-129's gating as the prior note assumed. (2) Today's
+Stadler AdBlue tank run (123 parts, already generated for OQ-130 work)
+independently exercised it correctly multiple times: `P0003299807
+BOCA_DE_CARGA` (OD 105 vs std 110 → `ROUND_STOCK_TURNED_FROM_110`,
+5mm gap), `Part100` (60.3 vs 63 → `ROUND_STOCK_TURNED_FROM_63`, 2.7mm
+gap), `001.A00.S01.P001-Handle` (10 vs 10 → `CONFIRM_TURNING_
+OPERATION`, correctly ambiguous rather than asserted), plus several
+more consistent instances in the same run. No counter-example found.
+Same closure bar as OQ-129 — reopen with a specific real
+counter-example if one surfaces, not treated as permanent immunity.
 
 **OQ-125** [OPEN] Standard pipe/tube/profile size reference database, needed for two purposes: (1)
 dimensional cross-reference the same way EN 10060 round bar is used (D-375's turning logic), and (2) per
