@@ -1,0 +1,33 @@
+' PROPOSED / UNVALIDATED -- not yet compiled or run.
+' Renames the first occurrence of each unique component so the
+' browser shows the clean file name instead of Inventor's default
+' "PartName:1" style. Adapted from Clint Brown's "Normalise Browser
+' Nodes" utility (clintbrown.co.uk) -- most confirmed of the three
+' browser-tree drafts, smallest risk to test first.
+
+Dim oDoc As Document = ThisDoc.Document
+If oDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then
+    MessageBox.Show("Run this from an assembly document.", "Not an Assembly")
+    Return
+End If
+
+Dim UNDO As Transaction = ThisApplication.TransactionManager.StartTransaction(oDoc, "Normalise Browser Nodes")
+
+Dim oDef As AssemblyComponentDefinition = oDoc.ComponentDefinition
+Dim seenNames As New HashSet(Of String)
+
+For Each oOcc As ComponentOccurrence In oDef.Occurrences
+    Dim baseName As String = oOcc.Definition.Document.DisplayName
+    If Not seenNames.Contains(baseName) Then
+        seenNames.Add(baseName)
+        Try
+            oOcc.Name = baseName ' renames this instance; propagates to
+                                  ' all same-file instances automatically
+        Catch
+            ' name collision or locked node -- skip, don't crash the batch
+        End Try
+    End If
+Next
+
+UNDO.End()
+MessageBox.Show("Done.", "Normalise Browser Nodes")

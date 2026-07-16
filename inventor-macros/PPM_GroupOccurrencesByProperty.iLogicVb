@@ -1,0 +1,71 @@
+' PROPOSED / UNVALIDATED (corrected 2026-07-16) -- original version
+' used AddBrowserFolderWithOptions and .AddChild, both wrong for
+' Inventor 2021 -- confirmed via a real compile error hit on the
+' sibling PPM_GroupOccurrencesBySamePart script (this file never
+' actually exercised those lines on its first "working" run, since
+' the target folders already existed and the .Item() lookup
+' succeeded -- the bug was latent, not actually tested). Corrected to
+' the real, confirmed API: BrowserPane.AddBrowserFolder(name,
+' ObjectCollection) for creation, BrowserFolder.Add(node) for adding
+' to an existing folder.
+
+' EDIT THIS before running: which custom iProperty to group by.
+Dim propertyName As String = "PPM_ProjectName"
+
+Dim oDoc As AssemblyDocument = ThisDoc.Document
+Dim oPane As BrowserPane = oDoc.BrowserPanes.Item("Model")
+Dim oDef As AssemblyComponentDefinition = oDoc.ComponentDefinition
+
+Dim UNDO As Transaction = ThisApplication.TransactionManager.StartTransaction(oDoc, "Group by " & propertyName)
+
+Dim occsByValue As New Dictionary(Of String, List(Of ComponentOccurrence))
+For Each oOcc As ComponentOccurrence In oDef.Occurrences
+    Dim propVal As String = ""
+    Try
+        propVal = oOcc.Definition.Document.PropertySets _
+            .Item("Inventor User Defined Properties").Item(propertyName).Value.ToString()
+    Catch
+        Continue For ' no such property on this component -- leave ungrouped
+    End Try
+    If propVal = "" Then Continue For
+
+    If Not occsByValue.ContainsKey(propVal) Then
+        occsByValue(propVal) = New List(Of ComponentOccurrence)
+    End If
+    occsByValue(propVal).Add(oOcc)
+Next
+
+Dim foldersCreated As Integer = 0
+
+For Each kvp As KeyValuePair(Of String, List(Of ComponentOccurrence)) In occsByValue
+    Dim propVal As String = kvp.Key
+    Dim occList As List(Of ComponentOccurrence) = kvp.Value
+
+    Dim oFolder As BrowserFolder = Nothing
+    Dim folderExists As Boolean = True
+    Try
+        oFolder = oPane.TopNode.BrowserFolders.Item(propVal)
+    Catch
+        folderExists = False
+    End Try
+
+    If folderExists Then
+        For Each oOcc As ComponentOccurrence In occList
+            Try
+                oFolder.Add(oPane.GetBrowserNodeFromObject(oOcc))
+            Catch
+                ' already in folder, or node not movable -- skip
+            End Try
+        Next
+    Else
+        Dim oNodes As ObjectCollection = ThisApplication.TransientObjects.CreateObjectCollection
+        For Each oOcc As ComponentOccurrence In occList
+            oNodes.Add(oPane.GetBrowserNodeFromObject(oOcc))
+        Next
+        oFolder = oPane.AddBrowserFolder(propVal, oNodes)
+        foldersCreated += 1
+    End If
+Next
+
+UNDO.End()
+MessageBox.Show("Done. " & foldersCreated & " new folder(s) created.", "Group Occurrences By Property")

@@ -882,3 +882,33 @@ listed here under "ASTM/ASME tube dimensions") was done separately under
 D-652 (2026-07-16), since it feeds OQ-129/OQ-125's actual geometry
 matching directly — unlike the deferred items above. Remaining ASTM/ASME
 gap: tube (thin-wall, non-schedule) sizing specifically, not pipe.
+
+---
+
+## Project Setup Tool — July 2026
+
+**OQ-207** [OPEN] Part-number registry build: design is complete
+(D-656 — hierarchical scoping, local registry file, customer-PN
+projects out of scope) but the actual assign-next-number logic is not
+yet written. Needs: (1) the registry file's exact schema (nested
+JSON matching the A→S→P counter structure), (2) the iLogic
+function(s) to read/increment it when a new part or subassembly is
+created, (3) a decision on whether "next number" is scan-derived
+(traverse the live BOM, compute max+1, self-correcting but requires
+everything to be in the open/linked assembly tree) or registry-file-
+derived (persisted counter, works even if not everything is currently
+open, but can drift if the file and the model disagree) — this
+distinction was raised during design but not resolved.
+
+**OQ-208** [OPEN, low priority] iProperty-setup writer (D-654) is
+schema-designed but not built: the actual iLogic prompt/form for
+entering `PPM_Buyer`/`PPM_OrderNumber`/`PPM_Designer`/`PPM_ProjectName`
+at project creation, and the logic for initializing `PPM_Revision`
+blank on every new part/subassembly file, do not exist yet.
+
+**OQ-209** [OPEN, low priority] Design-freeze/revision-bump mechanics
+(D-655's blank→A convention) needs the actual trigger logic: what
+UI/rule action sets `PPM_Revision` to "A" (or bumps B→C etc. on
+subsequent releases), and whether it should also trigger anything else
+(e.g. a KB-style log entry, a locked/read-only state on the file).
+Not designed in detail yet, only the naming convention itself.

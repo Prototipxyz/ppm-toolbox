@@ -1,0 +1,74 @@
+' PROPOSED / UNVALIDATED (corrected) -- previous version used
+' AddBrowserFolderWithOptions, confirmed via real error message NOT
+' to exist on Inventor 2021 (that method is Inventor 2027-only).
+' Corrected to use BrowserPane.AddBrowserFolder(name, nodeCollection)
+' -- confirmed via multiple independent real sources spanning
+' Inventor 2014 SP2 through 2025 official docs, so this has been
+' stable API for a decade and should be present on 2021. Also fixed
+' a second latent bug: BrowserFolder.Add(node), not .AddChild(node)
+' -- same correction, confirmed via the same source set.
+'
+' Groups occurrences by the underlying document they reference, so
+' N instances of the same part collapse into one folder instead of
+' showing as N separate top-level browser rows.
+
+Dim SKIP_SINGLE_INSTANCES As Boolean = True
+
+Dim oDoc As AssemblyDocument = ThisDoc.Document
+Dim oPane As BrowserPane = oDoc.BrowserPanes.Item("Model")
+Dim oDef As AssemblyComponentDefinition = oDoc.ComponentDefinition
+
+Dim UNDO As Transaction = ThisApplication.TransactionManager.StartTransaction(oDoc, "Group By Same Part")
+
+' Bucket occurrences by referenced document name first, so we create
+' each folder exactly once with all its nodes, rather than repeatedly
+' calling Add() one occurrence at a time.
+Dim occsByDoc As New Dictionary(Of String, List(Of ComponentOccurrence))
+For Each oOcc As ComponentOccurrence In oDef.Occurrences
+    Dim key As String = oOcc.Definition.Document.DisplayName
+    If Not occsByDoc.ContainsKey(key) Then
+        occsByDoc(key) = New List(Of ComponentOccurrence)
+    End If
+    occsByDoc(key).Add(oOcc)
+Next
+
+Dim foldersCreated As Integer = 0
+
+For Each kvp As KeyValuePair(Of String, List(Of ComponentOccurrence)) In occsByDoc
+    Dim key As String = kvp.Key
+    Dim occList As List(Of ComponentOccurrence) = kvp.Value
+
+    If SKIP_SINGLE_INSTANCES AndAlso occList.Count = 1 Then Continue For
+
+    Dim oFolder As BrowserFolder = Nothing
+    Dim folderExists As Boolean = True
+    Try
+        oFolder = oPane.TopNode.BrowserFolders.Item(key)
+    Catch
+        folderExists = False
+    End Try
+
+    If folderExists Then
+        ' Existing folder -- add nodes one at a time via .Add (confirmed
+        ' method name, NOT .AddChild).
+        For Each oOcc As ComponentOccurrence In occList
+            Try
+                oFolder.Add(oPane.GetBrowserNodeFromObject(oOcc))
+            Catch
+                ' already in folder, or node not movable -- skip
+            End Try
+        Next
+    Else
+        ' New folder -- create with all nodes at once, per the
+        ' confirmed real signature: AddBrowserFolder(name, ObjectCollection).
+        Dim oNodes As ObjectCollection = ThisApplication.TransientObjects.CreateObjectCollection
+        For Each oOcc As ComponentOccurrence In occList
+            oNodes.Add(oPane.GetBrowserNodeFromObject(oOcc))
+        Next
+        oFolder = oPane.AddBrowserFolder(key, oNodes)
+        foldersCreated += 1
+    End If
+Next
+
+UNDO.End()
+MessageBox.Show("Done. " & foldersCreated & " new folder(s) created.", "Group By Same Part")

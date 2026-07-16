@@ -3425,3 +3425,88 @@ Two previously-unresolved NO_MATCH parts ("NPT 1/2 F316" at 28mm OD,
 neither is within tolerance of any NPS or DIN size, confirming they are
 genuinely custom/non-catalog parts rather than evidence of a reference
 gap, not something the new data should have (or did) force a match onto.
+
+---
+
+## Project Setup Tool: iProperty Schema, PN Registry Design, Revision Convention, Browser Tree Utilities (July 2026)
+
+**D-653** New initiative scoped: a project-setup tool covering (1) an
+iProperty writer for project metadata, (2) a hierarchical part-number
+registry, (3) revision/design-freeze tracking, (4) browser-tree
+organization (renaming, folder grouping, sorting). Distinct from and
+independent of the `PPM_TestFeatureExtraction` diagnostic macro thread —
+different files, no shared dependency, though both draw on the same
+empirical-only API verification discipline.
+
+**D-654** iProperty schema for project setup, under the existing `PPM_*`
+custom property set convention (same set already confirmed working per
+OQ-204/D-645): `PPM_Buyer`, `PPM_OrderNumber`, `PPM_Designer`,
+`PPM_ProjectName` — all top-level-assembly-only, written once at project
+creation (writing them per-part would create a sync problem with no
+benefit, since these describe the project, not the part). `PPM_Revision`
+is the one per-file property — every part/subassembly/top-assembly gets
+its own, initialized blank at file creation, since parts can revise
+independently of the overall assembly's revision. No separate
+`PPM_ProjectNumber` property — the project number is already embedded as
+the first segment of the PN itself (`001.A00.S00.P000`), so a standalone
+part file already carries its project identity through its own PN,
+without a redundant property.
+
+**D-655** Revision convention: alpha (A, B, C...), confirmed by Voja.
+Blank/dash revision = in-work/pre-release; setting `PPM_Revision` to "A"
+for the first time both is and marks the design-freeze moment — no
+separate boolean freeze flag, since blank-vs-A already encodes
+frozen/not-frozen unambiguously and avoids a second field that could
+drift out of sync with the revision itself.
+
+**D-656** Part-number registry design: PN format confirmed as
+`NNN(Project).Axx(Assembly).Sxx(SubAssembly).Pxxx(Part) - name`, already
+in production use (matches real Stadler AdBlue/diesel tank BOM data seen
+in diagnostic output this session, e.g. "001.A01.S00.P001-Carrier
+Profile"). Numbering is hierarchically scoped, not flat: S restarts at
+00 for each new Assembly, P restarts at 000 for each new SubAssembly —
+reasoning: a bare S or P number is never meaningful alone, only the full
+dotted PN is, so project-wide uniqueness at those sub-levels buys nothing
+and would force unnecessary cross-branch coordination. Registry is a
+small nested structure (next-A at project level, next-S per Assembly,
+next-P per SubAssembly), stored in a **local file next to the top-level
+assembly** — not a shared/Supabase-backed store, since "project" = one
+top-level assembly is the established scope boundary and cross-project
+uniqueness was explicitly descoped. **Customer-numbered projects are
+entirely out of scope** for this feature — customer PNs (e.g. Elbit's
+Y17744A-00 format, seen in this session's earlier work) stay as-is, no
+Stirg tracking layer runs alongside them; this was a deliberate
+simplification by Voja, not an oversight. PN registry itself (the actual
+assign-next-number logic) is designed but not yet built — next step.
+
+**D-657** Browser-tree utilities: four iLogic external rules drafted,
+placed in `inventor-macros/`, and **compile-tested + confirmed working
+on real Inventor 2021** (`Anfragemodell Diesel- und AdBluetank.iam`):
+- `PPM_NormaliseBrowserNodes` — renames first-instance browser nodes to
+  clean names (adapted from Clint Brown's public template). Worked
+  first try, no corrections needed.
+- `PPM_AlphaSortTopLevelOccurrences` — sorts top-level occurrences via
+  `BrowserPane.Reorder`. Key non-obvious finding, confirmed via a real
+  Autodesk devblog example: the pane to reorder on for an assembly is
+  specifically named `"AmBrowserArrangement"`, NOT `"Model"` as generic
+  docs examples use elsewhere. Worked as drafted.
+- `PPM_GroupOccurrencesByProperty` and `PPM_GroupOccurrencesBySamePart`
+  — group occurrences into browser folders, by a custom iProperty value
+  or by underlying referenced document respectively (same-part groups
+  N instances of one part into one folder instead of N top-level rows).
+  **Two real API corrections found and fixed**, both via an actual
+  compile error, not caught in advance: `BrowserPane.AddBrowserFolderWithOptions`
+  does NOT exist on Inventor 2021 (that method is Inventor 2027-only —
+  a version-compatibility flag raised during research turned out to
+  matter, and an earlier claim that this had been "confirmed working"
+  was wrong, since the successful test run never actually exercised
+  that code path). Corrected to the real, confirmed method:
+  `BrowserPane.AddBrowserFolder(name, ObjectCollection)`, stable API
+  confirmed present since at least Inventor 2014 SP2 through 2025
+  official docs. Second correction: `BrowserFolder.AddChild(node)` was
+  also wrong — real method is `BrowserFolder.Add(node)`. Both fixes
+  applied to both grouping scripts (the property-based one had the
+  identical latent bug, just not yet exercised). `PPM_GroupOccurrencesBySamePart`
+  defaults `SKIP_SINGLE_INSTANCES = True` per Voja's request — a part
+  occurring only once stays at top level, not folder-of-one; only
+  actual repeats (2+ instances) get grouped.

@@ -1,0 +1,45 @@
+' PROPOSED / UNVALIDATED -- not yet compiled or run.
+' Alphabetically sorts top-level occurrences in the browser.
+' REAL API CONFIRMED (BrowserPane.Reorder), REAL WORKING EXAMPLE
+' FOUND (Autodesk's own 2013 devblog) -- key non-obvious detail from
+' that source: the pane to reorder on for an ASSEMBLY is specifically
+' named "AmBrowserArrangement", NOT "Model" as generic docs examples
+' use elsewhere -- confirmed via a real working code sample, not
+' guessed. The source code had two gaps (scraper truncation, not a
+' real omission) -- filled below with the most likely completion
+' based on standard BrowserPane API shape, marked GAP FILLED. These
+' two lines are the least certain part of this file -- watch them
+' specifically on compile.
+
+Dim oDoc As AssemblyDocument = ThisDoc.Document
+Dim oDef As AssemblyComponentDefinition = oDoc.ComponentDefinition
+Dim oPane As BrowserPane = oDoc.BrowserPanes.Item("AmBrowserArrangement") ' NOT "Model" -- confirmed via real example
+
+Dim names(oDef.Occurrences.Count - 1) As String
+For i As Integer = 1 To oDef.Occurrences.Count
+    names(i - 1) = oDef.Occurrences.Item(i).Name
+Next
+Array.Sort(names, StringComparer.OrdinalIgnoreCase)
+
+Dim UNDO As Transaction = ThisApplication.TransactionManager.StartTransaction(oDoc, "Sort Components")
+
+Dim oPreviousNode As BrowserNode = Nothing
+For Each nm As String In names
+    Dim oOcc As ComponentOccurrence = oDef.Occurrences.ItemByName(nm)
+    If oOcc.PatternElement IsNot Nothing Then Continue For ' skip pattern elements, per source example
+
+    Dim oThisNode As BrowserNode = oPane.GetBrowserNodeFromObject(oOcc) ' GAP FILLED -- unverified
+    If oPreviousNode IsNot Nothing Then
+        Try
+            oPane.Reorder(oPreviousNode, False, oThisNode) ' place oThisNode after oPreviousNode
+        Catch
+            MessageBox.Show("Sorting failed on: " & nm, "Reorder Error")
+            UNDO.End()
+            Return
+        End Try
+    End If
+    oPreviousNode = oThisNode
+Next
+
+UNDO.End()
+MessageBox.Show("Done.", "Alpha Sort Top-Level Occurrences")
