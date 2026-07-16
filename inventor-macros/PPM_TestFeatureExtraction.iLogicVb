@@ -212,6 +212,16 @@ Public Class PartFeatureData
     Public StockMatchLabel  As String = ""   ' e.g. "60.3x2.9"
     Public StockMatchSource As String = ""   ' which JSON file matched
     Public StockMatchGrades As String = ""   ' grades available at that size
+    ' v22: fitting cross-check results (OQ-130) — Socket/Nipple family only,
+    ' independent of StockMatch above (different reference categories in
+    ' fittings.json, different tiers: BORE_CONFIRMED/OD_MATCH_BORE_MISMATCH/
+    ' EXACT/CLOSE, not just EXACT/CLOSE). Only populated when the part name
+    ' already tripped IsAmbiguousMaybePurchasedName — geometry confirms a
+    ' name-based hint here, it doesn't hunt for fittings blind.
+    Public FittingMatchTier     As String = ""
+    Public FittingMatchLabel    As String = ""
+    Public FittingMatchCategory As String = ""
+    Public FittingMatchSource   As String = ""
     Public Warnings    As String  = ""
 End Class
 
@@ -276,6 +286,10 @@ Sub Main()
                         " | " & r.StockMatchSource & " | grades=[" & r.StockMatchGrades & "]")
                 Else
                     sb.AppendLine("  StockMatch:    NO MATCH (custom size or reference unavailable)")
+                End If
+                If r.FittingMatchTier <> "" Then
+                    sb.AppendLine("  FittingMatch:  " & r.FittingMatchTier & " | " & r.FittingMatchLabel & _
+                        " | " & r.FittingMatchCategory & " | " & r.FittingMatchSource)
                 End If
             End If
             sb.AppendLine("  Warnings:      " & r.Warnings)
@@ -399,6 +413,10 @@ Function LookupStockMatch(od As Double, wall As Double, isHollow As Boolean, _
     Dim files As New System.Collections.Generic.List(Of String)
     If isHollow Then
         files.Add("round_pipe_structural.json")
+        files.Add("round_pipe_ansi.json") ' v22: ASME B36.19 NPS series (OQ-130 follow-up,
+            ' 2026-07-16) -- separate file, not merged with round_pipe_structural.json,
+            ' since NPS and DIN OD conventions diverge at some sizes (e.g. 3/4", 2 1/2") --
+            ' same "categorize, don't merge" lesson as the nipple/socket work.
         files.Add("round_tube_decorative.json")
         files.Add("rigid_small_tube.json")
         files.Add("aluminium_tube.json")
@@ -449,6 +467,91 @@ Function LookupStockMatch(od As Double, wall As Double, isHollow As Boolean, _
                 grades = String.Join(",", gradeList)
             End If
         Next
+    Next
+
+    Return tier <> ""
+End Function
+
+' v22: fitting cross-check (OQ-130) — Socket/Nipple family only, per D-379
+' scope. Two match modes because the two Kohler-sourced families behave
+' differently (2026-07-15/16 sessions):
+'   - Socket (Muf): fixed OD+length per size (Kohler R-201) — EXACT/CLOSE
+'     tiered, same scoring pattern as LookupStockMatch above.
+'   - Nipple / Double nipple / Hex double nipple: OD is fixed (Kohler
+'     R-210) but length is a 30-1000mm stock/cut range, not a single
+'     lookup value. Bore is checked as a second independent signal
+'     (computed as od_mm - 2*wall_mm, DIN 2982 OD + ASME B36.19 Sch80S
+'     wall — D-650 correction, cross-validated against a real measured
+'     Stirg part, NOT the DIN 2440 figures from the first pass which
+'     were confirmed wrong) — a part sharing a nipple's OD but with a
+'     mismatched bore is a REJECT signal (OD_MATCH_BORE_MISMATCH), not a
+'     silent accept on OD alone.
+' PROPOSED/RECENTLY INTEGRATED — not yet compile-tested against real
+' Inventor 2021. Bore tolerance (1.0mm) is a first-pass value, uncalibrated,
+' same caveat class as D-377/D-642's thresholds.
+Function LookupFittingMatch(od As Double, length As Double, measuredBore As Double, isHollow As Boolean, _
+        ByRef tier As String, ByRef label As String, ByRef category As String, ByRef source As String) As Boolean
+    tier = "" : label = "" : category = "" : source = ""
+
+    Dim arr As Newtonsoft.Json.Linq.JArray = LoadJArray("fittings.json")
+    If arr Is Nothing Then Return False
+
+    Dim socketCats() As String = {"Socket (Muf)"}
+    Dim nippleCats() As String = {"Nipple", "Double nipple", "Hex double nipple"}
+
+    Dim bestScore As Double = Double.MaxValue
+
+    For Each tok As Newtonsoft.Json.Linq.JToken In arr
+        Dim item As Newtonsoft.Json.Linq.JObject = CType(tok, Newtonsoft.Json.Linq.JObject)
+        Dim itemCat As String = If(item("category") Is Nothing, "", item("category").ToString())
+        Dim itemODTok As Object = item("od_mm")
+        If itemODTok Is Nothing OrElse itemODTok.Type = Newtonsoft.Json.Linq.JTokenType.Null Then Continue For
+
+        Dim isSocket As Boolean = Array.IndexOf(socketCats, itemCat) >= 0
+        Dim isNipple As Boolean = Array.IndexOf(nippleCats, itemCat) >= 0
+        If Not isSocket AndAlso Not isNipple Then Continue For
+
+        Dim odVal As Double = CDbl(itemODTok)
+        Dim odDiff As Double = Math.Abs(odVal - od)
+
+        If isSocket Then
+            Dim itemLenTok As Object = item("length_mm")
+            If itemLenTok Is Nothing OrElse itemLenTok.Type = Newtonsoft.Json.Linq.JTokenType.Null Then Continue For
+            Dim lenDiff As Double = Math.Abs(CDbl(itemLenTok) - length)
+            Dim score As Double = odDiff + lenDiff
+            If score > 1.0 Then Continue For
+            If score < bestScore Then
+                bestScore = score
+                tier = If(score <= 0.2, "EXACT", "CLOSE")
+                label = If(item("dim_label") Is Nothing, "", item("dim_label").ToString())
+                category = "Socket"
+                source = "fittings.json"
+            End If
+        Else
+            If odDiff > 0.3 Then Continue For
+            If odDiff < bestScore Then
+                Dim itemWallTok As Object = item("wall_mm")
+                Dim lengthPlausible As Boolean = (length >= 30.0 AndAlso length <= 1000.0)
+
+                If itemWallTok IsNot Nothing AndAlso itemWallTok.Type <> Newtonsoft.Json.Linq.JTokenType.Null AndAlso isHollow Then
+                    Dim expectedBore As Double = odVal - 2.0 * CDbl(itemWallTok)
+                    Dim boreDiff As Double = Math.Abs(expectedBore - measuredBore)
+                    If boreDiff <= 1.0 AndAlso lengthPlausible Then
+                        bestScore = odDiff
+                        tier = "BORE_CONFIRMED"
+                    Else
+                        bestScore = odDiff
+                        tier = "OD_MATCH_BORE_MISMATCH"
+                    End If
+                Else
+                    bestScore = odDiff
+                    tier = If(lengthPlausible, "OD_MATCH_UNVERIFIED_BORE", "OD_MATCH_LENGTH_IMPLAUSIBLE")
+                End If
+                label = If(item("dim_label") Is Nothing, "", item("dim_label").ToString())
+                category = "Nipple"
+                source = "fittings.json"
+            End If
+        End If
     Next
 
     Return tier <> ""
@@ -1205,6 +1308,23 @@ Function GetPartFeatureData(oPart As PartDocument, pn As String) As PartFeatureD
                 End If
             Else
                 warnings.Add("STOCK_REF_PATH_NOT_FOUND")
+            End If
+
+            ' v22: fitting cross-check (OQ-130) — only for parts the name
+            ' check already flagged (D-643/IsAmbiguousMaybePurchasedName).
+            ' Runs alongside the round_pipe_structural.json check above, not
+            ' instead of it — a real nipple/socket is still round-pipe-shaped
+            ' and both results are worth seeing side by side.
+            If IsAmbiguousMaybePurchasedName(pn) Then
+                Dim fTier As String = "", fLabel As String = "", fCategory As String = "", fSource As String = ""
+                If LookupFittingMatch(maxConvexDiaMM, r.RoundStockLength, r.BoreID, True, _
+                        fTier, fLabel, fCategory, fSource) Then
+                    r.FittingMatchTier = fTier
+                    r.FittingMatchLabel = fLabel
+                    r.FittingMatchCategory = fCategory
+                    r.FittingMatchSource = fSource
+                    If fTier = "OD_MATCH_BORE_MISMATCH" Then warnings.Add("FITTING_OD_MATCH_BORE_MISMATCH")
+                End If
             End If
         Else
             If isDiscShaped Then

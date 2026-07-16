@@ -3356,3 +3356,72 @@ before being trusted. D-379's original "OD+ID+length signature" scope
 is met for the Nipple family; Socket still matches on OD+length only
 since no bore/ID data was sourced or needed for its already-tight
 fixed-size match.
+
+---
+
+## OQ-130 Correction, Closure & ANSI Round Pipe Extension (July 2026)
+
+**D-650** D-647's DIN 2440-sourced wall/bore data for the Nipple family was
+**wrong** — DIN 2440 is a mild-steel buttweld-grade standard, not applicable
+to threaded stainless nipples. Caught via a real diagnostic batch run
+surfacing a real measured part ("Nipl A316L 1 1/4\"") showing wall 4.65mm/
+bore 33mm against DIN 2440's predicted 3.25mm/35.9mm — a 2.9mm miss.
+Root cause: nipple wall thickness is governed by threading requirements
+(a threaded nipple needs enough wall to cut threads into and still hold
+pressure), not by the OD-labeling convention — so it follows ASME B36.19
+Schedule 80S regardless of whether BSP or NPT threads are cut into the
+ends (confirmed via multiple manufacturer sources: "Schedule 10 pipe
+nipples are not available as the wall is too thin to thread"). Corrected
+wall/bore values sourced from ASME B36.19 Schedule 80S, cross-validated
+across two independent sources (engineeringtoolbox.com's ASME table and
+RFF/VMSteel's DIN/ISO/EN/ASME reference table — exact agreement), and
+confirmed against the real measured part (4.85mm computed vs 4.65mm
+measured, 0.2mm off — vs DIN 2440's 1.6mm miss). OD (DIN 2982) was
+correct all along and unchanged. 2 1/2" flagged lower-confidence: DIN-OD
+(76.1mm) and NPS-OD (73.0mm) diverge most at this size, making the
+ASME-wall-on-DIN-OD combination least certain there. Schema takeaway,
+now applied project-wide: OD and wall/bore for a fitting/pipe family can
+come from two different governing standards (thread-form OD convention
+vs. the actual pipe-schedule wall standard) and must be tagged as such,
+never treated as one blended standard.
+
+**D-651** OQ-130 CLOSED. `LookupFittingMatch` integrated into
+`PPM_TestFeatureExtraction.iLogicVb` (v22): `PartFeatureData` gained
+`FittingMatchTier`/`Label`/`Category`/`Source`; the function call is
+gated behind `IsAmbiguousMaybePurchasedName(pn)` (D-643) inside the
+hollow-part branch, alongside the existing `LookupStockMatch` check, not
+replacing it. Compile-tested and run on a real Stadler assembly (not
+simulated) — confirmed via real diagnostic output: "Nipl A316L 1 1/4\""
+returned `FittingMatch: BORE_CONFIRMED` (measured bore 33mm vs
+D-650-corrected prediction 32.7mm, within tolerance), while "Halbmuffe
+R203" (same OD as a Socket 2" entry, 66.3mm, but length 26mm vs the real
+socket's 56mm) correctly returned no match — the Socket branch's
+EXACT/CLOSE length scoring rejected it rather than matching on OD alone.
+Both the accept and the reject case are confirmed correct against real
+parts, closing D-379's original scope for Socket and Nipple family
+(the only categories relevant to the diagnostic; the other 23 Prohrom
+Fittings categories remain deferred per OQ-206).
+
+**D-652** Round pipe/tube stock reference extended with a second,
+separately-tagged ANSI/ASME series (`round_pipe_ansi.json`, 36 rows —
+NPS 1/8"-4" x Schedule 10S/40S/80S), added to `PPM_Warehouse_1.xlsx`'s
+Bars,Tubes&Profiles sheet as a new table (rows 851-889, appended after
+the existing last table so no existing formulas/rows were disturbed) and
+wired into `LookupStockMatch`'s hollow-part file list alongside
+`round_pipe_structural.json` (D-641's original EN10220/DIN series) —
+kept as a separate file per the same "NPS and DIN OD conventions diverge
+at some sizes, don't merge" lesson from D-650. Grades limited to
+SS_1.4301/SS_1.4404 only (ASME B36.19's "S" schedules are the
+stainless-specific series; carbon steel/aluminum/brass/POM aren't made
+to this standard, so the full 8-grade list used elsewhere would
+misrepresent availability — flagged explicitly by Voja before building).
+Weight columns use the sheet's existing `VLOOKUP`-against-Materials-Key
+formula pattern, not hardcoded density. Confirmed via real diagnostic
+re-run: "Nipl A316L 1 1/4\"" now shows `StockMatch: CLOSE | 1 1/4"
+Sch80S | round_pipe_ansi.json` — a second, independent confirmation
+agreeing with D-651's `FittingMatch: BORE_CONFIRMED` on the same part.
+Two previously-unresolved NO_MATCH parts ("NPT 1/2 F316" at 28mm OD,
+"1-2 Pipe" at 23mm OD) remained correctly NO_MATCH after this addition —
+neither is within tolerance of any NPS or DIN size, confirming they are
+genuinely custom/non-catalog parts rather than evidence of a reference
+gap, not something the new data should have (or did) force a match onto.

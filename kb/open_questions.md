@@ -483,27 +483,15 @@ from the original OQ text (real 60.3mm tube part + real ~25mm tapped solid
 part) has now been run, on two separate assemblies, not just the one
 originally planned.
 
-**OQ-130 status update:** dimension-sourcing blocker removed — the Fittings
-sheet (D-640, Prohrom + partial Kohler) and its `fittings.json` export now
-exist. The classification logic itself (matching a detected OD+ID+length
-signature against fitting dimension entries, as distinct from OQ-125/129's
-stock-size cross-check role) has not yet been built into the diagnostic —
-still open, but unblocked.
-
-**OQ-130 status update 2 (2026-07-15):** data sourcing now complete for the
-two fitting categories that actually matter to the diagnostic — Socket
-(Muf) and the Nipple family — including bore data (D-646/D-647). Matching
-function drafted (`LookupFittingMatch`, D-649) with OD+bore+length logic
-and an explicit reject tier for OD-only false positives, but **not yet
-integrated into `PPM_TestFeatureExtraction` and not compile-tested** —
-next session's work: add `FittingMatchTier`/`FittingMatchLabel`/
-`FittingMatchCategory`/`FittingMatchSource` fields to `PartFeatureData`,
-wire `LookupFittingMatch` in behind D-643's name-based candidate detection,
-live-test against a real nipple/socket part. The broader 25-category
-Prohrom fittings database (valves, unions, flanges, clamps) and tube/pipe
-category gaps found in heco's catalog do NOT block this — spun out as
-OQ-206, since D-643's keyword detection already handles those by name, not
-geometry.
+**OQ-130** [CLOSED → D-651] Dimension sourcing (D-646/D-647, corrected by
+D-650), matching function (`LookupFittingMatch`), and integration into
+`PPM_TestFeatureExtraction.iLogicVb` (v22) all complete. Compile-tested
+and confirmed via real diagnostic output on a Stadler assembly — correct
+accept (`BORE_CONFIRMED` on a real 1 1/4" nipple) and correct reject
+(Socket length mismatch caught, not silently accepted on OD alone). The
+broader 25-category Prohrom fittings database (valves, unions, flanges,
+clamps) remains out of scope — tracked separately as OQ-206, since D-643's
+keyword detection already handles those by name, not geometry.
 
 ---
 
@@ -889,4 +877,8 @@ material), ASTM/ASME tube dimensions (relevant only if a job specs US
 standards, e.g. via Elbit/Yugoimport). Approach when picked up: one category
 at a time, same sourcing rigor as D-646/647 (cross-validate against a second
 source, flag ambiguity, no extrapolation), own KB entry per category closed,
-not one bundled pass.
+not one bundled pass. NOTE: round pipe ANSI/ASME coverage (originally
+listed here under "ASTM/ASME tube dimensions") was done separately under
+D-652 (2026-07-16), since it feeds OQ-129/OQ-125's actual geometry
+matching directly — unlike the deferred items above. Remaining ASTM/ASME
+gap: tube (thin-wall, non-schedule) sizing specifically, not pipe.

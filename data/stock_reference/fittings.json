@@ -2995,7 +2995,7 @@
   "dim_label": "1/4\" (12mm)",
   "od_mm": 13.5,
   "od2_mm": null,
-  "wall_mm": 2.35,
+  "wall_mm": 3.02,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3003,7 +3003,7 @@
   "thickness_mm": null,
   "size_inch": "1/4\"",
   "size_metric_mm": 12,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3013,7 +3013,7 @@
   "dim_label": "3/8\" (17.2mm)",
   "od_mm": 17.2,
   "od2_mm": null,
-  "wall_mm": 2.35,
+  "wall_mm": 3.2,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3021,7 +3021,7 @@
   "thickness_mm": null,
   "size_inch": "3/8\"",
   "size_metric_mm": 17.2,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3031,7 +3031,7 @@
   "dim_label": "1/2\" (21.3mm)",
   "od_mm": 21.3,
   "od2_mm": null,
-  "wall_mm": 2.65,
+  "wall_mm": 3.73,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3039,7 +3039,7 @@
   "thickness_mm": null,
   "size_inch": "1/2\"",
   "size_metric_mm": 21.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3049,7 +3049,7 @@
   "dim_label": "3/4\" (26.9mm)",
   "od_mm": 26.9,
   "od2_mm": null,
-  "wall_mm": 2.65,
+  "wall_mm": 3.91,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3057,7 +3057,7 @@
   "thickness_mm": null,
   "size_inch": "3/4\"",
   "size_metric_mm": 26.9,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3067,7 +3067,7 @@
   "dim_label": "1\" (33.7mm)",
   "od_mm": 33.7,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 4.55,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3075,7 +3075,7 @@
   "thickness_mm": null,
   "size_inch": "1\"",
   "size_metric_mm": 33.7,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3085,7 +3085,7 @@
   "dim_label": "1 1/4\" (42.4mm)",
   "od_mm": 42.4,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 4.85,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3093,7 +3093,7 @@
   "thickness_mm": null,
   "size_inch": "1 1/4\"",
   "size_metric_mm": 42.4,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3103,7 +3103,7 @@
   "dim_label": "1 1/2\" (48.3mm)",
   "od_mm": 48.3,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 5.08,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3111,7 +3111,7 @@
   "thickness_mm": null,
   "size_inch": "1 1/2\"",
   "size_metric_mm": 48.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3121,7 +3121,7 @@
   "dim_label": "2\" (60.3mm)",
   "od_mm": 60.3,
   "od2_mm": null,
-  "wall_mm": 3.65,
+  "wall_mm": 5.54,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3129,7 +3129,7 @@
   "thickness_mm": null,
   "size_inch": "2\"",
   "size_metric_mm": 60.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3139,7 +3139,7 @@
   "dim_label": "2 1/2\" (76.1mm)",
   "od_mm": 76.1,
   "od2_mm": null,
-  "wall_mm": 3.65,
+  "wall_mm": 7.01,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3147,7 +3147,7 @@
   "thickness_mm": null,
   "size_inch": "2 1/2\"",
   "size_metric_mm": 76.1,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3157,7 +3157,7 @@
   "dim_label": "3\" (88.9mm)",
   "od_mm": 88.9,
   "od2_mm": null,
-  "wall_mm": 4.05,
+  "wall_mm": 7.62,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3165,7 +3165,7 @@
   "thickness_mm": null,
   "size_inch": "3\"",
   "size_metric_mm": 88.9,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3175,7 +3175,7 @@
   "dim_label": "4\" (114.3mm)",
   "od_mm": 114.3,
   "od2_mm": null,
-  "wall_mm": 4.5,
+  "wall_mm": 8.56,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3183,7 +3183,7 @@
   "thickness_mm": null,
   "size_inch": "4\"",
   "size_metric_mm": 114.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3193,7 +3193,7 @@
   "dim_label": "1/4\" (12mm)",
   "od_mm": 13.5,
   "od2_mm": null,
-  "wall_mm": 2.35,
+  "wall_mm": 3.02,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3201,7 +3201,7 @@
   "thickness_mm": null,
   "size_inch": "1/4\"",
   "size_metric_mm": 12,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3211,7 +3211,7 @@
   "dim_label": "3/8\" (17.2mm)",
   "od_mm": 17.2,
   "od2_mm": null,
-  "wall_mm": 2.35,
+  "wall_mm": 3.2,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3219,7 +3219,7 @@
   "thickness_mm": null,
   "size_inch": "3/8\"",
   "size_metric_mm": 17.2,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3229,7 +3229,7 @@
   "dim_label": "1/2\" (21.3mm)",
   "od_mm": 21.3,
   "od2_mm": null,
-  "wall_mm": 2.65,
+  "wall_mm": 3.73,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3237,7 +3237,7 @@
   "thickness_mm": null,
   "size_inch": "1/2\"",
   "size_metric_mm": 21.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3247,7 +3247,7 @@
   "dim_label": "3/4\" (26.9mm)",
   "od_mm": 26.9,
   "od2_mm": null,
-  "wall_mm": 2.65,
+  "wall_mm": 3.91,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3255,7 +3255,7 @@
   "thickness_mm": null,
   "size_inch": "3/4\"",
   "size_metric_mm": 26.9,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3265,7 +3265,7 @@
   "dim_label": "1\" (33.7mm)",
   "od_mm": 33.7,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 4.55,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3273,7 +3273,7 @@
   "thickness_mm": null,
   "size_inch": "1\"",
   "size_metric_mm": 33.7,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3283,7 +3283,7 @@
   "dim_label": "1 1/4\" (42.4mm)",
   "od_mm": 42.4,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 4.85,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3291,7 +3291,7 @@
   "thickness_mm": null,
   "size_inch": "1 1/4\"",
   "size_metric_mm": 42.4,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3301,7 +3301,7 @@
   "dim_label": "1 1/2\" (48.3mm)",
   "od_mm": 48.3,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 5.08,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3309,7 +3309,7 @@
   "thickness_mm": null,
   "size_inch": "1 1/2\"",
   "size_metric_mm": 48.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3319,7 +3319,7 @@
   "dim_label": "2\" (60.3mm)",
   "od_mm": 60.3,
   "od2_mm": null,
-  "wall_mm": 3.65,
+  "wall_mm": 5.54,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3327,7 +3327,7 @@
   "thickness_mm": null,
   "size_inch": "2\"",
   "size_metric_mm": 60.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3337,7 +3337,7 @@
   "dim_label": "2 1/2\" (76.1mm)",
   "od_mm": 76.1,
   "od2_mm": null,
-  "wall_mm": 3.65,
+  "wall_mm": 7.01,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3345,7 +3345,7 @@
   "thickness_mm": null,
   "size_inch": "2 1/2\"",
   "size_metric_mm": 76.1,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3355,7 +3355,7 @@
   "dim_label": "3\" (88.9mm)",
   "od_mm": 88.9,
   "od2_mm": null,
-  "wall_mm": 4.05,
+  "wall_mm": 7.62,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3363,7 +3363,7 @@
   "thickness_mm": null,
   "size_inch": "3\"",
   "size_metric_mm": 88.9,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3373,7 +3373,7 @@
   "dim_label": "1/2\" (21.3mm)",
   "od_mm": 21.3,
   "od2_mm": null,
-  "wall_mm": 2.65,
+  "wall_mm": 3.73,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3381,7 +3381,7 @@
   "thickness_mm": null,
   "size_inch": "1/2\"",
   "size_metric_mm": 21.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3391,7 +3391,7 @@
   "dim_label": "3/4\" (26.9mm)",
   "od_mm": 26.9,
   "od2_mm": null,
-  "wall_mm": 2.65,
+  "wall_mm": 3.91,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3399,7 +3399,7 @@
   "thickness_mm": null,
   "size_inch": "3/4\"",
   "size_metric_mm": 26.9,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3409,7 +3409,7 @@
   "dim_label": "1\" (33.7mm)",
   "od_mm": 33.7,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 4.55,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3417,7 +3417,7 @@
   "thickness_mm": null,
   "size_inch": "1\"",
   "size_metric_mm": 33.7,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3427,7 +3427,7 @@
   "dim_label": "1 1/4\" (42.4mm)",
   "od_mm": 42.4,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 4.85,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3435,7 +3435,7 @@
   "thickness_mm": null,
   "size_inch": "1 1/4\"",
   "size_metric_mm": 42.4,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3445,7 +3445,7 @@
   "dim_label": "1 1/2\" (48.3mm)",
   "od_mm": 48.3,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 5.08,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3453,7 +3453,7 @@
   "thickness_mm": null,
   "size_inch": "1 1/2\"",
   "size_metric_mm": 48.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3463,7 +3463,7 @@
   "dim_label": "2\" (60.3mm)",
   "od_mm": 60.3,
   "od2_mm": null,
-  "wall_mm": 3.65,
+  "wall_mm": 5.54,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3471,7 +3471,7 @@
   "thickness_mm": null,
   "size_inch": "2\"",
   "size_metric_mm": 60.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3481,7 +3481,7 @@
   "dim_label": "3/8\" (17.2mm)",
   "od_mm": 17.2,
   "od2_mm": null,
-  "wall_mm": 2.35,
+  "wall_mm": 3.2,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3489,7 +3489,7 @@
   "thickness_mm": null,
   "size_inch": "3/8\"",
   "size_metric_mm": 17.2,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3499,7 +3499,7 @@
   "dim_label": "1/2\" (21.3mm)",
   "od_mm": 21.3,
   "od2_mm": null,
-  "wall_mm": 2.65,
+  "wall_mm": 3.73,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3507,7 +3507,7 @@
   "thickness_mm": null,
   "size_inch": "1/2\"",
   "size_metric_mm": 21.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3517,7 +3517,7 @@
   "dim_label": "3/4\" (26.9mm)",
   "od_mm": 26.9,
   "od2_mm": null,
-  "wall_mm": 2.65,
+  "wall_mm": 3.91,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3525,7 +3525,7 @@
   "thickness_mm": null,
   "size_inch": "3/4\"",
   "size_metric_mm": 26.9,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3535,7 +3535,7 @@
   "dim_label": "1\" (33.7mm)",
   "od_mm": 33.7,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 4.55,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3543,7 +3543,7 @@
   "thickness_mm": null,
   "size_inch": "1\"",
   "size_metric_mm": 33.7,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3553,7 +3553,7 @@
   "dim_label": "1 1/4\" (42.4mm)",
   "od_mm": 42.4,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 4.85,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3561,7 +3561,7 @@
   "thickness_mm": null,
   "size_inch": "1 1/4\"",
   "size_metric_mm": 42.4,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3571,7 +3571,7 @@
   "dim_label": "1 1/2\" (48.3mm)",
   "od_mm": 48.3,
   "od2_mm": null,
-  "wall_mm": 3.25,
+  "wall_mm": 5.08,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3579,7 +3579,7 @@
   "thickness_mm": null,
   "size_inch": "1 1/2\"",
   "size_metric_mm": 48.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",
@@ -3589,7 +3589,7 @@
   "dim_label": "2\" (60.3mm)",
   "od_mm": 60.3,
   "od2_mm": null,
-  "wall_mm": 3.65,
+  "wall_mm": 5.54,
   "radius_mm": null,
   "length_mm": null,
   "dn": null,
@@ -3597,7 +3597,7 @@
   "thickness_mm": null,
   "size_inch": "2\"",
   "size_metric_mm": 60.3,
-  "notes": "OD per Kohler R-210 (DIN2982 double/barrel nipple). Length NOT fixed \u2014 stocked/cut 30-1000mm per size; no single lookup value, use as OD-match + length-in-range check. Wall per DIN 2440 medium series (Guia Metalica ref table, cross-validated OD-2*wall=bore at every size) \u2014 enables bore-confirmed matching, not just OD."
+  "notes": " [CORRECTED 2026-07-15] OD per DIN 2982 (unchanged, confirmed correct). Wall/bore corrected FROM DIN 2440 (wrong std -- mild steel, buttweld-grade, not applicable to threaded stainless) TO ASME B36.19 Schedule 80S (threaded stainless nipple std -- real measured Stirg part \"Nipl A316L 1 1/4\\\"\" showed wall 4.65mm, Sch80S predicts 4.85mm [0.2mm off] vs DIN2440's 3.25mm [1.4mm off]). Cross-validated: engineeringtoolbox.com ASME B36.10/19 table + RFF/VMSteel DIN/ISO/EN/ASME reference table agree exactly on Sch80S values. 2 1/2\" size flagged lower-confidence: DIN-OD (76.1mm) and NPS-OD (73.0mm) diverge most at this size, so applying ASME wall data here is the least certain."
  },
  {
   "source": "Prohrom (Katalog fitinga i dodatne opreme)",

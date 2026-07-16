@@ -103,6 +103,9 @@ def main(xlsx_path, out_dir):
     export_table(BTP, "ROUND PIPE \u2014 STRUCTURAL", (2,4),
         ['ST_S235','ST_S355','SS_1.4301','SS_1.4404','AL_6082','AL_6060','BRS_CuZn37','PL_POM'],
         out_dir, "round_pipe_structural.json")
+    export_table(BTP, "ROUND PIPE \u2014 ANSI/ASME", (2,4),
+        ['SS_1.4301','SS_1.4404'],
+        out_dir, "round_pipe_ansi.json")
     export_table(BTP, "THREADED PIPE", (2,6), ['ST_S235'],
         out_dir, "threaded_pipe.json")
     export_table(BTP, "ROUND TUBE \u2014 DECORATIVE", (2,4),
