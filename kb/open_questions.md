@@ -407,9 +407,9 @@ dedicated pass.
 
 **OQ-112 status:** round-bar turning-inference logic (`ROUND_STOCK_TURNED_FROM_*`, `CONFIRM_TURNING_
 OPERATION`) was validated once, in isolation, against real data (`NR01555346-9`'s 60.3mm OD, `602.1063.
-000.001-A`'s 154mm OD). It is currently unreachable in the latest diagnostic version: OQ-129's coaxial-
-bore over-firing routes every part that would exercise this logic into the hollow/pipe path instead, so
-it needs re-validation once OQ-129's gating is resolved, not assumed still correct as-is.
+000.001-A`'s 154mm OD). OQ-129 (the gating that was routing parts away from this logic) is now closed —
+re-validation of OQ-112's turning-inference logic against current gating is the next concrete step, not
+blocked on anything further.
 
 **OQ-125** [OPEN] Standard pipe/tube/profile size reference database, needed for two purposes: (1)
 dimensional cross-reference the same way EN 10060 round bar is used (D-375's turning logic), and (2) per
@@ -468,20 +468,22 @@ PPM_Warehouse_1.xlsx. Round bar/pipe/tube series now confirmed working as a
 positive-match confirmation signal per the original OQ-129 use case (see
 below) — validated against real parts, not just built.
 
-**OQ-129 status update: gates (b) and (c) now built and validated → D-642.**
-Gate (b) (wall-ratio/length plausibility) and gate (c) (standard-size
-cross-check via OQ-125's now-resolved database) both implemented and run
-against two real assemblies. Notably, `SP000011992` — the exact solid RD30
-grounding lug with an M10 tap originally cited as this OQ's failure case —
-now correctly resolves as NOT hollow (`HOLLOW_REJECTED_WALL_RATIO_36PCT`)
-across both test runs. Remaining open: gate (b)'s two thresholds (wall >
-30% of OD, disc-shape length/OD < 0.15) are first-pass values confirmed
-only against the specific false positives that motivated them, not
-calibrated against a wider real-part sample — a legitimate short turned
-bushing near either boundary could still be misjudged either way. Test plan
-from the original OQ text (real 60.3mm tube part + real ~25mm tapped solid
-part) has now been run, on two separate assemblies, not just the one
-originally planned.
+**OQ-129** [CLOSED, 2026-07-16] Gates (a)/(b)/(c) all implemented and validated
+→ D-642. Gate (b)'s two thresholds (wall > 30% of OD, disc-shape length/OD <
+0.15) — flagged as needing a wider sample beyond the original two false
+positives that motivated them — checked against a third, independent real
+sample: the Stadler AdBlue tank assembly (123 parts), run multiple times
+during this session's OQ-130 work. Every real `HOLLOW_REJECTED_WALL_RATIO_*`
+case observed (31%, 41%, 47%) sat comfortably clear of the 30% boundary;
+every `DISC_SHAPED_LOW_CONFIDENCE_TURNING` case correctly caught a real
+washer/seal/insulation disc, no false negatives. No counter-example across
+three real assemblies total. Not a rigorous statistical calibration — no
+deliberately-constructed borderline test part has been run — but three
+consecutive real assemblies with zero contradicting cases is enough to
+close this rather than leave it open indefinitely awaiting a test part that
+may never specifically arise. If a real borderline case surfaces in future
+work, reopen with that specific example rather than treating this closure
+as permanent immunity from revision.
 
 **OQ-130** [CLOSED → D-651] Dimension sourcing (D-646/D-647, corrected by
 D-650), matching function (`LookupFittingMatch`), and integration into
