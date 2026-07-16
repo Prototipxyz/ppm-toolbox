@@ -3510,3 +3510,69 @@ on real Inventor 2021** (`Anfragemodell Diesel- und AdBluetank.iam`):
   defaults `SKIP_SINGLE_INSTANCES = True` per Voja's request — a part
   occurring only once stays at top level, not folder-of-one; only
   actual repeats (2+ instances) get grouped.
+
+---
+
+## Combined Organize Command: Real Bugs Found, Debugged, Fixed (July 2026)
+
+**D-658** `PPM_OrganizeProjectFiles` built: single command, run once
+from the top-level assembly, recursively normalizes/sorts/groups
+through the entire subassembly tree (skipping
+PPM_SubassemblyTreatment=PurchasedUnit subassemblies per D-643, and
+already-visited documents so a subassembly referenced by multiple
+occurrences is only processed once). Order deliberately Normalize ->
+Sort -> Group (grouping last, so folders end up containing already-
+sorted members rather than needing folder-aware sort logic).
+
+Real format discovery: three consecutive compile failures established
+that iLogic external rule files in this "whole recursive script"
+shape do NOT support named Sub/Function declarations alongside a
+driver — not `Sub Main()` plus siblings ("Statement is not valid in a
+namespace" on every sibling), not everything wrapped in an explicit
+`Module` (reverts to "must contain Sub Main()"). Final working shape:
+bare top-level statements only, recursion done via a manual `Queue(Of
+Document)` instead of a recursive named routine — matching the exact
+shape already proven by the four individually-tested scripts (D-657).
+This is now the confirmed required format for this class of iLogic
+rule; future multi-step external rules in this codebase should default
+to this shape rather than re-discovering it.
+
+Two real bugs found via actual runs, not caught in advance:
+1. **Grouping key bug**: `oOcc.Definition.Document.DisplayName` is NOT
+   reliably unique per file — a real run showed 7 genuinely different
+   parts (NR01810382.2 through .8) merged into one folder together.
+   Fixed to `FullFileName` (the literal file path, unambiguous by
+   construction) as the grouping key; `DisplayName` still used
+   separately for the folder's human-readable label.
+2. **Single-document-failure aborting the whole run**: an unhandled
+   `E_FAIL` on one document stopped the entire tree walk, which is
+   also why subassemblies weren't being reached at all in early runs.
+   Fixed with a `Try/Catch` around each document's processing (and
+   later, around each of its four sub-steps individually), so one
+   failing document/step no longer blocks the rest of the tree —
+   confirmed working: after making the Sort step specifically
+   non-fatal, the walk found 2 additional subassemblies (26 total vs
+   24) that were previously unreachable because Sort's abort was
+   cutting off Enqueue before it could discover them.
+
+Two hypotheses raised and explicitly disproven by real run data,
+worth recording so they aren't re-tried blind: "Phantom"-prefixed
+document names are NOT the cause of the Sort failures (multiple
+Phantom-named documents, including two literally named
+"...(Phantom).iam", succeeded completely) — the naming coincidence
+that suggested this was misleading.
+
+**Final confirmed state**: Normalize and Group work correctly across
+the entire 26-document tree, including every previously-blocked
+document. Sort fails specifically (and only) on 7 of the 26 documents,
+isolated via per-step error tracking to the Sort step exclusively
+(Normalize/Group/Enqueue all succeed on the same 7 documents) — root
+cause not fully confirmed, leading hypothesis is that
+`BrowserPanes.Item("AmBrowserArrangement")` may require the document
+to have been the active document at some point in the session, not
+just loaded in memory (see OQ-210). Sort's failure is now non-fatal
+and does not block Normalize/Group/Enqueue for affected documents, so
+the practical impact is limited to those 7 documents keeping their
+pre-existing browser order rather than being alphabetized — Voja's
+two actually-requested features (clean names, grouped instances) work
+correctly everywhere.

@@ -912,3 +912,27 @@ UI/rule action sets `PPM_Revision` to "A" (or bumps B→C etc. on
 subsequent releases), and whether it should also trigger anything else
 (e.g. a KB-style log entry, a locked/read-only state on the file).
 Not designed in detail yet, only the naming convention itself.
+
+---
+
+## PPM_OrganizeProjectFiles — July 2026
+
+**OQ-210** [OPEN, low priority — workaround in place] Sort step
+(`BrowserPane.Reorder` via `"AmBrowserArrangement"` pane) fails with
+a generic `E_FAIL` on a specific subset of subassembly documents (7
+of 26 in the one real project tested) — isolated via per-step error
+tracking to Sort exclusively; Normalize, Group, and Enqueue all
+succeed on the same documents. Leading hypothesis: the named pane may
+require the document to have been the active document at some point
+in the current Inventor session, not just loaded in memory as a
+referenced subassembly — matches the original "loaded-but-inactive"
+concern flagged before this tool was first built. NOT yet confirmed.
+Decisive test proposed but not yet run: open one of the 7 failing
+documents directly (making it the active document) and run the
+standalone `PPM_AlphaSortTopLevelOccurrences` rule on it directly —
+if it works when active, confirms the hypothesis; if it still fails,
+rules it out entirely and points at something specific to those
+documents. Low priority since Sort's failure is now non-fatal
+(D-658) and doesn't block the two features actually requested
+(renaming, grouping), which work correctly on all 26 documents
+including the 7 with this issue.

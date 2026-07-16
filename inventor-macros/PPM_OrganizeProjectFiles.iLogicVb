@@ -1,0 +1,177 @@
+' PROPOSED / UNVALIDATED -- rename step confirmed NOT the failure
+' point (last run: every failing document's rename succeeded fully
+' before the later E_FAIL). "Phantom"-in-name hypothesis also
+' disproven by the same run's data (multiple Phantom-named documents,
+' including two literally named "...(Phantom).iam", succeeded fully).
+' Rather than guess a third root cause, this version wraps sort/
+' group/enqueue separately so the next run reports exactly which one
+' fails, per document -- mechanical narrowing instead of another
+' pattern-matched guess.
+
+Dim visitedDocs As New HashSet(Of String)
+Dim docQueue As New Queue(Of Document)
+Dim failures As New List(Of String)
+Dim renameStats As New List(Of String)
+docQueue.Enqueue(ThisDoc.Document)
+
+Dim oTopDoc As Document = ThisDoc.Document
+If oTopDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then
+    MessageBox.Show("Run this from the top-level assembly.", "Not an Assembly")
+    Return
+End If
+
+Dim UNDO As Transaction = ThisApplication.TransactionManager.StartTransaction(oTopDoc, "Organize Project Files")
+
+While docQueue.Count > 0
+    Dim oDoc As Document = docQueue.Dequeue()
+    Dim fullName As String = oDoc.FullFileName
+    If visitedDocs.Contains(fullName) Then Continue While
+    visitedDocs.Add(fullName)
+
+    If oDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then Continue While
+
+    Dim isPurchased As Boolean = False
+    Try
+        Dim propVal = oDoc.PropertySets.Item("Inventor User Defined Properties") _
+            .Item("PPM_SubassemblyTreatment").Value.ToString()
+        isPurchased = (propVal = "PurchasedUnit")
+    Catch
+    End Try
+    If isPurchased Then Continue While
+
+    Dim oDef As AssemblyComponentDefinition = Nothing
+    Try
+        oDef = oDoc.ComponentDefinition
+    Catch exDef As Exception
+        failures.Add(fullName & " -- STEP=ComponentDefinition -- " & exDef.Message)
+        Continue While
+    End Try
+
+    ' --- 1. Normalize (confirmed not the failure point, kept as-is) ---
+    Dim seenNames As New HashSet(Of String)
+    Dim renamedCount As Integer = 0
+    Dim renameFailCount As Integer = 0
+    Try
+        For Each oOcc As ComponentOccurrence In oDef.Occurrences
+            Dim baseName As String = oOcc.Definition.Document.DisplayName
+            If Not seenNames.Contains(baseName) Then
+                seenNames.Add(baseName)
+                If oOcc.Name <> baseName Then
+                    Try
+                        oOcc.Name = baseName
+                        renamedCount += 1
+                    Catch
+                        renameFailCount += 1
+                    End Try
+                End If
+            End If
+        Next
+        renameStats.Add(oDoc.DisplayName & ": " & renamedCount & " renamed, " & renameFailCount & " failed")
+    Catch exNorm As Exception
+        failures.Add(fullName & " -- STEP=Normalize -- " & exNorm.Message)
+        Continue While
+    End Try
+
+    ' --- 2. Alpha-sort -- isolated, NOW NON-FATAL: a sort failure no
+    ' longer aborts Group/Enqueue for this document. Kept the original
+    ' "AmBrowserArrangement" pane name -- an ActivePane swap was
+    ' considered and reverted, since the docs explicitly say Reorder
+    ' does NOT work on the standard assembly pane, which is very
+    ' likely what ActivePane would resolve to. That swap risked
+    ' breaking sorting on the 19 currently-working documents to chase
+    ' a fix for 5 -- worse trade than it first looked, not worth it
+    ' without more evidence.
+    Try
+        Dim oSortPane As BrowserPane = oDoc.BrowserPanes.Item("AmBrowserArrangement")
+        Dim names(oDef.Occurrences.Count - 1) As String
+        For i As Integer = 1 To oDef.Occurrences.Count
+            names(i - 1) = oDef.Occurrences.Item(i).Name
+        Next
+        Array.Sort(names, StringComparer.OrdinalIgnoreCase)
+
+        Dim oPreviousNode As BrowserNode = Nothing
+        For Each nm As String In names
+            Dim oOcc As ComponentOccurrence = oDef.Occurrences.ItemByName(nm)
+            If oOcc.PatternElement IsNot Nothing Then Continue For
+
+            Dim oThisNode As BrowserNode = oSortPane.GetBrowserNodeFromObject(oOcc)
+            If oPreviousNode IsNot Nothing Then
+                Try
+                    oSortPane.Reorder(oPreviousNode, False, oThisNode)
+                Catch
+                End Try
+            End If
+            oPreviousNode = oThisNode
+        Next
+    Catch exSort As Exception
+        failures.Add(fullName & " -- STEP=Sort (non-fatal, continuing) -- " & exSort.Message)
+        ' NOTE: no Continue While here anymore -- Group and Enqueue still run.
+    End Try
+
+    ' --- 3. Group by same part -- isolated ---
+    Try
+        Dim oModelPane As BrowserPane = oDoc.BrowserPanes.Item("Model")
+        Dim occsByFile As New Dictionary(Of String, List(Of ComponentOccurrence))
+        For Each oOcc As ComponentOccurrence In oDef.Occurrences
+            Dim key As String = oOcc.Definition.Document.FullFileName
+            If Not occsByFile.ContainsKey(key) Then
+                occsByFile(key) = New List(Of ComponentOccurrence)
+            End If
+            occsByFile(key).Add(oOcc)
+        Next
+
+        For Each kvp As KeyValuePair(Of String, List(Of ComponentOccurrence)) In occsByFile
+            Dim occList As List(Of ComponentOccurrence) = kvp.Value
+            If occList.Count = 1 Then Continue For
+
+            Dim folderLabel As String = occList(0).Definition.Document.DisplayName
+
+            Dim oFolder As BrowserFolder = Nothing
+            Dim folderExists As Boolean = True
+            Try
+                oFolder = oModelPane.TopNode.BrowserFolders.Item(folderLabel)
+            Catch
+                folderExists = False
+            End Try
+
+            If folderExists Then
+                For Each oOcc As ComponentOccurrence In occList
+                    Try
+                        oFolder.Add(oModelPane.GetBrowserNodeFromObject(oOcc))
+                    Catch
+                    End Try
+                Next
+            Else
+                Dim oNodes As ObjectCollection = ThisApplication.TransientObjects.CreateObjectCollection
+                For Each oOcc As ComponentOccurrence In occList
+                    oNodes.Add(oModelPane.GetBrowserNodeFromObject(oOcc))
+                Next
+                oFolder = oModelPane.AddBrowserFolder(folderLabel, oNodes)
+            End If
+        Next
+    Catch exGroup As Exception
+        failures.Add(fullName & " -- STEP=Group -- " & exGroup.Message)
+        Continue While
+    End Try
+
+    ' --- 4. Enqueue children -- isolated ---
+    Try
+        For Each oOcc As ComponentOccurrence In oDef.Occurrences
+            Dim childDoc As Document = oOcc.Definition.Document
+            If childDoc.DocumentType = DocumentTypeEnum.kAssemblyDocumentObject Then
+                docQueue.Enqueue(childDoc)
+            End If
+        Next
+    Catch exEnq As Exception
+        failures.Add(fullName & " -- STEP=Enqueue -- " & exEnq.Message)
+    End Try
+End While
+
+UNDO.End()
+
+Dim summary As String = "Organized " & (visitedDocs.Count - failures.Count) & " of " & visitedDocs.Count & " document(s)." & vbCrLf & vbCrLf
+summary &= "Rename detail:" & vbCrLf & String.Join(vbCrLf, renameStats)
+If failures.Count > 0 Then
+    summary &= vbCrLf & vbCrLf & "Failed (with step):" & vbCrLf & String.Join(vbCrLf, failures)
+End If
+MessageBox.Show(summary, "Organize Project Files")
