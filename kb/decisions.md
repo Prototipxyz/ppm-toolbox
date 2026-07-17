@@ -3576,3 +3576,101 @@ the practical impact is limited to those 7 documents keeping their
 pre-existing browser order rather than being alphabetized — Voja's
 two actually-requested features (clean names, grouped instances) work
 correctly everywhere.
+
+---
+
+## Inventor Standard Templates Built (Claude Code Session, July 2026)
+
+**D-659** Four Stirg-standard Inventor templates built and verified: `Stirg_Part.ipt`,
+`Stirg_Sheet_Metal.ipt`, `Stirg_Assembly.iam`, `Stirg_Drawing.idw`, all in
+`C:\Users\Public\Documents\Autodesk\Inventor 2021\Templates\en-US\`. Built in a separate
+Claude Code session (not this KB's usual iLogic-in-Inventor path) via Python + pywin32 COM
+automation driving a live Inventor session directly — first use of this approach in the
+project. Executed under a Fable-5-orchestrated subagent structure (env-verifier,
+data-reader, drawing-inspector, template-builder, verifier — each Sonnet-scoped, dispatched
+via Claude Code's Task tool per a `CLAUDE.md` dispatch sequence) rather than a single-thread
+session; worth reusing this pattern for future multi-phase build tasks of similar shape.
+Every phase followed the same empirical-only, verify-before-trusting discipline as the rest
+of this project — real errors surfaced and were fixed via specific, diagnosed corrections,
+not blind retries. Real API findings from this session, useful for any future COM
+automation work:
+- `win32com.client.gencache.EnsureDispatch` (early-bound, generated wrapper) is required for
+  `win32com.client.constants` to resolve Inventor's enums correctly — plain late-bound
+  `Dispatch` was the root cause of at least one silent wrong-value bug during template
+  creation (confirmed by re-checking already-built templates after switching approaches;
+  Part and Sheet Metal templates built before this fix were re-verified as still correct by
+  coincidence, not by design — worth being cautious re-using any pre-`gencache` script from
+  this session's scratchpad).
+- Setting a material's density via COM requires an explicit `FloatAssetValue` cast — a plain
+  float assignment did not work, failed silently until this was found.
+- Reading a material's density back requires `PhysicalPropertiesAsset` specifically —
+  `PhysicalAsset` and generic `MaterialAsset` property iteration both failed to expose it;
+  three attempts before landing on the correct object.
+- Sheet metal styles carry their own inch/mm setting independent of the document's overall
+  unit system — a document correctly reporting mm can still inherit an inch-based Sheet
+  Metal Style/Rule from Inventor's built-in defaults. Fix was creating a genuinely new
+  mm-native rule (not overriding the inch-native one's individual values, which would leave
+  the underlying style still fundamentally inch-based).
+- `BrowserPane`/COM aside — new for this session: `Documents.Add` + `AssemblyComponentDefinition
+  .Occurrences.AddByComponentDefinition` is the confirmed real pattern for creating a part
+  and placing it into an assembly programmatically (real Autodesk community + devblog
+  sources, not yet exercised in this session's actual build but confirmed available for the
+  PN-registry "create new part" workflow, OQ-207).
+
+**D-660** Sheet Metal template: Unfold Method = Bend Compensation (confirmed working,
+Inventor's stock default compensation value, no custom Stirg number needed). Bend radius
+linked to thickness via a new `Stirg_mm` rule (not a modified built-in one, per the inch/mm
+finding above). Inventor's stock rules (`Default`, `Default_mm`) deliberately deleted from
+the template itself, specifically to prevent a user silently landing on K-Factor unfolding
+by manually switching rules — found via live testing that stock rules still appear in the
+rule picker regardless (served by the project's Style Library, not embedded per-template);
+accepted this residual risk rather than taking on a much larger blast radius fix (disabling
+style-library lookups project-wide, or editing the shared machine-level Design Data library)
+for a risk that only materializes if a user deliberately switches away from the pre-set
+`Stirg_mm` default.
+
+**D-661** `PPM Materials.adsklib` created as a new, dedicated, shared material library — 16
+materials, named by PPM code (`ST_S235`, `SS_1.4301`, etc.), each with the Materials Key's
+exact density. Deliberately created clean rather than reusing 9 near-match variant-named
+entries already present in Inventor's built-in libraries, whose densities disagreed with the
+Materials Key's trusted EN-standard values — same "use the correct source, not the closest
+available one" discipline as D-650's DIN2440→ASME correction earlier this project.
+Registered in `Default.ipj` via COM (`MaterialLibraries.Add` + project save), confirmed via
+both COM inspection and a direct read of the saved `.ipj` file, then confirmed to genuinely
+survive a cold Inventor restart — tested by launching a second, independent Inventor process
+(not just re-checking the already-loaded running session) that re-read `Default.ipj` from
+disk; all 16 materials, correct densities (spot-checked: `ST_S235`/`ST_S355` read back
+exactly 7850 kg/m³), loaded correctly. The cold-start test specifically avoided disturbing
+Voja's own open, unsaved work — found two assemblies open with unsaved changes and refused
+to quit that session, using a separate process instead.
+
+**D-662** Drawing template: reused and rewired the real existing `Stirg_A3.idw` rather than
+building a new title block from scratch — confirmed via live inspection (`sheet.TitleBlock`
+→ definition sketch TextBoxes, resolved via `titleBlock.GetResultText`, all dynamic fields
+already property-linked, no prompted-entry fields). Material field (auto-linked to the
+referenced part's Material iProperty) kept as-is. Added three new linked fields:
+`PPM_Buyer`, `PPM_OrderNumber`, `PPM_ProjectName` — matches D-654's schema, previously
+collected but not displayed anywhere. Rewired two fields from built-in Inventor properties
+to the project's own schema: Revision (was built-in Summary Revision Number) → `PPM_Revision`,
+Designed-by (was built-in Author) → `PPM_Designer` — necessary for D-655's blank→A
+convention to be a genuine single source of truth rather than two revision values that can
+silently diverge. Checked-by/scale/logo fields, listed as possibilities in the original spec,
+deliberately left absent — matches the real template as found, not added speculatively.
+Original `Stirg A3.idw` confirmed untouched throughout (file hash + timestamp verified
+unchanged) — all editing happened on a copy staged into the Templates folder as
+`Stirg_Drawing.idw`.
+
+**D-663** Cleanup: a stray pre-existing `Stirg Sheet Metal.ipt` (space-named, dated 9.9.2025,
+predates this session's underscore-named convention) found sitting in the Templates folder
+alongside the new `Stirg_Sheet_Metal.ipt` — moved (not deleted) to
+`C:\PPM Inventor Templates\Stirg Sheet Metal (backup 2025-09-09).ipt`, to eliminate the
+"two similarly-named entries in the New dialog" ambiguity without permanently discarding
+whatever it contained. Same treatment planned for the working `Stirg A3.idw`/`.dwg` copies
+still sitting in the Templates folder post-build.
+
+**Still open:** the specific missing aluminium grade(s) Voja flagged were never identified —
+`data-reader` correctly surfaced this as a blocker per its instructions, but a specific
+answer was never given during this session. The 16-material `PPM Materials.adsklib` reflects
+only the confirmed 13-code working set plus the 11 aluminium grades already in the Materials
+Key Excel sheet — does not yet include whatever grade(s) prompted the original "missing
+aluminium" comment. Needs resolving before the material library is considered complete.

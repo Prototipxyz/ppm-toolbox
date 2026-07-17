@@ -950,3 +950,18 @@ documents. Low priority since Sort's failure is now non-fatal
 (D-658) and doesn't block the two features actually requested
 (renaming, grouping), which work correctly on all 26 documents
 including the 7 with this issue.
+
+---
+
+## Inventor Templates — July 2026
+
+**OQ-211** [OPEN, blocks material library completeness] Specific missing aluminium grade(s)
+never identified. Raised during template-build planning (11 aluminium grades already exist
+in Materials Key: 6082, 6060, 1050, 6063, 6061, 6005, 5754, 5083, 5005, 7075, 7020), SSAB
+library checked and ruled out as a source (steel-only, no aluminium alloys present). D-661's
+`PPM Materials.adsklib` (16 materials, registered in `Default.ipj`, cold-start verified) was
+built and shipped without this resolved — `data-reader` correctly flagged it as a blocker
+per its instructions during the Claude Code build session, but no answer was captured.
+Whatever grade(s) are actually needed will require adding to both the Materials Key Excel
+sheet (source of truth) and the `PPM Materials.adsklib` (already-built, already-registered —
+adding one more material is a small follow-up, not a rebuild).
