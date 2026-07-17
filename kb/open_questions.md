@@ -296,7 +296,8 @@ should NOT be filtered) — only the false-positive direction is confirmed so fa
 `8×Ø0.2` fillet-artifact entries are gone (`SKIPPED_8_SUB1MM_FACES`), no regression on real small
 features elsewhere in the 29-part run.
 
-**OQ-116** [OPEN] D-368's laser-cut classification produced a 100% non-match rate — `Holes_Plain` empty
+**OQ-116** [CLOSED, resolved same session it was raised — see resolution note below]
+D-368's laser-cut classification produced a 100% non-match rate — `Holes_Plain` empty
 across all 29 parts, everything routed to `Holes_Laser`, including on parts with clearly-modeled Hole
 features (e.g. NR01555346-7's own 4×Ø25). This is a systematic failure, not a plausible real-world
 result, and points at `HoleFeature.HoleDiameter` (used to build the Pass-1 `knownDiameters` catalog) —
@@ -314,7 +315,7 @@ only to non-threaded (through) holes, or use different logic for blind features.
 
 ## Full-Revolution Arc-Span Filter Test Run
 
-**OQ-116 resolved:** root cause was never `HoleFeature.HoleDiameter` — it was fillet arcs and real
+**OQ-116** [CLOSED, confirmed] Root cause was never `HoleFeature.HoleDiameter` — it was fillet arcs and real
 holes both being concave, which the concave/convex filter alone can't distinguish. Confirmed via Voja's
 Inventor screenshots (Measure tool) that the earlier `4×Ø25`/`2mm` "holes" on NR01555346-7 were inner/
 outer corner fillets inherited from a STEP-derived base solid, not laser-cut or drilled features.
