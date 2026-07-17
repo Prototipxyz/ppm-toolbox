@@ -1,0 +1,67 @@
+' PROPOSED / UNVALIDATED -- not yet compiled or run.
+' Builds directly on the confirmed PASSED result from
+' PPM_TestCloseSelfThenOpenNext: a single close-self-then-open-next
+' cycle works. This test asks the next question: does that chain
+' across MULTIPLE hops within one rule execution?
+'
+' Key uncertainty this isolates: after the first hop, the newly opened
+' document is held via a direct object reference (oCurrent), not via
+' ThisDoc.Document -- it's unconfirmed whether ThisDoc even updates to
+' point at the newly-active document mid-execution, so this test
+' deliberately avoids relying on it after hop 1 and uses the object
+' reference returned by Documents.Open instead.
+'
+' HOW TO TEST (use 3 real, disposable/scratch files, NOT production):
+'   1. Edit TEST_PATHS below -- 3 real file paths that exist on disk.
+'   2. Open a DIFFERENT file in Inventor (not one of the 3), make it
+'      the active document.
+'   3. Run this as an External Rule.
+'   4. Expect either a full SUCCESS summary (all 3 hops completed) or
+'      a report of exactly which hop number failed and why.
+
+Dim TEST_PATHS() As String = { _
+    "C:\PPM Cuts and Bends\TestFiles\hop1.ipt", _
+    "C:\PPM Cuts and Bends\TestFiles\hop2.ipt", _
+    "C:\PPM Cuts and Bends\TestFiles\hop3.ipt" _
+}
+
+Dim oCurrent As Document = ThisDoc.Document
+Dim hopLog As New List(Of String)
+Dim hopsCompleted As Integer = 0
+
+For i As Integer = 0 To TEST_PATHS.Length - 1
+    Dim closedName As String = oCurrent.DisplayName
+    Try
+        oCurrent.Save()
+    Catch exSave As Exception
+        hopLog.Add("Hop " & (i + 1) & " -- SAVE FAILED on " & closedName & ": " & exSave.Message)
+        Exit For
+    End Try
+
+    Try
+        oCurrent.Close(True)
+    Catch exClose As Exception
+        hopLog.Add("Hop " & (i + 1) & " -- CLOSE FAILED on " & closedName & ": " & exClose.Message)
+        Exit For
+    End Try
+
+    Try
+        Dim oNext As Document = ThisApplication.Documents.Open(TEST_PATHS(i))
+        hopLog.Add("Hop " & (i + 1) & " -- OK: closed " & closedName & ", opened " & oNext.DisplayName)
+        oCurrent = oNext
+        hopsCompleted += 1
+    Catch exOpen As Exception
+        hopLog.Add("Hop " & (i + 1) & " -- OPEN FAILED for path '" & TEST_PATHS(i) & "': " & exOpen.Message)
+        Exit For
+    End Try
+Next
+
+Dim report As String = hopsCompleted & " of " & TEST_PATHS.Length & " hops completed." & vbCrLf & vbCrLf
+report &= String.Join(vbCrLf, hopLog)
+If hopsCompleted = TEST_PATHS.Length Then
+    report &= vbCrLf & vbCrLf & "SUCCESS -- multi-hop chaining confirmed working."
+Else
+    report &= vbCrLf & vbCrLf & "Stopped early -- see failure reason above."
+End If
+
+MessageBox.Show(report, "PPM_TestMultiHopLoop")

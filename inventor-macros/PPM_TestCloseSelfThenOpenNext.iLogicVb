@@ -1,0 +1,95 @@
+' PROPOSED / UNVALIDATED -- not yet compiled or run.
+' Single-question test. Does NOT build the real navigation logic yet --
+' Component B depends entirely on the answer to this one question, so
+' testing it in isolation first avoids conflating a real bug with a
+' fundamental "this approach doesn't work" finding.
+'
+' THE QUESTION: if this rule is triggered while running "on" the
+' currently active document (ThisDoc.Document), and the rule closes
+' THAT SAME document mid-execution, does the VB.NET code continue
+' running afterward (so it can then open the next document), or does
+' closing the hosting document kill the rule's execution?
+'
+' Confirmed from real forum evidence (Autodesk Community, "iLogic Close
+' error" thread): closing the document that hosts an EMBEDDED rule
+' causes E_FAIL, and the fix was switching to an External Rule. This
+' file IS an external rule (per project convention, all PPM macros are
+' external), so the embedded-rule failure mode shouldn't apply here --
+' but nobody has confirmed the self-close-then-continue case
+' specifically for external rules. That's what this test isolates.
+'
+' HOW TO TEST (use two disposable/scratch files, NOT production parts):
+'   1. Edit TEST_NEXT_PATH below to point at a second real .ipt/.iam
+'      file that exists on disk.
+'   2. Open the FIRST test file in Inventor, make it the active document.
+'   3. Run this as an External Rule against that active document.
+'   4. Watch what happens:
+'      - MessageBox "SUCCESS" appears, second file opens and is active
+'        -> self-close-then-continue works, Component B can proceed
+'        as planned.
+'      - Inventor errors out (E_FAIL or similar) right at the Close()
+'        line, no MessageBox -> self-close does NOT allow continued
+'        execution; Component B needs a different architecture (e.g.
+'        a controller rule that runs from a source that never closes
+'        itself, and the "Finished Modification" button just signals
+'        intent via a flag/file rather than closing its own host).
+'      - Something in between (e.g. Close succeeds but Open fails)
+'        -> report exactly what happened, that's useful data too.
+
+' EDIT THIS before testing:
+Dim TEST_NEXT_PATH As String = "C:\PPM Cuts and Bends\TestFiles\test_part_b.ipt"
+
+Dim oCurrentDoc As Document = ThisDoc.Document
+Dim currentPath As String = oCurrentDoc.FullFileName
+Dim currentName As String = oCurrentDoc.DisplayName
+
+' Save unconditionally rather than checking a dirty flag first -- the
+' first test run found Document.Saved doesn't exist as a member (real
+' compile error), and the real replacement (Document.RecentChanges, a
+' bitmask) is more machinery than this test needs. Save() on an already-
+' saved, unchanged document is a harmless no-op, so skipping the dirty
+' check entirely is simpler and avoids guessing at another unconfirmed
+' property.
+Try
+    oCurrentDoc.Save()
+Catch exSave As Exception
+    MessageBox.Show("Save failed before close test -- aborting, nothing closed." & _
+        vbCrLf & exSave.Message, "PPM_TestCloseSelfThenOpenNext")
+    Return
+End Try
+
+' THE RISKY LINE: closing the document that is hosting this very rule's
+' execution. SkipSave=True here because we already saved above -- avoids
+' the confirmed gotcha (Close fails if SkipSave=False + SilentOperation=True
+' on certain document states).
+Try
+    oCurrentDoc.Close(True)
+Catch exClose As Exception
+    MessageBox.Show("Close() on the hosting document threw an exception:" & _
+        vbCrLf & exClose.Message & vbCrLf & vbCrLf & _
+        "This means self-close-then-continue does NOT work as written -- " & _
+        "Component B needs a different architecture.", _
+        "PPM_TestCloseSelfThenOpenNext -- FAILED AT CLOSE")
+    Return
+End Try
+
+' If execution reaches this point, the hosting document's Close()
+' returned control to this running rule -- that alone is the headline
+' finding, independent of whether the Open below also succeeds.
+Try
+    Dim oNextDoc As Document = ThisApplication.Documents.Open(TEST_NEXT_PATH)
+    ThisApplication.ActiveView.Fit()
+    MessageBox.Show("SUCCESS." & vbCrLf & vbCrLf & _
+        "Closed: " & currentName & vbCrLf & _
+        "Opened: " & oNextDoc.DisplayName & vbCrLf & vbCrLf & _
+        "Execution continued after closing the hosting document. " & _
+        "Component B can proceed on this architecture.", _
+        "PPM_TestCloseSelfThenOpenNext -- PASSED")
+Catch exOpen As Exception
+    MessageBox.Show("Close() on the hosting document succeeded and execution " & _
+        "continued (that part works) -- but Open() on the next file failed:" & _
+        vbCrLf & exOpen.Message & vbCrLf & vbCrLf & _
+        "Check TEST_NEXT_PATH is correct. This is a fixable path/argument " & _
+        "issue, not a fundamental architecture problem.", _
+        "PPM_TestCloseSelfThenOpenNext -- PARTIAL")
+End Try

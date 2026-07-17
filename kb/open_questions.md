@@ -965,3 +965,26 @@ per its instructions during the Claude Code build session, but no answer was cap
 Whatever grade(s) are actually needed will require adding to both the Materials Key Excel
 sheet (source of truth) and the `PPM Materials.adsklib` (already-built, already-registered —
 adding one more material is a small follow-up, not a rebuild).
+
+## Loop 1 Navigation Engine — Open Questions (July 2026)
+
+**OQ-211** [OPEN] Global Forms trigger UI: does iLogic's "Global Forms"
+feature (a form/button not tied to one document, able to trigger a rule
+against whatever's currently active) work as the "Finished Modification →
+Next" trigger for Loop 1? Needed because the active document changes every
+hop, so a per-document embedded button won't persist across the loop.
+Identified as a candidate mechanism, not yet tested.
+
+**OQ-212** [OPEN] `PPM_ModificationStatus` iProperty write: proposed
+permanent-record field for Loop 1 (mirrors the already-confirmed
+`PPM_ReviewStatus` pattern, D-654/OQ-204), values TBD (e.g.
+Pending/InProgress/Done). Not yet built or tested.
+
+**OQ-213** [OPEN] Shared SQLite session file for Loop 1 + Loop 2 (per
+Voja's confirmed preference — one shared file, not two): schema not yet
+designed, and actual read/write against a real .db file not yet tested in
+this project — only the DLL-availability question is resolved (D-668).
+
+**OQ-214** [OPEN] Wiring Component A's real 835-node queue into the
+confirmed multi-hop open/close mechanic — `PPM_TestMultiHopLoop` only
+tested a 3-item hardcoded list, not the actual queue output. Not yet built.

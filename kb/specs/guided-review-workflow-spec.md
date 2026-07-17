@@ -138,7 +138,17 @@ removes the ability to run one macro on one part by hand.
   Inventor's iLogic environment provide a usable SQLite driver out of the
   box, or does this need an external DLL reference (same category of
   question as the Newtonsoft.Json dependency already resolved for the
-  diagnostic)?
+  diagnostic)? **PARTIALLY RESOLVED (D-668):** not built in — requires
+  `System.Data.SQLite.dll` + `SQLite.Interop.dll` deployed alongside the
+  macro, confirmed via Autodesk's own devblog and a real working forum
+  sample. Actual read/write against a real database file in this project
+  is still untested — see OQ-213.
+- **Loop 1 (Modification Pass) added as a companion phase, not part of this
+  spec's scope** — see D-664 through D-668. Runs to completion across the
+  whole tree BEFORE Phase 1 of this spec begins, sharing this spec's
+  session-file mechanism (one shared file, not two, per D-664) and using
+  the same auto-navigation engine components (`PPM_BuildModificationQueue`,
+  confirmed open/close mechanics) that Loop 1 also depends on.
 - Exact review-form UI layout — fields, buttons, first-pass mockup vs.
   iteration.
 - Whether Tier 3 bulk-accept is a per-session opt-in or a persistent

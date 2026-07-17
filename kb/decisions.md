@@ -3674,3 +3674,79 @@ answer was never given during this session. The 16-material `PPM Materials.adskl
 only the confirmed 13-code working set plus the 11 aluminium grades already in the Materials
 Key Excel sheet — does not yet include whatever grade(s) prompted the original "missing
 aluminium" comment. Needs resolving before the material library is considered complete.
+
+---
+
+## Loop 1 (Modification Pass) Navigation Engine — Component A & B Validated (July 2026)
+
+**D-664** Loop 1/Loop 2 architecture confirmed: two sequential loops sharing one
+auto-navigation engine, not one interleaved loop. Loop 1 (Modification pass:
+auto-open next part in parent-child/alpha order, user modifies, no diagnostics
+shown) runs to completion across the whole tree first; Loop 2 (existing
+`guided-review-workflow-spec.md`: batch diagnostic + review) runs after. Same
+structure for STEP-import (Option 1) and native-design (Option 2) projects —
+they differ only in what happens inside Loop 1. Loop 1 needs the same two-tier
+persistence pattern as Loop 2 (permanent iProperty + disposable SQLite session
+cache), sharing ONE session file rather than two separate ones (Voja's
+confirmed preference), and must survive full Inventor close/reopen across
+multiple days. Pause must not block normal Inventor usage — user can work on
+unrelated files while paused, same guarantee Loop 2 already provides.
+PurchasedUnit subassemblies are skipped from the Loop 1 queue, same as
+BOM/export (D-658 §6 precedent) — confirmed intentional by Voja, not just
+carried over by default.
+
+**D-665** `PPM_BuildModificationQueue` (Component A): read-only, confirmed via
+real compile-and-run on a live 835-node project (`M00025530_Spritzschutz
+177_20250924 Korigovan.iam`). Full recursive parent→child, pre-order
+depth-first traversal via `Stack(Of KeyValuePair(Of Document, Integer))`
+(Document + depth, not a bare `Stack(Of Document)` — depth tracking added
+after the first test run showed 835 nodes is too large to visually verify
+structure without indentation), alpha-sorted at each level (ordinal string
+comparison, matching the existing `PPM_AlphaSortTopLevelOccurrences`
+convention). Output written to a `.txt` file next to the top assembly rather
+than a MessageBox — MessageBox cannot display/scroll output past screen
+height, confirmed by the first test run's 835-line output being uncopyable.
+Full output manually verified correct against real nesting (e.g.
+`C453455.iam` confirmed genuinely nested inside `C453456.iam` via the
+indented output, not a sort bug as first appeared from the unindented
+MessageBox version).
+
+**D-666** Self-close-then-continue confirmed working: an External Rule CAN
+close the document hosting its own execution
+(`ThisDoc.Document.Close(True)`) and continue running afterward to open the
+next document. Confirmed via `PPM_TestCloseSelfThenOpenNext` on real
+Inventor 2021 — resolves the single largest unconfirmed assumption in the
+Loop 1 navigation design (prior forum evidence only confirmed closing a
+*different* document than the one hosting the rule). Multi-hop chaining
+(repeated close/open cycles within one rule execution, using direct object
+references rather than re-reading `ThisDoc` after the first hop, since it
+was unconfirmed whether `ThisDoc` updates mid-execution) also confirmed
+working via `PPM_TestMultiHopLoop` — 3/3 hops completed on real files,
+correctly closing whatever document was actually active each time rather
+than a hardcoded one.
+
+**D-667** Two real API corrections found via compile errors this session,
+not guessed in advance: `Document.Saved` does not exist as a member (real
+`_DocumentClass` compile error on first test run) — the real replacement is
+`Document.RecentChanges` (an Integer bitmask of change types), which is more
+machinery than needed for a simple pre-close save; the working fix is
+calling `Document.Save()` unconditionally rather than checking a dirty flag
+first, since `Save()` is a harmless no-op on an already-saved, unchanged
+document. `Documents.Open(path)` and `Document.Close(SkipSave As Boolean)`
+themselves confirmed real via a working Autodesk Community forum sample and
+Autodesk's own "Mod the Machine" API training post; known gotcha also
+confirmed via forum: `Close` fails if `SkipSave=False` +
+`SilentOperation=True` on a never-saved document.
+
+**D-668** SQLite from iLogic requires `System.Data.SQLite.dll` (+
+`SQLite.Interop.dll`) — NOT built into iLogic's environment out of the box.
+Confirmed via Autodesk's own devblog
+(`aps.autodesk.com/blog/use-systemdatasqlite-ilogic-rule`) and a real
+accepted-solution Autodesk Community forum thread with working
+`AddReference`/`SQLiteConnection` code. Resolves the open question in
+`guided-review-workflow-spec.md` §8 asking whether SQLite is available out
+of the box for the Loop 2 session cache — it isn't; the DLL must be
+deployed alongside the macro, with iLogic's file-resolution-path behavior
+(per the devblog) taken into account when referencing it. Not yet tested
+against a real database file in this project — DLL availability is
+confirmed, read/write mechanics are not.

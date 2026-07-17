@@ -1,0 +1,125 @@
+' PROPOSED / UNVALIDATED -- not yet compiled or run.
+' Component A of the Loop 1 (Modification Pass) navigation engine.
+' READ-ONLY: enumerates the full parent->child tree in pre-order,
+' alpha-sorted at each level, and reports the resulting queue order
+' via MessageBox. Does NOT open, close, or modify any document.
+' Purpose: validate traversal order against real project data before
+' Component B (open/close) is built on top of it.
+'
+' Confirmed real API used here (all from PPM_OrganizeProjectFiles,
+' D-657/D-658, already compile-tested on real Inventor 2021):
+'   - oDoc.ComponentDefinition.Occurrences (AssemblyComponentDefinition)
+'   - oOcc.Definition.Document (Document)
+'   - oDoc.FullFileName (unique key, per D-658 grouping-key fix)
+'   - PPM_SubassemblyTreatment custom iProperty read pattern
+'   - Bare top-level statements + manual Stack(Of Document), no named
+'     Sub/Function -- required shape per D-658's compile-failure finding.
+'
+' NOT yet confirmed (flag for Voja to check against real output):
+'   - Pre-order via Stack(Of Document) is my interpretation of "parent,
+'     then its subassemblies, then parts, going through each" -- adjust
+'     if this doesn't match intent.
+'   - Whether purchased-part subassemblies (PPM_SubassemblyTreatment =
+'     PurchasedUnit) should appear in the Modification queue at all, or
+'     be skipped like they are for BOM/DXF export (D-658 §6 precedent
+'     says skip; applied that way below -- confirm this is correct for
+'     Loop 1 too, since Loop 1's purpose (build/modify parts) is
+'     different from BOM/DXF export's purpose).
+
+Dim oTopDoc As Document = ThisDoc.Document
+If oTopDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then
+    MessageBox.Show("Run this from the top-level assembly.", "Not an Assembly")
+    Return
+End If
+
+Dim visited As New HashSet(Of String)
+Dim queueOrder As New List(Of String)
+Dim skippedPurchased As New List(Of String)
+' Stack now carries (Document, Depth) pairs so the report can show
+' nesting via indentation -- added after the first real test run showed
+' 835 nodes is too large to visually verify structure without it.
+Dim stack As New Stack(Of KeyValuePair(Of Document, Integer))
+stack.Push(New KeyValuePair(Of Document, Integer)(oTopDoc, 0))
+
+While stack.Count > 0
+    Dim top As KeyValuePair(Of Document, Integer) = stack.Pop()
+    Dim oDoc As Document = top.Key
+    Dim depth As Integer = top.Value
+    Dim fullName As String = oDoc.FullFileName
+    If visited.Contains(fullName) Then Continue While
+    visited.Add(fullName)
+
+    ' Record this node (assembly or part) in visitation order, indented.
+    Dim tag As String = If(oDoc.DocumentType = DocumentTypeEnum.kAssemblyDocumentObject, "[ASM] ", "[PRT] ")
+    queueOrder.Add(New String(" "c, depth * 2) & tag & oDoc.DisplayName)
+
+    If oDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then Continue While
+
+    ' PurchasedUnit check -- same pattern as PPM_OrganizeProjectFiles.
+    Dim isPurchased As Boolean = False
+    Try
+        Dim propVal = oDoc.PropertySets.Item("Inventor User Defined Properties") _
+            .Item("PPM_SubassemblyTreatment").Value.ToString()
+        isPurchased = (propVal = "PurchasedUnit")
+    Catch
+    End Try
+    If isPurchased Then
+        skippedPurchased.Add(oDoc.DisplayName)
+        Continue While
+    End If
+
+    Dim oDef As AssemblyComponentDefinition = Nothing
+    Try
+        oDef = oDoc.ComponentDefinition
+    Catch
+        Continue While
+    End Try
+
+    ' Collect immediate children, dedup by underlying document, alpha-sort
+    ' by display name, then push in REVERSE alpha order so the stack pops
+    ' them in forward alpha order (first-alpha child processed first).
+    Dim childDocs As New Dictionary(Of String, Document)
+    For Each oOcc As ComponentOccurrence In oDef.Occurrences
+        Try
+            Dim cDoc As Document = oOcc.Definition.Document
+            If Not childDocs.ContainsKey(cDoc.FullFileName) Then
+                childDocs.Add(cDoc.FullFileName, cDoc)
+            End If
+        Catch
+        End Try
+    Next
+
+    Dim sortedNames As New List(Of String)(childDocs.Keys)
+    sortedNames.Sort(Function(a, b) String.Compare( _
+        childDocs(a).DisplayName, childDocs(b).DisplayName, StringComparison.OrdinalIgnoreCase))
+    sortedNames.Reverse()
+    For Each key As String In sortedNames
+        stack.Push(New KeyValuePair(Of Document, Integer)(childDocs(key), depth + 1))
+    Next
+End While
+
+' Output to a text file next to the top assembly -- a MessageBox cannot
+' display/scroll 835+ lines (confirmed by the first real test run), so
+' full review needs a file that can be opened in a text editor.
+Dim outDir As String = System.IO.Path.GetDirectoryName(oTopDoc.FullFileName)
+Dim outPath As String = System.IO.Path.Combine(outDir, _
+    System.IO.Path.GetFileNameWithoutExtension(oTopDoc.FullFileName) & "_modification_queue.txt")
+
+Dim sw As New System.IO.StreamWriter(outPath, False, System.Text.Encoding.UTF8)
+sw.WriteLine("Modification queue order (" & queueOrder.Count & " nodes)")
+sw.WriteLine("Generated: " & DateTime.Now.ToString())
+sw.WriteLine("")
+For Each line As String In queueOrder
+    sw.WriteLine(line)
+Next
+If skippedPurchased.Count > 0 Then
+    sw.WriteLine("")
+    sw.WriteLine("Skipped (PurchasedUnit, " & skippedPurchased.Count & "):")
+    For Each n As String In skippedPurchased
+        sw.WriteLine("  " & n)
+    Next
+End If
+sw.Close()
+
+MessageBox.Show(queueOrder.Count & " nodes written to:" & vbCrLf & outPath, _
+    "PPM_BuildModificationQueue -- Read-Only Test")
