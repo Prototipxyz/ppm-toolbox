@@ -968,12 +968,11 @@ adding one more material is a small follow-up, not a rebuild).
 
 ## Loop 1 Navigation Engine — Open Questions (July 2026)
 
-**OQ-211** [OPEN] Global Forms trigger UI: does iLogic's "Global Forms"
-feature (a form/button not tied to one document, able to trigger a rule
-against whatever's currently active) work as the "Finished Modification →
-Next" trigger for Loop 1? Needed because the active document changes every
-hop, so a per-document embedded button won't persist across the loop.
-Identified as a candidate mechanism, not yet tested.
+**OQ-211** [RESOLVED — see D-669] Global Forms trigger UI: confirmed
+working — a Global Form button correctly resolves whatever document is
+currently active, tracking live switches rather than being frozen to
+form-creation time. Viable as the Loop 1 "Finished Modification → Next"
+trigger mechanism.
 
 **OQ-212** [OPEN] `PPM_ModificationStatus` iProperty write: proposed
 permanent-record field for Loop 1 (mirrors the already-confirmed
@@ -988,3 +987,10 @@ this project — only the DLL-availability question is resolved (D-668).
 **OQ-214** [OPEN] Wiring Component A's real 835-node queue into the
 confirmed multi-hop open/close mechanic — `PPM_TestMultiHopLoop` only
 tested a 3-item hardcoded list, not the actual queue output. Not yet built.
+
+**OQ-215** [OPEN] Does `iLogicForm.ShowGlobal(name, FormMode.NonModal)`
+reliably reopen the Global Form after each document close, across many
+repeated clicks in a row (not just once)? Fix applied in
+`PPM_TestAdvanceOneStep` per D-672, not yet confirmed via live Inventor
+test — first thing to verify next session, before building further on top
+of the Global Forms trigger mechanism.

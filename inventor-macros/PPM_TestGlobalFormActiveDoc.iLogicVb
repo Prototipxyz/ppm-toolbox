@@ -1,0 +1,38 @@
+' PROPOSED / UNVALIDATED -- not yet compiled or run.
+' Wire this as an External Rule button on a Global Form (Modal = False).
+' Tests ONE thing: does a Global Form button correctly resolve "the
+' currently active document" at click time, even after the active
+' document has changed since the form was created/opened?
+'
+' Confirmed real source for the underlying mechanism (Autodesk's own
+' Inventor 2023 Help, "About Rules and Forms in iLogic"): "The Global
+' Forms tab lists all forms and buttons to trigger rules stored outside
+' of Inventor, regardless of the open document." Real-world blog example
+' also confirms Modal=False lets the form stay open non-blocking while
+' the user keeps working -- directly matches the "must not impede
+' regular usage" requirement. Neither source confirms HOW the rule
+' resolves "active document" at click time (ThisDoc.Document vs.
+' ThisApplication.ActiveDocument) -- that's what this test isolates.
+'
+' HOW TO TEST:
+'   1. Create the Global Form per the setup steps (Modal = False).
+'   2. Add this rule as an External Rule, drag it onto the form as a
+'      button labeled e.g. "Check Active Doc".
+'   3. Open Part A, make it active, click the button -- note the name
+'      shown.
+'   4. WITHOUT closing the form, switch to a different open Part B (or
+'      open a new one), click the button again -- name should now show
+'      Part B, not Part A. That's the actual test: does the button
+'      track document switches, or is it stuck on whatever was active
+'      when the form first opened?
+
+Try
+    Dim oActiveDoc As Document = ThisApplication.ActiveDocument
+    MessageBox.Show("Active document right now:" & vbCrLf & vbCrLf & _
+        oActiveDoc.DisplayName & vbCrLf & vbCrLf & _
+        "Full path: " & oActiveDoc.FullFileName, _
+        "PPM_TestGlobalFormActiveDoc")
+Catch ex As Exception
+    MessageBox.Show("Failed to resolve active document:" & vbCrLf & ex.Message, _
+        "PPM_TestGlobalFormActiveDoc -- FAILED")
+End Try

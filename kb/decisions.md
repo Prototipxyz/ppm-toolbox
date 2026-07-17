@@ -3750,3 +3750,47 @@ deployed alongside the macro, with iLogic's file-resolution-path behavior
 (per the devblog) taken into account when referencing it. Not yet tested
 against a real database file in this project — DLL availability is
 confirmed, read/write mechanics are not.
+
+---
+
+## Loop 1 Trigger UI — Global Forms Confirmed, Form-Reopen Fix Applied Unconfirmed (July 2026)
+
+**D-669** Global Form button confirmed correctly resolving the currently
+active document across live document switches, not frozen to whichever
+document was active when the form was created. Confirmed via
+`PPM_TestGlobalFormActiveDoc`: two separate clicks, each correctly
+reporting the actual current active document (first a Winkler Design
+component, then a different test part after switching). Resolves OQ-211's
+core question — Global Forms are viable as the Loop 1 trigger UI mechanism.
+
+**D-670** Text-file position pointer confirmed persisting correctly across
+SEPARATE rule executions, not just within one chained execution (D-666
+already covered the within-one-execution case). Confirmed via
+`PPM_TestAdvanceOneStep`: three separate button clicks correctly advanced
+1 of 3 → 2 of 3 → 3 of 3 in sequence, closing/opening the correct file each
+time. This is the mechanic Loop 1's real click-by-click usage depends on —
+one click is one execution, and it must remember position for the next
+click, which happens later as a fresh execution.
+
+**D-671** Real bug found and fixed: the first `PPM_TestAdvanceOneStep`
+draft wrapped `Documents.Open()` and the pointer-file write in the same
+`Try` block, so when the pointer write failed (missing directory), the
+error was misreported as "Open failed" even though the document had
+already opened successfully and the previous document had already
+closed — a misleading error masking an inconsistent real state. Fixed by
+separating `Open()` and the pointer write into nested, independently-caught
+Try blocks with accurate error messages, and auto-creating the pointer
+file's directory if missing (`System.IO.Directory.CreateDirectory`) so
+this specific failure mode can't recur regardless of which path is used.
+
+**D-672** [FIX APPLIED, NOT YET LIVE-TESTED] Real behavior found: a
+non-modal Global Form closes when the document it was open alongside gets
+closed via `Document.Close()`, even though Global Forms are documented as
+document-independent — confirmed by direct observation (form disappeared
+after the first `PPM_TestAdvanceOneStep` click). Documented real fix, from
+Autodesk's own official help (`IiLogicForm.ShowGlobal` method signature)
+and a working forum example using `FormMode.NonModal` explicitly: call
+`iLogicForm.ShowGlobal(formName, FormMode.NonModal)` as the last step of
+the rule to reopen the form. Applied to `PPM_TestAdvanceOneStep` at the end
+of this session's work — **needs a live Inventor test to confirm before
+this is considered resolved.** First thing to verify next session.

@@ -1,0 +1,136 @@
+' PROPOSED / UNVALIDATED -- not yet compiled or run.
+' Wire this as the Global Form button (replaces
+' PPM_TestGlobalFormActiveDoc once this passes).
+'
+' Tests something the earlier tests did NOT cover: PPM_TestMultiHopLoop
+' confirmed chaining multiple close/open cycles within ONE rule
+' execution. Real usage is different -- one button click = one fresh
+' rule execution, ends, then a SEPARATE later click needs to remember
+' where the previous execution left off. This test isolates exactly
+' that: does a simple text-file pointer correctly persist position
+' across separate executions?
+'
+' Uses a small hardcoded test queue (like PPM_TestMultiHopLoop) rather
+' than Component A's real queue -- deliberately isolated. Component A's
+' current output only records DisplayName for the human-readable report,
+' not FullFileName, so it can't be wired in directly yet; that's a
+' separate small follow-up (resolves OQ-214) once THIS mechanic (position
+' persistence across clicks) is confirmed working on its own.
+'
+' HOW TO TEST:
+'   1. Edit TEST_QUEUE below -- 3-4 real, disposable file paths.
+'   2. Wire this rule to the Global Form button (Modal=False), replacing
+'      the previous test rule.
+'   3. Open any file, make it active, click the button.
+'   4. Expect: that file closes, TEST_QUEUE(0) opens, message box shows
+'      "Advanced to 1 of N".
+'   5. With the newly-opened file now active, click the button AGAIN
+'      (separate click = separate execution). Expect: that file closes,
+'      TEST_QUEUE(1) opens, message box shows "Advanced to 2 of N".
+'   6. Repeat until queue exhausted -- final click should report
+'      "Queue complete" and do nothing further.
+'   7. Report exactly what happened at each click, especially if the
+'      position resets to 0 instead of continuing (would mean the
+'      pointer file isn't being read/written correctly).
+
+Dim TEST_QUEUE() As String = { _
+    "C:\PPM Cuts and Bends\TestFiles\advance1.ipt", _
+    "C:\PPM Cuts and Bends\TestFiles\advance2.ipt", _
+    "C:\PPM Cuts and Bends\TestFiles\advance3.ipt" _
+}
+Dim POINTER_FILE As String = "C:\PPM Cuts and Bends\TestFiles\loop1_position_TEST.txt"
+' EDIT THIS if you named your Global Form something other than PPM_Nav:
+Dim GLOBAL_FORM_NAME As String = "PPM_Nav"
+
+' Read current position -- 0 if the pointer file doesn't exist yet
+' (first click ever).
+Dim currentIndex As Integer = 0
+Try
+    If System.IO.File.Exists(POINTER_FILE) Then
+        Dim raw As String = System.IO.File.ReadAllText(POINTER_FILE).Trim()
+        If raw <> "" Then currentIndex = Integer.Parse(raw)
+    End If
+Catch exRead As Exception
+    MessageBox.Show("Failed to read position pointer -- aborting, nothing closed." & _
+        vbCrLf & exRead.Message, "PPM_TestAdvanceOneStep")
+    Return
+End Try
+
+If currentIndex >= TEST_QUEUE.Length Then
+    MessageBox.Show("Queue complete (" & TEST_QUEUE.Length & " of " & TEST_QUEUE.Length & _
+        " already done). Nothing to advance." & vbCrLf & vbCrLf & _
+        "Delete " & POINTER_FILE & " to reset the test.", _
+        "PPM_TestAdvanceOneStep")
+    Return
+End If
+
+Dim oCurrentDoc As Document = ThisApplication.ActiveDocument
+Dim closedName As String = oCurrentDoc.DisplayName
+
+Try
+    oCurrentDoc.Save()
+Catch exSave As Exception
+    MessageBox.Show("Save failed -- aborting, nothing closed." & vbCrLf & exSave.Message, _
+        "PPM_TestAdvanceOneStep")
+    Return
+End Try
+
+Try
+    oCurrentDoc.Close(True)
+Catch exClose As Exception
+    MessageBox.Show("Close failed:" & vbCrLf & exClose.Message, "PPM_TestAdvanceOneStep")
+    Return
+End Try
+
+Try
+    Dim oNext As Document = ThisApplication.Documents.Open(TEST_QUEUE(currentIndex))
+    Dim newIndex As Integer = currentIndex + 1
+
+    ' Write the pointer in its OWN try/catch, separate from Open() above --
+    ' the first test run conflated the two, so a pointer-write failure
+    ' (missing folder) was misreported as "Open failed", even though the
+    ' document had already opened successfully by that point. Also
+    ' auto-create the containing folder if it doesn't exist, so a missing
+    ' directory can't cause this class of failure again regardless of
+    ' which path is used.
+    Try
+        Dim pointerDir As String = System.IO.Path.GetDirectoryName(POINTER_FILE)
+        If Not System.IO.Directory.Exists(pointerDir) Then
+            System.IO.Directory.CreateDirectory(pointerDir)
+        End If
+        System.IO.File.WriteAllText(POINTER_FILE, newIndex.ToString())
+    Catch exWrite As Exception
+        MessageBox.Show("Document opened successfully (" & oNext.DisplayName & "), " & _
+            "BUT the position pointer failed to save:" & vbCrLf & exWrite.Message & vbCrLf & vbCrLf & _
+            "State is now inconsistent -- the document DID change, but the position " & _
+            "did NOT advance. Check POINTER_FILE's path is writable before continuing.", _
+            "PPM_TestAdvanceOneStep -- POINTER WRITE FAILED")
+        Return
+    End Try
+
+    MessageBox.Show("Advanced to " & newIndex & " of " & TEST_QUEUE.Length & vbCrLf & vbCrLf & _
+        "Closed: " & closedName & vbCrLf & "Opened: " & oNext.DisplayName & vbCrLf & vbCrLf & _
+        "Click the button again (on this newly-opened document) to test that " & _
+        "the position persists correctly into the NEXT separate execution.", _
+        "PPM_TestAdvanceOneStep")
+
+    ' Reopen the Global Form -- confirmed real API from Autodesk's official
+    ' help docs (iLogicForm.ShowGlobal(formName, Mode) As FormReturnValue)
+    ' and a working forum example using FormMode.NonModal explicitly. Added
+    ' because the first test run showed closing the hosting document takes
+    ' a non-modal Global Form down with it, even though Global Forms are
+    ' meant to be document-independent -- this is the documented real fix.
+    Try
+        iLogicForm.ShowGlobal(GLOBAL_FORM_NAME, FormMode.NonModal)
+    Catch exForm As Exception
+        MessageBox.Show("Advance succeeded, but reopening the form failed:" & vbCrLf & exForm.Message & _
+            vbCrLf & vbCrLf & "Check GLOBAL_FORM_NAME matches your form's exact name.", _
+            "PPM_TestAdvanceOneStep -- FORM REOPEN FAILED")
+    End Try
+Catch exOpen As Exception
+    MessageBox.Show("Open failed for '" & TEST_QUEUE(currentIndex) & "':" & vbCrLf & exOpen.Message & _
+        vbCrLf & vbCrLf & "Position pointer NOT advanced -- safe to retry after fixing the path. " & _
+        "Note: the PREVIOUS document was already closed before this failure -- you may need to " & _
+        "manually reopen it.", _
+        "PPM_TestAdvanceOneStep -- OPEN FAILED")
+End Try
