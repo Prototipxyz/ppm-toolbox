@@ -1,6 +1,9 @@
-' PROPOSED / UNVALIDATED -- not yet compiled or run.
-' Wire this as the Global Form button (replaces
-' PPM_TestGlobalFormActiveDoc once this passes).
+' PROPOSED / UNVALIDATED (position-persistence mechanic IS validated,
+' see D-670 -- the trigger mechanism around it changed since).
+' Triggered via a VBA-macro keyboard shortcut (PPM_Advance_VBA_
+' Wrapper.bas), not a Global Form button -- the Global Forms approach
+' hit an unfixable E_FAIL reopening the form after each document close
+' (D-672/OQ-215), so the VBA wrapper supersedes it as the trigger UI.
 '
 ' Tests something the earlier tests did NOT cover: PPM_TestMultiHopLoop
 ' confirmed chaining multiple close/open cycles within ONE rule
@@ -19,9 +22,9 @@
 '
 ' HOW TO TEST:
 '   1. Edit TEST_QUEUE below -- 3-4 real, disposable file paths.
-'   2. Wire this rule to the Global Form button (Modal=False), replacing
-'      the previous test rule.
-'   3. Open any file, make it active, click the button.
+'   2. Set up the VBA wrapper (PPM_Advance_VBA_Wrapper.bas) with a
+'      keyboard shortcut, pointing at this rule's name.
+'   3. Open any file, make it active, press the shortcut.
 '   4. Expect: that file closes, TEST_QUEUE(0) opens, message box shows
 '      "Advanced to 1 of N".
 '   5. With the newly-opened file now active, click the button AGAIN
@@ -34,13 +37,11 @@
 '      pointer file isn't being read/written correctly).
 
 Dim TEST_QUEUE() As String = { _
-    "C:\PPM Cuts and Bends\TestFiles\advance1.ipt", _
-    "C:\PPM Cuts and Bends\TestFiles\advance2.ipt", _
-    "C:\PPM Cuts and Bends\TestFiles\advance3.ipt" _
+    "C:\Users\zavarivanje\Desktop\Temp\hop4.ipt", _
+    "C:\Users\zavarivanje\Desktop\Temp\hop5.ipt", _
+    "C:\Users\zavarivanje\Desktop\Temp\hop6.ipt" _
 }
 Dim POINTER_FILE As String = "C:\PPM Cuts and Bends\TestFiles\loop1_position_TEST.txt"
-' EDIT THIS if you named your Global Form something other than PPM_Nav:
-Dim GLOBAL_FORM_NAME As String = "PPM_Nav"
 
 ' Read current position -- 0 if the pointer file doesn't exist yet
 ' (first click ever).
@@ -110,23 +111,18 @@ Try
 
     MessageBox.Show("Advanced to " & newIndex & " of " & TEST_QUEUE.Length & vbCrLf & vbCrLf & _
         "Closed: " & closedName & vbCrLf & "Opened: " & oNext.DisplayName & vbCrLf & vbCrLf & _
-        "Click the button again (on this newly-opened document) to test that " & _
+        "Press the keyboard shortcut again (on this newly-opened document) to test that " & _
         "the position persists correctly into the NEXT separate execution.", _
         "PPM_TestAdvanceOneStep")
 
-    ' Reopen the Global Form -- confirmed real API from Autodesk's official
-    ' help docs (iLogicForm.ShowGlobal(formName, Mode) As FormReturnValue)
-    ' and a working forum example using FormMode.NonModal explicitly. Added
-    ' because the first test run showed closing the hosting document takes
-    ' a non-modal Global Form down with it, even though Global Forms are
-    ' meant to be document-independent -- this is the documented real fix.
-    Try
-        iLogicForm.ShowGlobal(GLOBAL_FORM_NAME, FormMode.NonModal)
-    Catch exForm As Exception
-        MessageBox.Show("Advance succeeded, but reopening the form failed:" & vbCrLf & exForm.Message & _
-            vbCrLf & vbCrLf & "Check GLOBAL_FORM_NAME matches your form's exact name.", _
-            "PPM_TestAdvanceOneStep -- FORM REOPEN FAILED")
-    End Try
+    ' The Global Form reopen logic (iLogicForm.ShowGlobal) that used to be
+    ' here has been removed. It's no longer needed: this rule is now
+    ' triggered via a VBA-macro keyboard shortcut (PPM_Advance_VBA_
+    ' Wrapper.bas) instead of a Global Form button, so there's no form to
+    ' keep alive across document swaps. This sidesteps D-672/OQ-215 (the
+    ' ShowGlobal E_FAIL after Close()+Open(), confirmed unfixable via
+    ' both DoEvents and Thread.Sleep) rather than solving it -- the
+    ' Global Forms trigger UI approach is superseded by the VBA wrapper.
 Catch exOpen As Exception
     MessageBox.Show("Open failed for '" & TEST_QUEUE(currentIndex) & "':" & vbCrLf & exOpen.Message & _
         vbCrLf & vbCrLf & "Position pointer NOT advanced -- safe to retry after fixing the path. " & _

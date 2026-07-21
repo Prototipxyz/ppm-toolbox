@@ -1,0 +1,9 @@
+' Minimal re-confirmation test. Shows a message box unconditionally,
+' NO guard, NO queue logic -- just to confirm the event trigger itself
+' still fires after the Inventor restart. If this doesn't show a
+' message box on manual close, the problem is the trigger setup itself,
+' not anything in the queue/session logic in PPM_TestEventTrigger_OnClose.
+
+MessageBox.Show("Event trigger fired." & vbCrLf & vbCrLf & _
+    "Document being closed: " & ThisDoc.Document.DisplayName, _
+    "PPM_TestEventTrigger_Reconfirm -- FIRED")

@@ -3794,3 +3794,137 @@ and a working forum example using `FormMode.NonModal` explicitly: call
 the rule to reopen the form. Applied to `PPM_TestAdvanceOneStep` at the end
 of this session's work — **needs a live Inventor test to confirm before
 this is considered resolved.** First thing to verify next session.
+
+---
+
+## Loop 1 Trigger UI — Global Forms Abandoned, Ribbon Buttons Confirmed (July 2026, continued)
+
+**D-673** Event Triggers ("Close Document," All Documents scope) confirmed
+to genuinely fire correctly on manual document close, including a
+session-active flag guard that stays completely silent (no action, no
+message box) when no Loop 1 session is running, and correctly activates
+when the flag file is present — confirmed both directions via real
+tests. HOWEVER: opening a next document from *within* a "before close"
+event handler causes an uncontrolled cascade — Inventor appears to
+re-fire the same close event as a side effect of completing the pending
+close once a new document is opened mid-handler, running through an
+entire 147-item real queue unattended before the user could regain
+control (only a modal MessageBox provided any braking, and clicking
+through it just revealed the next already-fired iteration, not a fresh
+manual trigger). **This event-trigger-based auto-advance approach is
+abandoned** — not worth further debugging given a fully working
+alternative already existed (see D-676).
+
+**D-674** Global Forms conclusively abandoned as unreliable, beyond the
+already-logged `ShowGlobal` reopen failure (D-672). A **manually**-opened
+Global Form (not touched by any of our code) stopped staying open
+reliably partway through today's session — confirmed via direct testing,
+and confirmed to persist across a full Inventor restart (ruling out
+transient session state). This is consistent with Autodesk support's own
+acknowledgment (found earlier, D-672's research) that a related Global
+Form reliability issue has "no workaround for now." **No further Global
+Form work should be attempted in this codebase** — treat the whole
+feature as unreliable in this environment, not worth chasing further
+fixes for.
+
+**D-675** VBA macro wrapper + Inventor keyboard shortcut confirmed as a
+fully working replacement trigger mechanism, independent of any Global
+Form: `RuniLogic(ruleName)` + `GetiLogicAddin()` helper functions calling
+`RunExternalRule` on the iLogic add-in's `.Automation` object (real GUID
+`{3BDD8D79-2179-4B11-8A5A-257B1C0263AC}`, confirmed via three independent
+Autodesk Community threads). One real bug found and fixed during setup:
+`GetiLogicAddin` was returning the `ApplicationAddIn` object itself
+instead of its `.Automation` sub-object, causing VBA run-time error 438
+("Object doesn't support this property or method") on `RunExternalRule`
+— fixed by returning `customAddIn.Automation` instead of `customAddIn`.
+Keyboard-shortcut assignment for VBA macros (Tools → Customize →
+Keyboard → Macros category) confirmed available on Inventor 2021, unlike
+direct external-rule shortcuts which require 2023.2+.
+
+**D-676** Toolbar/Ribbon macro buttons (Tools → Customize → Commands tab
+→ Macros category → drag onto a toolbar) confirmed working and — unlike
+Global Forms — confirmed to survive repeated close/open cycles when
+clicked multiple times in sequence. This uses Inventor's core
+ribbon/toolbar customization system, a different and more foundational
+subsystem than iLogic's Global Forms feature, consistent with its
+reliability. **This is now the recommended trigger UI for Loop 1,
+replacing both Global Forms and the event-trigger approach.**
+
+**D-677** Custom Ribbon Panel grouping (Tools → Customize → Ribbon tab)
+confirmed real and documented (official Autodesk Help): one custom panel
+can be created per ribbon tab, with multiple macro buttons added into it
+— the native replacement for "one form, several buttons." Confirmed via
+multiple sources that this must be configured **separately per Inventor
+Mode** (Part, Assembly, Drawing each have distinct ribbons) — there is no
+single global toggle covering all modes at once. Ribbon/QAT/Keyboard/
+Marking-Menu customizations as a whole are exportable/importable as one
+XML file via Export/Import buttons in the same Customize dialog,
+confirmed via official docs and a real Autodesk Community post from an
+admin distributing iLogic-driven ribbon buttons to a team this same way
+— relevant groundwork for onboarding additional users later without a
+compiled Add-in.
+
+**D-678** `PPM_BuildModificationQueue` (Component A) extended to also
+write a machine-readable file (`..._modification_queue_paths.txt`, one
+full path per line, no formatting) alongside the existing human-readable
+report, resolving the "DisplayName only, not enough to open a document"
+gap from OQ-214. Includes **both assemblies and parts** — not parts-only
+as first drafted and then corrected — because weldment conversion is an
+assembly-level environment in Inventor while sheet metal is part-level,
+so both document types need to be visitable during Loop 1's modification
+pass, not parts alone. This machine-readable queue was wired into and
+confirmed working against the event-trigger cascade approach (147 real
+Winkler Design items, D-673) before that approach was abandoned; it has
+**not yet** been wired into the surviving one-click advance mechanism
+(`PPM_TestAdvanceOneStep`, still only tested against a 3-item hardcoded
+list) — this remains open, see OQ-218.
+
+**D-679** [CORRECTION to D-668/OQ-213] SQLite for the Loop 1/Loop 2
+shared session cache was investigated fresh this session without
+awareness that this exact question was already closed pre-session: per
+OQ-204 (closed) → D-645, SQLite was explicitly decided *against* for this
+use case (requires manual x64 DLL placement per machine) in favor of
+**JSON**. D-668's finding (SQLite requires `System.Data.SQLite.dll`,
+confirmed via Autodesk's devblog) is still factually accurate as API
+research, but the conclusion drawn from it (SQLite as the path forward)
+contradicts the standing D-645 decision. **JSON, not SQLite, is the
+correct session-cache format for both Loop 1 and Loop 2 going forward.**
+`guided-review-workflow-spec.md` §4.2/§8 still needs updating to reflect
+this per OQ-204's original resolution note — not yet done.
+
+**D-680** Inventor Add-in (.NET) development process researched in
+depth. No Autodesk registration, cost, or validation/certification is
+required for internal-only use (Inventor SDK is free; only publishing to
+Autodesk's public App Store marketplace requires their review process,
+which is optional and separate). Visual Studio Community edition is
+likely free for Stirg's use case, but current Microsoft licensing terms
+should be verified independently rather than assumed. Optional
+code-signing certificate (~$100-500/year, third-party CA, not Autodesk)
+recommended for smooth internal distribution but not required. **Version
+compatibility note**: Inventor 2021 uses the older "registry-based"
+add-in mechanism; Autodesk requires the newer "registry-free" mechanism
+starting Inventor 2024, and shifted the underlying framework from .NET
+Framework to .NET 8 starting Inventor 2025 — an Add-in built now for 2021
+will likely need rework on any future Inventor version upgrade.
+Confirmed: the Add-in-vs-macros choice has **no effect on the Estimator**
+— Estimator only consumes the Job Package file export, regardless of
+which mechanism produced it.
+
+**D-681** `PPM_SendToEstimator` status confirmed: fully specified
+(`kb/specs/send-to-estimator.md`) but **not yet built**. Its dependency
+chain surfaces real complexity not previously visible from the spec
+alone: `PPM_ExportPartData`, `PPM_BatchExportFlatPatterns`, and
+`PPM_ExportFlatPattern` are substantial, already-validated production
+macros with their own interactive UI (custom Windows Forms, overwrite
+confirmation dialogs) — building the orchestrator means modifying
+already-relied-upon tools (e.g. adding a `JobPackageMode` parameter to
+`PPM_ExportPartData` to suppress its interactive REPORT-sheet behavior),
+not just writing new adjacent code. Staged build plan proposed rather
+than a single large untested patch: (1) confirm OQ-205 against the real
+current source of both export macros, (2) add `JobPackageMode` to
+`PPM_ExportPartData` as an isolated, independently-tested change,
+(3) build the DXF batch and weld-report steps as calls into existing
+logic rather than duplicated code, each independently verified,
+(4) wire the orchestrator (destination picker → sequence → manifest.json
+→ summary) last, only once every step it depends on is independently
+confirmed. Not started.

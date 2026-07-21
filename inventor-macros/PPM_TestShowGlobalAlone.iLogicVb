@@ -1,0 +1,34 @@
+' PROPOSED / UNVALIDATED -- not yet compiled or run.
+' Single-purpose isolation test. The previous run got E_FAIL calling
+' iLogicForm.ShowGlobal right after a Close()+Open() cycle. E_FAIL is a
+' generic COM error with no specific documented cause for this exact
+' situation, so rather than guess a fix, this isolates ONE variable:
+' does ShowGlobal work AT ALL with this exact name, called on its own,
+' with no document swap immediately before it?
+'
+' Wire this as a SEPARATE button on the same Global Form (don't replace
+' PPM_TestAdvanceOneStep yet).
+'
+' HOW TO READ THE RESULT:
+'   - Works fine here -> the name is correct, and the problem is
+'     specifically about calling ShowGlobal immediately after a
+'     Close()+Open() cycle (a timing/UI-state issue). Next step would be
+'     inserting a brief pause before the call in PPM_TestAdvanceOneStep.
+'   - Also fails with E_FAIL here -> not a timing issue, something more
+'     fundamental (name mismatch, form not actually saved as Global,
+'     wrong FormMode, etc.) -- worth double-checking the form's exact
+'     name and Global/Modal settings in the iLogic Browser.
+
+Dim GLOBAL_FORM_NAME As String = "PPM_Nav"
+
+Try
+    iLogicForm.ShowGlobal(GLOBAL_FORM_NAME, FormMode.NonModal)
+    MessageBox.Show("ShowGlobal succeeded, called on its own (no document swap first).", _
+        "PPM_TestShowGlobalAlone -- PASSED")
+Catch ex As Exception
+    MessageBox.Show("ShowGlobal failed even on its own:" & vbCrLf & ex.Message & vbCrLf & vbCrLf & _
+        "This means it's NOT a timing issue related to the document swap -- " & _
+        "double check the form's exact name and its Global/NonModal settings " & _
+        "in the iLogic Browser's Global Forms tab.", _
+        "PPM_TestShowGlobalAlone -- FAILED")
+End Try

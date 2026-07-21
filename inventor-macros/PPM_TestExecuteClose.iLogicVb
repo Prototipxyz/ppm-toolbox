@@ -1,0 +1,43 @@
+' PROPOSED / UNVALIDATED -- not yet compiled or run.
+' Tests whether closing a document via ControlDefinition.Execute on the
+' real "AppFileCloseCmd" command (confirmed from your own machine's
+' command list, not guessed) behaves like a manual click and preserves
+' the Global Form -- unlike Document.Close(), which we've confirmed
+' does NOT preserve it.
+'
+' HOW TO TEST:
+'   1. Manually open the PPM_Nav Global Form first (iLogic Browser ->
+'      Global Forms tab -> double-click it), so we have something to
+'      observe surviving or not.
+'   2. Open a test document, make it active.
+'   3. Trigger this rule (see VBA wrapper note below).
+'   4. Watch: does the document close? Does the Global Form stay open?
+'      Does the second message box appear (proving code kept running
+'      after Execute(), similar to what we confirmed for Document.Close
+'      in D-666)?
+
+Try
+    Dim oDoc As Document = ThisApplication.ActiveDocument
+    oDoc.Save()
+Catch exSave As Exception
+    MessageBox.Show("Save failed -- aborting, nothing closed." & vbCrLf & exSave.Message, _
+        "PPM_TestExecuteClose")
+    Return
+End Try
+
+Try
+    Dim oCtrlDef As ControlDefinition = ThisApplication.CommandManager.ControlDefinitions.Item("AppFileCloseCmd")
+    oCtrlDef.Execute()
+Catch exExec As Exception
+    MessageBox.Show("Execute(AppFileCloseCmd) failed:" & vbCrLf & exExec.Message, _
+        "PPM_TestExecuteClose -- EXECUTE FAILED")
+    Return
+End Try
+
+' If we reach this, Execute() returned without throwing -- doesn't
+' necessarily mean the document is fully closed yet, but tells us
+' whether code execution continues afterward (like it did for
+' Document.Close() in D-666).
+MessageBox.Show("Execute(AppFileCloseCmd) completed without error." & vbCrLf & vbCrLf & _
+    "Check now: did the document actually close? Is the PPM_Nav form still open?", _
+    "PPM_TestExecuteClose -- EXECUTE RETURNED")

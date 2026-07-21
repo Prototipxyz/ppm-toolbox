@@ -994,3 +994,35 @@ repeated clicks in a row (not just once)? Fix applied in
 `PPM_TestAdvanceOneStep` per D-672, not yet confirmed via live Inventor
 test — first thing to verify next session, before building further on top
 of the Global Forms trigger mechanism.
+
+## Loop 1 Ribbon UI, Send-to-Estimator, Add-in Path — Open Questions (July 2026, continued)
+
+**OQ-216** [OPEN] Custom Ribbon Panel (D-677) was confirmed working with
+a Part document active; has not yet been confirmed set up/working for
+Assembly mode, which Loop 1 also needs (Loop 1 walks both assemblies and
+parts per D-678). Needs the same setup repeated with an Assembly active,
+then confirmed both persist correctly across Inventor restarts.
+
+**OQ-217** [OPEN] Loop 1's real persistent session state
+(`PPM_ModificationStatus` iProperty, shared session cache) still not
+built. Per the D-679 correction, the cache should be JSON, not SQLite.
+The interim text-file position pointer (D-670) already proves the
+underlying concept works and can continue serving as a stand-in.
+
+**OQ-218** [OPEN] The real machine-readable queue (D-678,
+`..._modification_queue_paths.txt`) has only been confirmed working
+against the now-abandoned event-trigger cascade approach (D-673), not
+against the surviving one-click advance mechanism
+(`PPM_TestAdvanceOneStep`, currently still wired to a 3-item hardcoded
+test list). Wiring the real queue into the proven one-click mechanism is
+the actual remaining integration step for Loop 1's navigation engine.
+
+**OQ-219** [OPEN] Whether the ribbon/QAT/keyboard Customize-dialog XML
+export (D-677) actually round-trips cleanly to a second machine has not
+been tested — identified as a real mechanism via documentation and a
+third-party report, not yet confirmed firsthand.
+
+**OQ-205** [STATUS UPDATE] Directly relevant to `PPM_SendToEstimator`
+(D-681) — must be resolved before or during that build, since both
+macros in question (`PPM_ExportPartData`, `PPM_BatchExportFlatPatterns`)
+are exactly the ones the estimator export chain depends on.

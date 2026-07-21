@@ -1,0 +1,114 @@
+' PROPOSED / UNVALIDATED (the trigger mechanism itself IS confirmed
+' firing correctly on manual document close -- see D-675. This version
+' adds the session guard that was missing from the first test).
+'
+' CRITICAL FIX from the first test run: bound to "All Documents" in the
+' Event Triggers dialog, this fires on EVERY document close, system-wide,
+' permanently -- including just checking a random file and closing it
+' with no intent to run Loop 1 at all. That violates the "must not
+' impede regular usage" requirement (D-664). This version checks a
+' session-active flag FIRST and does nothing at all if no session is
+' running -- silent, no message box, no action, close proceeds exactly
+' as if this rule didn't exist.
+'
+' FOR TESTING: manually create/delete the flag file to simulate
+' starting/stopping a session (a real "Start Loop 1" button would do
+' this automatically later, as part of writing PPM_ModificationStatus,
+' per OQ-212):
+'   - ACTIVE session: create an empty text file at SESSION_FLAG_FILE.
+'   - NO session (normal usage): delete that file, or never create it.
+'
+' HOW TO TEST:
+'   1. WITHOUT the flag file existing: open and close a few random test
+'      documents. Expect: nothing happens, no message boxes, completely
+'      silent, exactly like normal Inventor usage.
+'   2. Create the flag file (empty text file, exact path below).
+'   3. Open and close a test document. Expect: the message box DOES
+'      appear now.
+'   4. Delete the flag file again, close another document. Expect:
+'      silent again -- confirms the guard turns off cleanly too, not
+'      just on.
+
+' PROPOSED / UNVALIDATED. Session guard (D-675) IS confirmed working.
+' The open-next-from-within-close-handler mechanic is NOT yet separately
+' confirmed -- the hardcoded single-file version of this test was
+' proposed but never actually run before other testing took priority,
+' so THIS run is the first real confirmation of that mechanic too,
+' combined with the real queue wiring (OQ-214). If something fails here,
+' consider whether it's the queue logic or the open-from-handler
+' mechanic itself before assuming which one is broken.
+'
+' CRITICAL: bound to "All Documents" in Event Triggers, this fires on
+' EVERY document close, system-wide, permanently. The session-active
+' flag guard below is what keeps it silent during normal usage -- this
+' guard is confirmed working (D-675), both directions (on and off).
+'
+' SETUP (before testing):
+'   1. Run the updated PPM_BuildModificationQueue on a real assembly --
+'      it now writes TWO files: the existing human-readable report, and
+'      a new "..._modification_queue_paths.txt" with one full path per
+'      line, in traversal order. That second file is what this rule
+'      reads.
+'   2. Edit QUEUE_PATHS_FILE below to point at that generated file.
+'   3. Make sure POSITION_FILE doesn't already exist, or delete it, so
+'      the queue starts fresh at position 0.
+'   4. Create the SESSION_FLAG_FILE (empty text file) to mark a session
+'      as active.
+'
+' HOW TO TEST:
+'   1. Open the FIRST item in the queue manually (or whatever document
+'      you're already working in -- it doesn't have to match the queue,
+'      this rule doesn't care what's closing, only what opens next).
+'   2. Close it manually (native X / File > Close).
+'   3. Expect: the message box shows which queue item just opened,
+'      position 1 of N.
+'   4. Close THAT document too -- expect position 2 of N, etc.
+'   5. Report exactly what happens, especially on the very first close
+'      (since that's the untested open-from-handler mechanic).
+
+Dim SESSION_FLAG_FILE As String = "C:\PPM Cuts and Bends\TestFiles\loop1_session_active_TEST.txt"
+Dim QUEUE_PATHS_FILE As String = "C:\PPM Cuts and Bends\TestFiles\modification_queue_paths.txt"
+Dim POSITION_FILE As String = "C:\PPM Cuts and Bends\TestFiles\loop1_position_REAL.txt"
+
+If Not System.IO.File.Exists(SESSION_FLAG_FILE) Then
+    ' No active session -- do nothing at all. This is the normal case
+    ' for the vast majority of document closes and must stay silent.
+    Return
+End If
+
+Try
+    If Not System.IO.File.Exists(QUEUE_PATHS_FILE) Then
+        MessageBox.Show("Session flag is set, but the queue file doesn't exist:" & vbCrLf & _
+            QUEUE_PATHS_FILE & vbCrLf & vbCrLf & "Run PPM_BuildModificationQueue first, or check the path.", _
+            "PPM_TestEventTrigger_OnClose -- QUEUE MISSING")
+        Return
+    End If
+
+    Dim queue() As String = System.IO.File.ReadAllLines(QUEUE_PATHS_FILE)
+
+    Dim currentIndex As Integer = 0
+    If System.IO.File.Exists(POSITION_FILE) Then
+        Dim raw As String = System.IO.File.ReadAllText(POSITION_FILE).Trim()
+        If raw <> "" Then currentIndex = Integer.Parse(raw)
+    End If
+
+    If currentIndex >= queue.Length Then
+        MessageBox.Show("Queue complete (" & queue.Length & " of " & queue.Length & _
+            " already done)." & vbCrLf & vbCrLf & "Delete the session flag file to end the session, " & _
+            "or delete the position file to restart the queue.", _
+            "PPM_TestEventTrigger_OnClose -- QUEUE COMPLETE")
+        Return
+    End If
+
+    Dim nextPath As String = queue(currentIndex)
+    Dim oNext As Document = ThisApplication.Documents.Open(nextPath)
+
+    Dim newIndex As Integer = currentIndex + 1
+    System.IO.File.WriteAllText(POSITION_FILE, newIndex.ToString())
+
+    MessageBox.Show("Advanced to " & newIndex & " of " & queue.Length & vbCrLf & vbCrLf & _
+        "Opened: " & oNext.DisplayName, _
+        "PPM_TestEventTrigger_OnClose -- ADVANCED")
+Catch ex As Exception
+    MessageBox.Show("Failed:" & vbCrLf & ex.Message, "PPM_TestEventTrigger_OnClose -- FAILED")
+End Try

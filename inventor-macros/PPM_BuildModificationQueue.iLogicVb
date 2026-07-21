@@ -34,6 +34,7 @@ End If
 
 Dim visited As New HashSet(Of String)
 Dim queueOrder As New List(Of String)
+Dim queuePaths As New List(Of String)
 Dim skippedPurchased As New List(Of String)
 ' Stack now carries (Document, Depth) pairs so the report can show
 ' nesting via indentation -- added after the first real test run showed
@@ -49,9 +50,19 @@ While stack.Count > 0
     If visited.Contains(fullName) Then Continue While
     visited.Add(fullName)
 
-    ' Record this node (assembly or part) in visitation order, indented.
+    ' Record this node (assembly or part) in visitation order, indented,
+    ' for the human-readable report.
     Dim tag As String = If(oDoc.DocumentType = DocumentTypeEnum.kAssemblyDocumentObject, "[ASM] ", "[PRT] ")
     queueOrder.Add(New String(" "c, depth * 2) & tag & oDoc.DisplayName)
+
+    ' Also record the full path separately for the machine-readable
+    ' navigation queue -- the original version only stored DisplayName,
+    ' which isn't enough to actually open a document (OQ-214). Includes
+    ' BOTH assemblies and parts: weldment conversion is an assembly-level
+    ' environment in Inventor while sheet metal is part-level, so both
+    ' document types need to be visitable during the modification pass,
+    ' not parts only.
+    queuePaths.Add(fullName)
 
     If oDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then Continue While
 
@@ -121,5 +132,13 @@ If skippedPurchased.Count > 0 Then
 End If
 sw.Close()
 
-MessageBox.Show(queueOrder.Count & " nodes written to:" & vbCrLf & outPath, _
+' Machine-readable queue: one full path per line, in exact traversal
+' order, no formatting/tags -- this is what the real navigation logic
+' (event-trigger rule) reads to know what to open next.
+Dim pathsOutPath As String = System.IO.Path.Combine(outDir, _
+    System.IO.Path.GetFileNameWithoutExtension(oTopDoc.FullFileName) & "_modification_queue_paths.txt")
+System.IO.File.WriteAllLines(pathsOutPath, queuePaths.ToArray())
+
+MessageBox.Show(queueOrder.Count & " nodes written to:" & vbCrLf & outPath & vbCrLf & vbCrLf & _
+    queuePaths.Count & " full paths written to:" & vbCrLf & pathsOutPath, _
     "PPM_BuildModificationQueue -- Read-Only Test")
