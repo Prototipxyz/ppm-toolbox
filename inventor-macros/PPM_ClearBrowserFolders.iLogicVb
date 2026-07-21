@@ -1,0 +1,56 @@
+' PPM_ClearBrowserFolders -- dissolves ALL top-level browser folders
+' in the current document back to flat (no folders), WITHOUT deleting
+' any parts/assemblies -- confirmed via multiple real, independent
+' Autodesk Community examples that BrowserFolder.Delete() only removes
+' the folder wrapper; components return to their normal position.
+' (Contrast with a different, unwanted pattern also found in research
+' that explicitly deletes each component first via Components.Delete()
+' -- NOT used here, since we want to keep every part.)
+'
+' Single document only, NOT recursive into subassemblies -- matches
+' today's actual mess (top-level assembly only). If folders also need
+' clearing inside subassemblies, run this separately on each one, or
+' ask for a recursive version once this is confirmed working.
+
+Dim oDoc As Document = ThisDoc.Document
+If oDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then
+    MessageBox.Show("Run this from an assembly document.", "Not an Assembly")
+    Return
+End If
+
+Dim oPane As BrowserPane = oDoc.BrowserPanes.Item("Model")
+Dim oTopNode As BrowserNode = oPane.TopNode
+
+Dim UNDO As Transaction = ThisApplication.TransactionManager.StartTransaction(oDoc, "Clear Browser Folders")
+
+' Collect folder names first -- deleting while iterating the live
+' BrowserFolders collection can skip entries, so snapshot names, then
+' delete by name.
+Dim folderNames As New List(Of String)
+For Each oFolder As BrowserFolder In oTopNode.BrowserFolders
+    Try
+        folderNames.Add(oFolder.Name)
+    Catch
+    End Try
+Next
+
+Dim deletedCount As Integer = 0
+Dim failedNames As New List(Of String)
+
+For Each fname As String In folderNames
+    Try
+        Dim oFolder As BrowserFolder = oTopNode.BrowserFolders.Item(fname)
+        oFolder.Delete()
+        deletedCount += 1
+    Catch ex As Exception
+        failedNames.Add(fname & " (" & ex.Message & ")")
+    End Try
+Next
+
+UNDO.End()
+
+Dim msg As String = "Cleared " & deletedCount & " folder(s)."
+If failedNames.Count > 0 Then
+    msg &= vbCrLf & vbCrLf & "Could not clear:" & vbCrLf & String.Join(vbCrLf, failedNames)
+End If
+MessageBox.Show(msg, "Clear Browser Folders")

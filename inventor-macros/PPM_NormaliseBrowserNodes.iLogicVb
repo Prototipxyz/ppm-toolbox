@@ -1,9 +1,14 @@
-' PROPOSED / UNVALIDATED -- not yet compiled or run.
-' Renames the first occurrence of each unique component so the
-' browser shows the clean file name instead of Inventor's default
-' "PartName:1" style. Adapted from Clint Brown's "Normalise Browser
-' Nodes" utility (clintbrown.co.uk) -- most confirmed of the three
-' browser-tree drafts, smallest risk to test first.
+' CONFIRMED WORKING core logic (D-657, tested on Stadler diesel/AdBlue
+' tank). Adapted from Clint Brown's "Normalise Browser Nodes" utility
+' (clintbrown.co.uk).
+'
+' UPDATE: added per-occurrence Suppressed / ReferenceMissing detection
+' -- this project's data was only ever validated against a clean
+' project before; Winkler's real data has genuinely broken/suppressed
+' references (confirmed repeatedly via PPM_OrganizeProjectFiles
+' testing this session), which this script had no handling for at
+' all. Nothing else changed -- still single-document, non-recursive,
+' same scope as originally built.
 
 Dim oDoc As Document = ThisDoc.Document
 If oDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then
@@ -15,19 +20,43 @@ Dim UNDO As Transaction = ThisApplication.TransactionManager.StartTransaction(oD
 
 Dim oDef As AssemblyComponentDefinition = oDoc.ComponentDefinition
 Dim seenNames As New HashSet(Of String)
+Dim renamedCount As Integer = 0
+Dim skippedCount As Integer = 0
 
 For Each oOcc As ComponentOccurrence In oDef.Occurrences
-    Dim baseName As String = oOcc.Definition.Document.DisplayName
-    If Not seenNames.Contains(baseName) Then
-        seenNames.Add(baseName)
-        Try
-            oOcc.Name = baseName ' renames this instance; propagates to
-                                  ' all same-file instances automatically
-        Catch
-            ' name collision or locked node -- skip, don't crash the batch
-        End Try
+    Dim isSuppressed As Boolean = False
+    Try
+        isSuppressed = oOcc.Suppressed
+    Catch
+    End Try
+
+    Dim isMissing As Boolean = False
+    Try
+        isMissing = oOcc.ReferencedDocumentDescriptor.ReferenceMissing
+    Catch
+    End Try
+
+    If isSuppressed OrElse isMissing Then
+        skippedCount += 1
+        Continue For
     End If
+
+    Try
+        Dim baseName As String = oOcc.Definition.Document.DisplayName
+        If Not seenNames.Contains(baseName) Then
+            seenNames.Add(baseName)
+            Try
+                oOcc.Name = baseName ' renames this instance; propagates to
+                                      ' all same-file instances automatically
+            Catch
+                ' name collision or locked node -- skip, don't crash the batch
+            End Try
+            renamedCount += 1
+        End If
+    Catch
+        skippedCount += 1
+    End Try
 Next
 
 UNDO.End()
-MessageBox.Show("Done.", "Normalise Browser Nodes")
+MessageBox.Show("Done. " & renamedCount & " unique name(s) processed, " & skippedCount & " occurrence(s) skipped (suppressed/broken reference).", "Normalise Browser Nodes")

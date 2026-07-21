@@ -1033,3 +1033,24 @@ scan: does it need to cover parts not currently open/loaded in Inventor
 in-session (same pattern already confirmed working per the D-666
 family) sufficient in practice? To resolve when this item is actually
 built.
+
+**OQ-221** [OPEN] `PPM_OrganizeProjectFiles` (recursive, combined) has
+Group re-enabled with a per-document folder-clear step added (D-695),
+based on the D-692 root-cause theory (leftover saved folders from prior
+test runs, not a code/API bug). This has NOT yet been live-tested in its
+full recursive, multi-document form -- only the underlying Group logic
+has been confirmed working standalone (D-694), on a single document,
+after a manual folder clear. Needs a real run across the full Winkler
+tree (or another multi-document project) to confirm Group behaves
+correctly across many documents in one execution, not just one. If it
+still misbehaves despite the per-document clear step, D-692's root-cause
+theory would need to be reconsidered.
+
+**OQ-222** [OPEN] ~19 rename failures observed on the Winkler top
+assembly where the occurrence is neither suppressed nor has a missing
+reference (baseName resolves fine via `.Definition.Document.DisplayName`),
+yet the actual `oOcc.Name = baseName` assignment itself throws. Distinct
+from both D-686 (suppressed+broken) and D-687 (unresolved reference) --
+a third, still-unexplained failure category. Non-blocking (the run
+completes fine either way, and is now logged rather than silently
+swallowed), but not understood. Low priority.

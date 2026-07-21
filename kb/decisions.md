@@ -3967,3 +3967,158 @@ next to the top-level assembly, but a separate/simpler structure since
 D-656's dotted hierarchical format doesn't apply here. Scoped as a new
 fifth work item, separate from Item 1 (Organize macro) — to be designed
 and built after Item 1 is complete. Not yet built.
+
+---
+
+## Organize Macro Debugging Saga -- Normalize, Group, Suppressed/Unresolved Detection, Folder-State Cleanup (July 2026)
+
+**D-684** Normalize step in `PPM_OrganizeProjectFiles` required per-OCCURRENCE
+isolation, not just per-document. A real run on Winkler's 200L top assembly
+showed Normalize itself can E_FAIL (0x80004005) on specific occurrences,
+contradicting an earlier finding (rename step "not the failure point") that
+was based on a different failure pattern. Fixed via indexed `Occurrences.Item(i)`
+access (not `For Each`) so one bad occurrence can't break enumeration for the
+rest. CONFIRMED WORKING via real multi-hundred-part run.
+
+**D-685** Group step in `PPM_OrganizeProjectFiles` had a `Continue While` in
+its Catch block, meaning any Group failure skipped Step 4 (Enqueue) entirely
+-- children were never reached even after Normalize/Sort were made
+non-fatal. This was the actual blocker preventing the recursive walk from
+descending past the top assembly (visitedDocs stuck at 1). Fixed: Group is
+now isolated per-occurrence (dictionary build) AND non-fatal at the step
+level (no Continue While) -- Enqueue always runs regardless of Group's
+outcome. CONFIRMED WORKING: real run went from 1 document visited to 13,
+then 21+ once suppressed-occurrence handling was added (see D-686).
+
+**D-686** Root cause of the ~100 remaining per-occurrence E_FAIL entries
+after D-684/D-685: suppressed occurrences whose underlying document
+reference is ALSO broken/unresolved. Confirmed via a Suppressed diagnostic
+tag added to every failure line -- 100/100 occurrence-level failures showed
+`Suppressed=True` (checked programmatically across a full log, zero False,
+zero unreadable). A control case (a suppressed-but-otherwise-healthy
+occurrence, "Frame for centering-1") caused zero failures on its own,
+proving suppression ALONE is not sufficient to cause the E_FAIL -- it's the
+combination with a broken reference. Fix: suppressed occurrences are now
+detected once per document (during Normalize) and skipped entirely --
+not attempted, not logged as failures -- across Normalize, Sort, and Group
+alike. Logged separately as "skipped (suppressed)", distinct from real
+failures. CONFIRMED WORKING (issue count dropped from 118 to 55 on the
+same test project once implemented).
+
+**D-687** Real, confirmed API for PROACTIVELY detecting broken/unresolved
+document references, found via Autodesk Community (working code sample):
+`ComponentOccurrence.ReferencedDocumentDescriptor.ReferenceMissing` returns
+True for both unresolved AND suppressed references, checkable BEFORE
+attempting any operation that would throw. `ReferencedDocumentDescriptor
+.FullDocumentName` returns the expected file path even when the reference
+is unresolved (falls back to `.ReferencedFileDescriptor.FullFileName` if
+empty) -- lets the macro report exactly which file is missing without
+requiring the person to relocate anything first. Used to distinguish
+"unresolved reference" from "suppressed" as two separate logged categories.
+Confirmed effective on the GST project (Spritzschutz 177), where zero
+occurrences were suppressed but 303 issues were logged -- traced to
+McMaster-Carr screws left in the person's Downloads folder instead of the
+project folder (not Vault -- confirmed the org does not use Vault; not
+confirmed to be Content Center either, most likely explanation is simply
+files sitting in the wrong folder, causing Inventor to prompt for their
+location on every open).
+
+**D-688** [SUPERSEDED attempt, kept for history] `Document.Activate()`
+before Sort/Group was tried as a fix for a jumbled-folder bug (unrelated
+occurrences merging into one folder, e.g. Welded Structure rev2 and Cover
+parts ending up inside a folder meant only for Side Cap's duplicates).
+Grounded in real Autodesk documentation ("The BrowserPane object... is
+currently associated with the active document," Inventor 2025 Help) and a
+real Autodesk Community precedent (`refDoc.Activate()` before running a
+rule against a referenced document). A LIVE TEST DISPROVED this as
+sufficient -- the jumbling persisted, and issue count went up, not down.
+Removed. Documented as a real, ruled-out hypothesis, not a guess that was
+never tested.
+
+**D-689** [SUPERSEDED attempt, kept for history] In-code folder tracking
+(a `Dictionary(Of String, BrowserFolder)` populated only by the macro's
+own `AddBrowserFolder` calls, never re-queried from Inventor by name) was
+tried next, on the theory that `oModelPane.TopNode.BrowserFolders.Item
+(name)` might not reliably throw when a folder doesn't exist. A LIVE TEST
+showed zero errors logged (all folders created successfully, no label
+collisions) YET all nodes still landed in one folder while the others
+sat empty -- ruling this theory out too, since folder creation itself
+was demonstrably succeeding.
+
+**D-690** A read-only diagnostic macro (`PPM_DiagnoseGroupKeys`, ad hoc,
+not committed to the repo) dumped every top-level occurrence's Name,
+Suppressed, ReferenceMissing, DisplayName, and FullFileName side by side
+on the Winkler top assembly. CONFIRMED: every occurrence has a distinct,
+correct FullFileName -- Side Cap's two real duplicate instances correctly
+share one path, and every other part (Welded Structure rev2, Output_Pipe
+_Assy, El.Valve Output x2, all four Cover parts) has its own separate,
+correct FullFileName. This definitively RULED OUT a dictionary-key
+collision as the cause of the jumbled-folder bug (superseding an earlier
+theory that broken references might share a fallback DisplayName).
+
+**D-691** A minimal isolated test macro (`PPM_TestMultiFolderCreate`, ad
+hoc, not committed) created 3 folders with hardcoded distinct names and 2
+arbitrary occurrences each, in one execution, on the same document.
+CONFIRMED: all three folders correctly contained their own occurrences,
+nothing jumbled, nothing empty. This RULED OUT a fundamental
+Inventor-level defect in repeated `AddBrowserFolder` calls within one
+execution -- the mechanism itself works correctly in isolation.
+
+**D-692** Real, working root-cause explanation, arrived at after D-688
+through D-691 individually ruled out three other theories: the jumbled-
+folder bug was very likely caused by LEFTOVER, ALREADY-SAVED browser
+folders from earlier test runs colliding with new folder-creation calls
+in the same document -- not a fundamental code or API bug at all. Not
+provable with full certainty via a fully controlled re-test, but it is
+the most coherent explanation of the full sequence of results, and it
+directly explains why none of D-688/D-689's code-level fixes helped
+(neither addressed "a folder with this name might already exist from a
+previous session"). CONFIRMED in practice: once a new cleanup macro
+(`PPM_ClearBrowserFolders`, see D-693) was run to dissolve all leftover
+folders, BOTH the standalone `PPM_GroupOccurrencesBySamePart` (see D-694)
+and, pending final live confirmation, the recursive `PPM_OrganizeProjectFiles`
+worked correctly.
+
+**D-693** New utility macro `PPM_ClearBrowserFolders` (committed to
+`inventor-macros/`). Dissolves all top-level browser folders in the
+current document back to flat, WITHOUT deleting any parts/assemblies.
+Uses `BrowserFolder.Delete()`, confirmed real and safe via multiple
+independent Autodesk Community examples (including one explicitly
+confirmed "tested and it's working fine" by another user) -- `.Delete()`
+only removes the folder wrapper; components return to their normal
+position, contrasted with a different pattern also found in research
+that explicitly deletes each component first (`Components.Delete()`),
+which is NOT used here since the goal is to keep every part. Single
+document only, not recursive into subassemblies.
+
+**D-694** Original standalone `PPM_GroupOccurrencesBySamePart` and
+`PPM_NormaliseBrowserNodes` (both from D-657, validated only against the
+clean Stadler diesel/AdBlue tank project) had zero per-occurrence error
+handling and crashed hard on Winkler/GST's real broken data. Both patched
+with the same proven skip logic as the integrated script (Suppressed +
+ReferenceMissing detection, skip cleanly instead of crashing) -- their
+original single-document, non-recursive scope is otherwise UNCHANGED.
+Additionally, `PPM_GroupOccurrencesBySamePart`'s grouping key was fixed
+from `DisplayName` to `FullFileName` (D-658's fix, found and applied
+elsewhere previously but never ported back to this original file until
+now). CONFIRMED WORKING after a folder-state cleanup via
+`PPM_ClearBrowserFolders` (see D-692) -- both scripts run correctly on a
+clean document.
+
+**D-695** `PPM_OrganizeProjectFiles` (recursive, combined) updated to
+include Group again, using the exact logic confirmed working in D-694,
+PLUS a new Step 0: every document has its own leftover top-level folders
+cleared (same `BrowserFolder.Delete()` mechanism as D-693) immediately
+before Normalize/Group run on it, directly addressing D-692's root-cause
+finding at the point in the recursive flow where it matters. NOT YET
+LIVE-TESTED in this recursive, multi-document form as of this KB push --
+see OQ-221.
+
+**D-696** Person confirmed the GST organization does not use Autodesk
+Vault. An earlier hypothesis (Vault-managed `*LocalDocs*` path notation)
+was WRONG and retracted. The actual cause of GST's unresolved references
+was McMaster-Carr parts saved to the local Downloads folder instead of
+the project folder, requiring Inventor to prompt for their location on
+every session open -- a file-organization issue, not a macro bug,
+resolved at the data level rather than requiring code changes (D-687's
+detection logic flags this cleanly either way).

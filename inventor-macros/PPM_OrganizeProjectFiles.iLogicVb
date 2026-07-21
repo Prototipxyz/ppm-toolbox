@@ -1,17 +1,39 @@
-' PROPOSED / UNVALIDATED -- rename step confirmed NOT the failure
-' point (last run: every failing document's rename succeeded fully
-' before the later E_FAIL). "Phantom"-in-name hypothesis also
-' disproven by the same run's data (multiple Phantom-named documents,
-' including two literally named "...(Phantom).iam", succeeded fully).
-' Rather than guess a third root cause, this version wraps sort/
-' group/enqueue separately so the next run reports exactly which one
-' fails, per document -- mechanical narrowing instead of another
-' pattern-matched guess.
+' PROPOSED / UNVALIDATED IN RECURSIVE FORM -- Normalize and Sort are
+' both confirmed working recursively across a full tree (today's and
+' prior sessions' testing). Group's logic below is copied from the
+' STANDALONE PPM_GroupOccurrencesBySamePart, which is CONFIRMED WORKING
+' as of today -- but only as a single-document run, on a document that
+' had been cleared of leftover folders first via PPM_ClearBrowserFolders.
+'
+' KEY NEW STEP: every document now has ITS OWN leftover top-level
+' folders cleared (BrowserFolder.Delete(), confirmed via multiple real
+' Autodesk Community examples to dissolve the folder without deleting
+' its contents) immediately before Normalize/Group run on it. This
+' directly addresses the likely real explanation for every earlier
+' recursive-version failure (jumbled Side Cap folder, everything piling
+' into one folder despite three different code-level fixes): leftover
+' folder state from prior test runs, already SAVED into these
+' documents, colliding with new folder-creation calls in ways none of
+' the earlier fixes addressed. Not provable with full certainty without
+' a fully controlled re-test, but it is the most coherent explanation
+' of today's results, and clearing state first removes the variable
+' regardless of whether the theory is fully correct.
+'
+' NOT YET LIVE-TESTED IN THIS RECURSIVE FORM. Test on the same Winkler
+' tree first (already a known, now-clean baseline) before trusting this
+' broadly on other projects.
+
+AddReference "System.IO"
+
+Const RUN_GROUP As Boolean = True
+Const SKIP_SINGLE_INSTANCES As Boolean = True
 
 Dim visitedDocs As New HashSet(Of String)
 Dim docQueue As New Queue(Of Document)
 Dim failures As New List(Of String)
+Dim skipped As New List(Of String)
 Dim renameStats As New List(Of String)
+Dim groupStats As New List(Of String)
 docQueue.Enqueue(ThisDoc.Document)
 
 Dim oTopDoc As Document = ThisDoc.Document
@@ -47,12 +69,94 @@ While docQueue.Count > 0
         Continue While
     End Try
 
-    ' --- 1. Normalize (confirmed not the failure point, kept as-is) ---
+    ' --- 0. Clear leftover top-level folders BEFORE anything else --
+    ' see header note. Non-fatal: a clear failure shouldn't block
+    ' Normalize/Sort from still running. ---
+    Dim clearedCount As Integer = 0
+    Try
+        Dim oClearPane As BrowserPane = oDoc.BrowserPanes.Item("Model")
+        Dim clearNames As New List(Of String)
+        For Each oOldFolder As BrowserFolder In oClearPane.TopNode.BrowserFolders
+            Try
+                clearNames.Add(oOldFolder.Name)
+            Catch
+            End Try
+        Next
+        For Each cname As String In clearNames
+            Try
+                oClearPane.TopNode.BrowserFolders.Item(cname).Delete()
+                clearedCount += 1
+            Catch
+            End Try
+        Next
+    Catch exClear As Exception
+        failures.Add(fullName & " -- STEP=ClearFolders -- " & exClear.Message)
+    End Try
+
+    ' --- 1. Normalize -- isolated PER OCCURRENCE. Also where
+    ' suppressed AND unresolved-reference detection happens ONCE per
+    ' document, shared by Sort/Group below. CONFIRMED WORKING. ---
     Dim seenNames As New HashSet(Of String)
     Dim renamedCount As Integer = 0
     Dim renameFailCount As Integer = 0
+    Dim occCount As Integer = 0
+    Dim skipIdx As New HashSet(Of Integer)
+    Dim suppressedCount As Integer = 0
+    Dim unresolvedCount As Integer = 0
     Try
-        For Each oOcc As ComponentOccurrence In oDef.Occurrences
+        occCount = oDef.Occurrences.Count
+    Catch exCount As Exception
+        failures.Add(fullName & " -- STEP=Normalize (Occurrences.Count) -- " & exCount.Message)
+    End Try
+
+    For i As Integer = 1 To occCount
+        Dim oOcc As ComponentOccurrence = Nothing
+        Try
+            oOcc = oDef.Occurrences.Item(i)
+        Catch exGet As Exception
+            failures.Add(fullName & " -- STEP=Normalize (get occurrence #" & i & ") -- " & exGet.Message)
+            Continue For
+        End Try
+
+        Dim isSuppressed As Boolean = False
+        Try
+            isSuppressed = oOcc.Suppressed
+        Catch
+            isSuppressed = False
+        End Try
+
+        Dim isMissing As Boolean = False
+        Try
+            isMissing = oOcc.ReferencedDocumentDescriptor.ReferenceMissing
+        Catch
+            isMissing = False
+        End Try
+
+        If isSuppressed Then
+            skipIdx.Add(i)
+            suppressedCount += 1
+            skipped.Add(fullName & " -- occurrence #" & i & " -- SKIPPED (suppressed)")
+            Continue For
+        ElseIf isMissing Then
+            skipIdx.Add(i)
+            unresolvedCount += 1
+            Dim expectedPath As String = ""
+            Try
+                expectedPath = oOcc.ReferencedDocumentDescriptor.FullDocumentName
+            Catch
+            End Try
+            If expectedPath = "" Then
+                Try
+                    expectedPath = oOcc.ReferencedDocumentDescriptor.ReferencedFileDescriptor.FullFileName
+                Catch
+                    expectedPath = "(path unavailable)"
+                End Try
+            End If
+            skipped.Add(fullName & " -- occurrence #" & i & " -- FLAGGED (unresolved reference, expected: " & expectedPath & ")")
+            Continue For
+        End If
+
+        Try
             Dim baseName As String = oOcc.Definition.Document.DisplayName
             If Not seenNames.Contains(baseName) Then
                 seenNames.Add(baseName)
@@ -60,37 +164,33 @@ While docQueue.Count > 0
                     Try
                         oOcc.Name = baseName
                         renamedCount += 1
-                    Catch
+                    Catch exRename As Exception
                         renameFailCount += 1
+                        failures.Add(fullName & " -- STEP=Normalize (rename occurrence #" & i & ") -- " & exRename.Message)
                     End Try
                 End If
             End If
-        Next
-        renameStats.Add(oDoc.DisplayName & ": " & renamedCount & " renamed, " & renameFailCount & " failed")
-    Catch exNorm As Exception
-        failures.Add(fullName & " -- STEP=Normalize -- " & exNorm.Message)
-        Continue While
-    End Try
+        Catch exOcc As Exception
+            failures.Add(fullName & " -- STEP=Normalize (occurrence #" & i & ") -- " & exOcc.Message)
+        End Try
+    Next
+    renameStats.Add(oDoc.DisplayName & ": " & clearedCount & " folder(s) cleared, " & renamedCount & " renamed, " & renameFailCount & " rename failed, " & suppressedCount & " suppressed, " & unresolvedCount & " unresolved reference")
 
-    ' --- 2. Alpha-sort -- isolated, NOW NON-FATAL: a sort failure no
-    ' longer aborts Group/Enqueue for this document. Kept the original
-    ' "AmBrowserArrangement" pane name -- an ActivePane swap was
-    ' considered and reverted, since the docs explicitly say Reorder
-    ' does NOT work on the standard assembly pane, which is very
-    ' likely what ActivePane would resolve to. That swap risked
-    ' breaking sorting on the 19 currently-working documents to chase
-    ' a fix for 5 -- worse trade than it first looked, not worth it
-    ' without more evidence.
+    ' --- 2. Alpha-sort -- isolated, NON-FATAL. CONFIRMED WORKING. ---
     Try
         Dim oSortPane As BrowserPane = oDoc.BrowserPanes.Item("AmBrowserArrangement")
-        Dim names(oDef.Occurrences.Count - 1) As String
-        For i As Integer = 1 To oDef.Occurrences.Count
-            names(i - 1) = oDef.Occurrences.Item(i).Name
+        Dim sortNames As New List(Of String)
+        For i As Integer = 1 To occCount
+            If skipIdx.Contains(i) Then Continue For
+            Try
+                sortNames.Add(oDef.Occurrences.Item(i).Name)
+            Catch
+            End Try
         Next
-        Array.Sort(names, StringComparer.OrdinalIgnoreCase)
+        sortNames.Sort(StringComparer.OrdinalIgnoreCase)
 
         Dim oPreviousNode As BrowserNode = Nothing
-        For Each nm As String In names
+        For Each nm As String In sortNames
             Dim oOcc As ComponentOccurrence = oDef.Occurrences.ItemByName(nm)
             If oOcc.PatternElement IsNot Nothing Then Continue For
 
@@ -105,54 +205,68 @@ While docQueue.Count > 0
         Next
     Catch exSort As Exception
         failures.Add(fullName & " -- STEP=Sort (non-fatal, continuing) -- " & exSort.Message)
-        ' NOTE: no Continue While here anymore -- Group and Enqueue still run.
     End Try
 
-    ' --- 3. Group by same part -- isolated ---
-    Try
-        Dim oModelPane As BrowserPane = oDoc.BrowserPanes.Item("Model")
-        Dim occsByFile As New Dictionary(Of String, List(Of ComponentOccurrence))
-        For Each oOcc As ComponentOccurrence In oDef.Occurrences
-            Dim key As String = oOcc.Definition.Document.FullFileName
-            If Not occsByFile.ContainsKey(key) Then
-                occsByFile(key) = New List(Of ComponentOccurrence)
-            End If
-            occsByFile(key).Add(oOcc)
-        Next
+    ' --- 3. Group by same part -- logic copied from the CONFIRMED
+    ' WORKING standalone PPM_GroupOccurrencesBySamePart (FullFileName
+    ' key, skip suppressed/unresolved, SKIP_SINGLE_INSTANCES). Folders
+    ' were already cleared for this document in Step 0 above, so
+    ' AddBrowserFolder is always creating fresh, never colliding with
+    ' leftover state. ---
+    Dim foldersCreated As Integer = 0
+    If RUN_GROUP Then
+        Try
+            Dim oModelPane As BrowserPane = oDoc.BrowserPanes.Item("Model")
+            Dim occsByFile As New Dictionary(Of String, List(Of ComponentOccurrence))
 
-        For Each kvp As KeyValuePair(Of String, List(Of ComponentOccurrence)) In occsByFile
-            Dim occList As List(Of ComponentOccurrence) = kvp.Value
-            If occList.Count = 1 Then Continue For
+            For i As Integer = 1 To occCount
+                If skipIdx.Contains(i) Then Continue For
 
-            Dim folderLabel As String = occList(0).Definition.Document.DisplayName
+                Dim oOcc As ComponentOccurrence = Nothing
+                Try
+                    oOcc = oDef.Occurrences.Item(i)
+                Catch exGet As Exception
+                    failures.Add(fullName & " -- STEP=Group (get occurrence #" & i & ") -- " & exGet.Message)
+                    Continue For
+                End Try
 
-            Dim oFolder As BrowserFolder = Nothing
-            Dim folderExists As Boolean = True
-            Try
-                oFolder = oModelPane.TopNode.BrowserFolders.Item(folderLabel)
-            Catch
-                folderExists = False
-            End Try
+                Try
+                    Dim key As String = oOcc.Definition.Document.FullFileName
+                    If Not occsByFile.ContainsKey(key) Then
+                        occsByFile(key) = New List(Of ComponentOccurrence)
+                    End If
+                    occsByFile(key).Add(oOcc)
+                Catch exOccKey As Exception
+                    failures.Add(fullName & " -- STEP=Group (collect occurrence #" & i & ") -- " & exOccKey.Message)
+                End Try
+            Next
 
-            If folderExists Then
-                For Each oOcc As ComponentOccurrence In occList
-                    Try
-                        oFolder.Add(oModelPane.GetBrowserNodeFromObject(oOcc))
-                    Catch
-                    End Try
-                Next
-            Else
-                Dim oNodes As ObjectCollection = ThisApplication.TransientObjects.CreateObjectCollection
-                For Each oOcc As ComponentOccurrence In occList
-                    oNodes.Add(oModelPane.GetBrowserNodeFromObject(oOcc))
-                Next
-                oFolder = oModelPane.AddBrowserFolder(folderLabel, oNodes)
-            End If
-        Next
-    Catch exGroup As Exception
-        failures.Add(fullName & " -- STEP=Group -- " & exGroup.Message)
-        Continue While
-    End Try
+            For Each kvp As KeyValuePair(Of String, List(Of ComponentOccurrence)) In occsByFile
+                Try
+                    Dim occList As List(Of ComponentOccurrence) = kvp.Value
+                    If SKIP_SINGLE_INSTANCES AndAlso occList.Count = 1 Then Continue For
+
+                    Dim folderLabel As String = occList(0).Definition.Document.DisplayName
+
+                    Dim oNodes As ObjectCollection = ThisApplication.TransientObjects.CreateObjectCollection
+                    For Each oOcc As ComponentOccurrence In occList
+                        Try
+                            oNodes.Add(oModelPane.GetBrowserNodeFromObject(oOcc))
+                        Catch
+                        End Try
+                    Next
+
+                    oModelPane.AddBrowserFolder(folderLabel, oNodes)
+                    foldersCreated += 1
+                Catch exGroupItem As Exception
+                    failures.Add(fullName & " -- STEP=Group (folder '" & kvp.Key & "') -- " & exGroupItem.Message)
+                End Try
+            Next
+        Catch exGroup As Exception
+            failures.Add(fullName & " -- STEP=Group (outer) -- " & exGroup.Message)
+        End Try
+    End If
+    groupStats.Add(oDoc.DisplayName & ": " & foldersCreated & " folder(s) created")
 
     ' --- 4. Enqueue children -- isolated ---
     Try
@@ -169,9 +283,30 @@ End While
 
 UNDO.End()
 
-Dim summary As String = "Organized " & (visitedDocs.Count - failures.Count) & " of " & visitedDocs.Count & " document(s)." & vbCrLf & vbCrLf
+Dim summary As String = "Organized " & visitedDocs.Count & " document(s), " & failures.Count & " issue(s) logged, " & skipped.Count & " occurrence(s) skipped/flagged. (Group folder step: " & RUN_GROUP.ToString() & ")" & vbCrLf & vbCrLf
 summary &= "Rename detail:" & vbCrLf & String.Join(vbCrLf, renameStats)
+summary &= vbCrLf & vbCrLf & "Group detail:" & vbCrLf & String.Join(vbCrLf, groupStats)
 If failures.Count > 0 Then
     summary &= vbCrLf & vbCrLf & "Failed (with step):" & vbCrLf & String.Join(vbCrLf, failures)
 End If
-MessageBox.Show(summary, "Organize Project Files")
+If skipped.Count > 0 Then
+    summary &= vbCrLf & vbCrLf & "Skipped / Flagged:" & vbCrLf & String.Join(vbCrLf, skipped)
+End If
+
+Dim logPath As String = ""
+Try
+    Dim topDir As String = System.IO.Path.GetDirectoryName(oTopDoc.FullFileName)
+    Dim topName As String = System.IO.Path.GetFileNameWithoutExtension(oTopDoc.FullFileName)
+    logPath = System.IO.Path.Combine(topDir, topName & "_organize_log.txt")
+    System.IO.File.WriteAllText(logPath, summary)
+Catch exLog As Exception
+    logPath = ""
+End Try
+
+Dim shortMsg As String = "Organized " & visitedDocs.Count & " document(s), " & failures.Count & " issue(s), " & skipped.Count & " skipped/flagged. (Group: " & RUN_GROUP.ToString() & ")"
+If logPath <> "" Then
+    shortMsg &= vbCrLf & vbCrLf & "Full log written to:" & vbCrLf & logPath
+Else
+    shortMsg &= vbCrLf & vbCrLf & "(Could not write log file -- showing summary below.)" & vbCrLf & vbCrLf & summary
+End If
+MessageBox.Show(shortMsg, "Organize Project Files")
