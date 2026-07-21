@@ -1,5 +1,5 @@
 # CLAUDE.md — PPM Toolbox
-> Last updated: 2026-07-21 05:59 UTC
+> Last updated: 2026-07-21 06:35 UTC
 
 > Auto-generated from `/kb/*.md`. Edit KB files, not this file directly.
 > Full context: see `/kb/` directory. Specs: see `/kb/specs/`.
