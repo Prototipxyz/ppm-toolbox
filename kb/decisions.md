@@ -3928,3 +3928,42 @@ logic rather than duplicated code, each independently verified,
 (4) wire the orchestrator (destination picker → sequence → manifest.json
 → summary) last, only once every step it depends on is independently
 confirmed. Not started.
+
+---
+
+## Global Form Anchor Behavior, Customer-Numbered Project PN Handling (July 2026)
+
+**D-682** [CORRECTION to D-674] Global Form lifetime is deterministic, not
+unreliable: the form stays open for as long as its **anchor document**
+(whichever document was active at the moment the form was opened) remains
+open — independent of how many child sub-assemblies/parts are opened or
+closed underneath it while navigating. The form only closes when the
+anchor document itself closes; it does not depend on the anchor staying
+the *active*/focused document, only on it staying *open*. This likely
+explains D-674's original failure (the anchor document closing unnoticed
+during that session) rather than contradicting it. Does not change the
+Item 1 (Organize macro) trigger UI decision — Ribbon buttons (D-676)
+remain the default, since they have no anchor-document dependency at
+all. Documented for future Loop 1/Loop 2 UI work only, which is shelved
+per D-680.
+
+**D-683** Customer-numbered project PN handling (new scope, not covered
+by D-656, which explicitly excludes customer-numbered projects from its
+registry). Established practice, now confirmed as the design going
+forward: (1) derivative/variant parts get a suffix appended to the
+existing customer PN they derive from (e.g. `.2`, `.3.1`, nesting
+supported) — this already anchors on a real customer PN so needs no new
+namespace; (2) parts with no existing customer PN to derive from (built
+from scratch, no customer BOM counterpart) get a separate sequential
+`STIRG-###` namespace — deliberately not mimicking the customer's PN
+format, so it cannot collide with their scheme by construction; (3) both
+mechanisms are backed by a duplicate-check scan of PNs already present
+in the project, replacing the previous approach of guessing what number
+would "logically come next" in the customer's own scheme, which was
+confirmed to sometimes produce real collisions since the customer's
+numbering logic isn't fully known/controlled by Stirg. Storage: a local
+registry file per customer-project, same pattern as D-656's local file
+next to the top-level assembly, but a separate/simpler structure since
+D-656's dotted hierarchical format doesn't apply here. Scoped as a new
+fifth work item, separate from Item 1 (Organize macro) — to be designed
+and built after Item 1 is complete. Not yet built.

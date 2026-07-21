@@ -1026,3 +1026,10 @@ third-party report, not yet confirmed firsthand.
 (D-681) — must be resolved before or during that build, since both
 macros in question (`PPM_ExportPartData`, `PPM_BatchExportFlatPatterns`)
 are exactly the ones the estimator export chain depends on.
+
+**OQ-220** [OPEN] For D-683's customer-numbered-project duplicate-PN
+scan: does it need to cover parts not currently open/loaded in Inventor
+(a file-system-level read), or is scanning `ThisApplication.Documents`
+in-session (same pattern already confirmed working per the D-666
+family) sufficient in practice? To resolve when this item is actually
+built.
