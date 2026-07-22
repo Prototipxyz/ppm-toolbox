@@ -571,15 +571,32 @@ Sub CollectReferencedPaths(oDoc As Document, _
                            ByRef paths As System.Collections.Generic.HashSet(Of String))
     ' Recursively collect all file paths referenced by oDoc.
     ' Uses ReferencedDocuments which is safe and available in iLogic 2021.
+    '
+    ' NEW (OQ-205 / D-703): before recursing into a child ASSEMBLY, check
+    ' its own PPM_SubassemblyTreatment iProperty. If "PurchasedUnit", the
+    ' assembly's own path is still added (it appears as a single costed
+    ' line item, per explicit confirmation) but its CHILDREN are not
+    ' recursed into -- their paths never enter the set, so they never
+    ' reach the DXF export loop below. Parts are unaffected (only
+    ' assemblies can carry this flag/have children to exclude).
     For Each refDoc As Document In oDoc.ReferencedDocuments
         Dim refPath As String = ""
         Try : refPath = refDoc.FullFileName : Catch : Continue For : End Try
         If refPath = "" Then Continue For
         If paths.Contains(refPath) Then Continue For  ' avoid infinite loops on circular refs
         paths.Add(refPath)
-        ' Recurse into sub-assemblies
+        ' Recurse into sub-assemblies -- unless flagged PurchasedUnit
         If TypeOf refDoc Is AssemblyDocument Then
-            CollectReferencedPaths(refDoc, paths)
+            Dim isPurchased As Boolean = False
+            Try
+                Dim propVal = refDoc.PropertySets.Item("Inventor User Defined Properties") _
+                    .Item("PPM_SubassemblyTreatment").Value.ToString()
+                isPurchased = (propVal = "PurchasedUnit")
+            Catch
+            End Try
+            If Not isPurchased Then
+                CollectReferencedPaths(refDoc, paths)
+            End If
         End If
     Next
 End Sub

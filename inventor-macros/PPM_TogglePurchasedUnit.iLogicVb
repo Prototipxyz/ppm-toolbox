@@ -1,0 +1,141 @@
+' PPM_TogglePurchasedUnit.iLogicVb
+'
+' NEW -- fills a real gap found while confirming OQ-205: the guided
+' review workflow spec (kb/specs/guided-review-workflow-spec.md) assumes
+' PPM_SubassemblyTreatment = PurchasedUnit gets set through its own
+' not-yet-built interactive review loop -- there was no standalone
+' one-click way to mark/unmark a subassembly today.
+'
+' Confirmed real iProperty API per D-645 (Autodesk Knowledge Network +
+' community sources): PropertySets.Item("Inventor User Defined
+' Properties"), same pattern already used consistently across this
+' project's other macros (PPM_OrganizeProjectFiles,
+' PPM_BuildModificationQueue, PPM_MarkOperations).
+'
+' USAGE:
+'   - Select one or more SUBASSEMBLY occurrences in the browser
+'     (Ctrl/Shift-click, same SelectSet mechanism confirmed working in
+'     today's PPM_MarkOperations patch), then run this macro. Each
+'     selected subassembly's PPM_SubassemblyTreatment is TOGGLED:
+'       - not set, or set to anything else  -> set to "PurchasedUnit"
+'       - already "PurchasedUnit"            -> cleared back to "" (walk
+'         children normally again)
+'   - If nothing is selected, toggles ThisDoc.Document itself (must be
+'     an assembly).
+'
+' Only affects assemblies -- Part documents are skipped with a clear
+' message, since PurchasedUnit treatment only means anything for a node
+' with children to exclude.
+'
+' NOT YET LIVE-TESTED.
+
+Dim oDoc As Document = ThisDoc.Document
+If oDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then
+    MessageBox.Show("Otvori sklop (.iam) pre pokretanja makroa." & vbCrLf & _
+                     "Open an assembly (.iam) before running this macro.", _
+                     "PPM - Nije sklop / Not an Assembly")
+    Return
+End If
+
+' ── Resolve targets: selected occurrences, or the active document ────
+Dim targets As New System.Collections.Generic.List(Of Document)
+Dim usedSelection As Boolean = False
+
+Try
+    If oDoc.SelectSet.Count >= 1 Then
+        Dim seenPaths As New System.Collections.Generic.HashSet(Of String)( _
+            System.StringComparer.OrdinalIgnoreCase)
+        For i As Integer = 1 To oDoc.SelectSet.Count
+            Try
+                Dim selItem As Object = oDoc.SelectSet.Item(i)
+                If TypeOf selItem Is ComponentOccurrence Then
+                    Dim oSelOcc As ComponentOccurrence = CType(selItem, ComponentOccurrence)
+                    Dim oTargetDoc As Document = oSelOcc.Definition.Document
+                    Dim tPath As String = oTargetDoc.FullFileName
+                    If Not seenPaths.Contains(tPath) Then
+                        seenPaths.Add(tPath)
+                        targets.Add(oTargetDoc)
+                    End If
+                End If
+            Catch
+                ' one bad selection item shouldn't abort the batch
+            End Try
+        Next
+        If targets.Count > 0 Then usedSelection = True
+    End If
+Catch
+End Try
+
+If Not usedSelection Then
+    targets.Add(oDoc)
+End If
+
+' ── Toggle each target, skipping non-assemblies ───────────────────
+Dim markedPurchased As New System.Collections.Generic.List(Of String)
+Dim unmarked As New System.Collections.Generic.List(Of String)
+Dim skippedParts As New System.Collections.Generic.List(Of String)
+Dim writeFailures As New System.Collections.Generic.List(Of String)
+
+For Each dTarget As Document In targets
+    Dim dName As String = "(unknown)"
+    Try : dName = dTarget.DisplayName : Catch : End Try
+
+    If dTarget.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then
+        skippedParts.Add(dName)
+        Continue For
+    End If
+
+    Try
+        Dim oCustom As PropertySet
+        Try
+            oCustom = dTarget.PropertySets.Item("Inventor User Defined Properties")
+        Catch
+            oCustom = dTarget.PropertySets.Add("Inventor User Defined Properties")
+        End Try
+
+        Dim currentVal As String = ""
+        Try : currentVal = CStr(oCustom.Item("PPM_SubassemblyTreatment").Value) : Catch : End Try
+
+        If currentVal = "PurchasedUnit" Then
+            ' Toggle OFF
+            Try
+                oCustom.Item("PPM_SubassemblyTreatment").Value = ""
+            Catch
+                Try : oCustom.Add("", "PPM_SubassemblyTreatment") : Catch : End Try
+            End Try
+            unmarked.Add(dName)
+        Else
+            ' Toggle ON
+            Try
+                oCustom.Item("PPM_SubassemblyTreatment").Value = "PurchasedUnit"
+            Catch
+                Try : oCustom.Add("PurchasedUnit", "PPM_SubassemblyTreatment") : Catch : End Try
+            End Try
+            markedPurchased.Add(dName)
+        End If
+    Catch ex As Exception
+        writeFailures.Add(dName & ": " & ex.Message)
+    End Try
+Next
+
+' ── Confirmation ───────────────────────────────────────────────────
+Dim msg As String = ""
+If markedPurchased.Count > 0 Then
+    msg &= "Označeno kao Purchased Unit / Marked as Purchased Unit (" & markedPurchased.Count & "):" & vbCrLf
+    msg &= String.Join(vbCrLf, markedPurchased.ConvertAll(Function(s) "• " & s)) & vbCrLf & vbCrLf
+End If
+If unmarked.Count > 0 Then
+    msg &= "Uklonjeno (opet obilazi decu) / Unmarked, walks children again (" & unmarked.Count & "):" & vbCrLf
+    msg &= String.Join(vbCrLf, unmarked.ConvertAll(Function(s) "• " & s)) & vbCrLf & vbCrLf
+End If
+If skippedParts.Count > 0 Then
+    msg &= "Preskočeno (delovi, ne sklopovi) / Skipped (parts, not assemblies) (" & skippedParts.Count & "):" & vbCrLf
+    msg &= String.Join(vbCrLf, skippedParts.ConvertAll(Function(s) "• " & s)) & vbCrLf & vbCrLf
+End If
+If writeFailures.Count > 0 Then
+    msg &= "Greška / Failed (" & writeFailures.Count & "):" & vbCrLf
+    msg &= String.Join(vbCrLf, writeFailures)
+End If
+If msg = "" Then msg = "Ništa nije promenjeno. / Nothing changed."
+
+MessageBox.Show(msg, "PPM - Purchased Unit Toggle")

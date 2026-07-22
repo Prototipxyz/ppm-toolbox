@@ -1027,6 +1027,12 @@ third-party report, not yet confirmed firsthand.
 macros in question (`PPM_ExportPartData`, `PPM_BatchExportFlatPatterns`)
 are exactly the ones the estimator export chain depends on.
 
+**OQ-205** [STATUS UPDATE 2 — see D-705] Confirmed via direct inspection
+of the real current source of both macros: zero existing
+PurchasedUnit/PPM_SubassemblyTreatment checks in either file. Fixes for
+both are now BUILT (see D-705 for the differing fix shape each required)
+but NOT YET LIVE-TESTED. Remains open until confirmed on a real project.
+
 **OQ-220** [OPEN] For D-683's customer-numbered-project duplicate-PN
 scan: does it need to cover parts not currently open/loaded in Inventor
 (a file-system-level read), or is scanning `ThisApplication.Documents`

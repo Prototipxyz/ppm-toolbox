@@ -4223,3 +4223,70 @@ depths and folder sizes (2, 13, and 22 folders created) rather than
 trusting the log alone. This confirms D-692's root-cause theory (leftover
 folder state was the real cause of all the earlier jumbling, not a
 fundamental code/API bug) beyond "plausible" to CONFIRMED.
+
+---
+
+## OQ-205 Confirmed, PurchasedUnit Toggle Tool, Export Macros Patched (July 2026)
+
+**D-703** Confirmed design decision for PurchasedUnit exclusion in BOM/DXF
+exports: the purchased sub-assembly's OWN line stays in the BOM/export as
+a single costed item (e.g. "Kohler valve assembly — qty 1") — only its
+INTERNAL child parts are excluded. Matches the existing precedent already
+established in diagnostics/Loop 1 navigation elsewhere in this project
+(PurchasedUnit subassemblies are skipped as a unit, not erased entirely).
+
+**D-704** New macro `PPM_TogglePurchasedUnit.iLogicVb` built, filling a
+real gap found while confirming OQ-205: the guided review workflow spec
+(`kb/specs/guided-review-workflow-spec.md`) assumes
+`PPM_SubassemblyTreatment = PurchasedUnit` gets set through its own
+not-yet-built interactive review loop — there was no standalone
+one-click way to mark or unmark a subassembly today. Built using the
+same `Document.SelectSet` multi-select mechanism confirmed working in
+`PPM_MarkOperations` (D-698): select one or more subassemblies in the
+browser, run the macro, each one's `PPM_SubassemblyTreatment` is
+TOGGLED (unset/other → `PurchasedUnit`; already `PurchasedUnit` →
+cleared). Parts are skipped with a clear message (toggling means
+nothing without children to exclude). Nothing selected toggles the
+active document itself. CONFIRMED WORKING both directions via live
+test with iProperties dialog screenshots — mark: `PPM_SubassemblyTreatment
+= PurchasedUnit` visible in the Custom tab; unmark: value cleared back
+to empty, confirmed on the same real document
+(`Elektrical Cabinet Box 200 L.iam`) both times.
+
+**D-705** OQ-205 confirmed with real specifics via direct inspection of
+the current source of both flagged macros (not assumed from general
+knowledge) — zero existing PurchasedUnit/PPM_SubassemblyTreatment checks
+in either file. The correct fix shape turned out to differ between them:
+
+- `PPM_BatchExportFlatPatterns`: straightforward. Its `CollectReferencedPaths`
+  recursive helper walked every referenced document with zero subassembly-
+  semantics awareness. Fixed by checking each child assembly's
+  `PPM_SubassemblyTreatment` before recursing — skips adding its
+  children's paths to the set when `PurchasedUnit`, while still adding
+  the assembly's own path (harmless per D-703, since the export loop
+  only processes `PartDocument` types anyway). `CollectWeldmentChildren`
+  (a separate, one-level-only walk tied to Inventor's native
+  `BOMStructure = Inseparable` weldment flag, unrelated to our custom
+  property) was checked and confirmed to NOT need the same guard — it
+  only affects quantity bookkeeping in a dictionary, not which parts
+  actually get DXF-exported (that gate is `asmRefPaths`, already fixed).
+
+- `PPM_ExportPartData`: more involved, a real finding not a guess. Per
+  D-298's architecture, its BOM rows come from Inventor's own native
+  Structured BOM export (`ParseStructuredBom`), which has no knowledge
+  of custom iProperties — so `CollectReferencedPaths`-style filtering
+  can't fix row generation here. Fixed via a POST-PARSE filter instead:
+  the existing enrichment walk (which already iterates
+  `ThisApplication.Documents`) now also flags PurchasedUnit assemblies
+  in the same pass (no second walk needed), then a new step drops any
+  BOM row whose `Item` hierarchy string (e.g. `"9.1"`, `"9.2.3"`) is a
+  proper descendant of a purchased assembly's row, while keeping the
+  purchased row itself (D-703).
+
+Both patches are surgical — only the specific functions/blocks described
+above changed; the rest of each 1140+/1340+ line file (interactive
+dialogs, other export logic) is untouched. NOT YET LIVE-TESTED — see
+OQ-205 status update 2. Test plan: mark a real subassembly via
+`PPM_TogglePurchasedUnit`, run both export macros, confirm children
+excluded from DXF/BOM output while the subassembly itself still appears
+as one row, then toggle off and confirm full output returns.

@@ -298,9 +298,15 @@ Sub Main()
 
     ' ── Build enrichment map: pn → {docType, material, thickMM,
     '    bendCount, ppmHoles, ppmThreads, opFlags} from open docs
+    ' NEW (OQ-205 / D-703): also collects purchasedPns -- PNs of
+    ' assemblies flagged PPM_SubassemblyTreatment = PurchasedUnit --
+    ' in the same walk, so a second pass over ThisApplication.Documents
+    ' isn't needed.
     Dim enrichMap As New System.Collections.Generic.Dictionary(Of String, Object())( _
         System.StringComparer.OrdinalIgnoreCase)
     Dim seenEnrich As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
+    Dim purchasedPns As New System.Collections.Generic.HashSet(Of String)( _
         System.StringComparer.OrdinalIgnoreCase)
     For Each oDoc As Document In ThisApplication.Documents
         Dim docPath As String = ""
@@ -340,8 +346,47 @@ Sub Main()
                     Is WeldmentComponentDefinition Then eDocType = "Weld Assy"
             Catch : End Try
             enrichMap(ePn) = New Object() {eDocType, "", 0.0, 0, "", "", eOpFlags}
+
+            Try
+                Dim propVal = oDoc.PropertySets.Item("Inventor User Defined Properties") _
+                    .Item("PPM_SubassemblyTreatment").Value.ToString()
+                If propVal = "PurchasedUnit" Then purchasedPns.Add(ePn)
+            Catch
+            End Try
         End If
     Next
+
+    ' ── Filter out children of PurchasedUnit assemblies (OQ-205 / D-703) ──
+    ' The purchased assembly's OWN row is kept (single costed line item,
+    ' per explicit confirmation) -- only rows whose Item hierarchy string
+    ' is a proper descendant (e.g. "9.1", "9.2.3" under purchased "9")
+    ' are dropped. Inventor's native Structured BOM export has no
+    ' knowledge of this custom property, so this has to be a post-parse
+    ' filter rather than something the BOM export itself can be told to
+    ' skip.
+    If purchasedPns.Count > 0 Then
+        Dim purchasedItemStrs As New System.Collections.Generic.List(Of String)
+        For Each bRow As Object() In bomRows
+            Dim rPn As String = CStr(bRow(2))
+            If purchasedPns.Contains(rPn) Then
+                purchasedItemStrs.Add(CStr(bRow(0)))
+            End If
+        Next
+
+        Dim filteredRows As New System.Collections.Generic.List(Of Object())
+        For Each bRow As Object() In bomRows
+            Dim rItemStr As String = CStr(bRow(0))
+            Dim isDescendant As Boolean = False
+            For Each pItem As String In purchasedItemStrs
+                If rItemStr.StartsWith(pItem & ".") Then
+                    isDescendant = True
+                    Exit For
+                End If
+            Next
+            If Not isDescendant Then filteredRows.Add(bRow)
+        Next
+        bomRows = filteredRows
+    End If
 
     ' ── Build partRows / asmRows from BOM + enrichment ───────────
     ' partRows: {level, pn, desc, qty, docType, material, thickMM,
