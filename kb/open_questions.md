@@ -1034,7 +1034,7 @@ in-session (same pattern already confirmed working per the D-666
 family) sufficient in practice? To resolve when this item is actually
 built.
 
-**OQ-221** [OPEN] `PPM_OrganizeProjectFiles` (recursive, combined) has
+**OQ-221** [RESOLVED, see status update] `PPM_OrganizeProjectFiles` (recursive, combined) has
 Group re-enabled with a per-document folder-clear step added (D-695),
 based on the D-692 root-cause theory (leftover saved folders from prior
 test runs, not a code/API bug). This has NOT yet been live-tested in its
@@ -1046,6 +1046,19 @@ correctly across many documents in one execution, not just one. If it
 still misbehaves despite the per-document clear step, D-692's root-cause
 theory would need to be reconsidered.
 
+**[STATUS UPDATE]** `PPM_OrganizeProjectFiles` itself was SCRAPPED (D-701)
+-- decided not working as intended, and a deliberate choice to keep
+macros separate rather than one combined tool. The underlying question
+(does the clear-first-then-Group pattern actually work recursively) was
+answered anyway, via a new dedicated file, `PPM_GroupOccurrencesBySamePart_Recursive.iLogicVb`
+(D-702) -- CONFIRMED WORKING on a real 80-document project (AD.A5.0C.PC01.00
+PACK CALDERERIA CONF1), 0 issues logged, and -- critically, learning from
+the earlier false-negative on Winkler where a clean log didn't mean
+correct folders -- spot-checked visually across multiple depths and
+folder sizes (2, 13, and 22 folders) rather than trusting the log alone.
+D-692's root-cause theory (leftover folder state, not a code/API bug) is
+now considered CONFIRMED, not just plausible.
+
 **OQ-222** [OPEN] ~19 rename failures observed on the Winkler top
 assembly where the occurrence is neither suppressed nor has a missing
 reference (baseName resolves fine via `.Definition.Document.DisplayName`),
@@ -1053,4 +1066,6 @@ yet the actual `oOcc.Name = baseName` assignment itself throws. Distinct
 from both D-686 (suppressed+broken) and D-687 (unresolved reference) --
 a third, still-unexplained failure category. Non-blocking (the run
 completes fine either way, and is now logged rather than silently
-swallowed), but not understood. Low priority.
+swallowed), but not understood. Low priority. NOTE: this was specific
+to Normalize, which stays a single-document tool (D-701) -- not relevant
+to the now-confirmed recursive Group path.

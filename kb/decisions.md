@@ -4122,3 +4122,104 @@ the project folder, requiring Inventor to prompt for their location on
 every session open -- a file-organization issue, not a macro bug,
 resolved at the data level rather than requiring code changes (D-687's
 detection logic flags this cleanly either way).
+
+---
+
+## Multi-Select Batch Marking, Organize Macro Scrapped, Recursive Group Confirmed (July 2026)
+
+**D-697** Batch-auto-grouping by diagnostic signature (matching parts on
+material + thickness + part type + bend count + hole/thread count to
+suggest they need the same operations) was proposed, then REJECTED by
+explicit decision. Reasoning: operations depend on more than geometry
+the diagnostic can see -- finish spec, client-specific QC requirements,
+weld type, tolerance -- so a signature match means "these look similar,"
+not "these need the same operations," and presenting a group as pre-matched
+risks the person trusting that framing and blanket-applying without
+re-checking each part individually. Particularly risky on defense-adjacent
+work (Elbit) where a wrong operation is a real problem, not just rework.
+Decision: no auto-grouping logic built. The person's own judgment
+(multi-select via Ctrl/Shift-click, D-698) replaces it entirely -- same
+time savings, without the false-confidence risk, and only one mechanism
+to build/test instead of two.
+
+**D-698** Multi-select batch operations marking built into
+`PPM_MarkOperations.iLogicVb` via a minimal, surgical patch (not a
+rewrite) -- the full 737-line dialog (checkbox layout, weldment/bend/hole
+auto-detect, warnings) is untouched; only the document-type guard,
+part-number/doc-type display labels, existing-iProperty pre-check, the
+top of the auto-detect If/ElseIf chain, and the final write loop were
+changed. Mechanism: when run from an assembly with 2+ occurrences
+selected in the browser, each selected occurrence is resolved to its
+underlying document via `ComponentOccurrence.Definition.Document`,
+deduplicated by `FullFileName` (multiple instances of the same part
+collapse to one target, since iProperties are per-document). Confirmed
+real API via multiple independent sources (Curtis Waguespack's iLogic
+reference, Autodesk Community): `Document.SelectSet` for reading current
+browser selection. In multi-select mode: auto-detection is skipped
+entirely (mixed part types in one selection made merging per-part-type
+detection logic unsafe to guess at); an operation is only pre-checked if
+it's already set on EVERY selected document (honest "common state," not
+just the first one); the final write loops across every resolved target
+document instead of the single active one, with per-document error
+isolation so one bad document doesn't block the rest. Single-document
+mode (0 or 1 selected) is byte-for-byte behaviorally unchanged.
+CONFIRMED WORKING via live test.
+
+**D-699** Added a visual confirmation step before the batch write in
+multi-select mode: a plain Yes/No dialog listing every resolved part by
+part number (or filename fallback), with the resolved count, before the
+main checklist ever opens. Directly addresses the risk of trusting an
+opaque "N selected parts" summary without seeing which N -- if the
+resolved list looks wrong (unexpected count, wrong parts from a dedup
+surprise), the person can back out with zero writes made. Single-document
+mode unaffected, since there's nothing to confirm.
+
+**D-700** Non-modal selection limitation identified: `PPM_MarkOperations`'
+checklist dialog is modal (`ShowDialog()`), which blocks input to
+Inventor's main window while open -- meaning parts must be selected in
+the browser BEFORE opening the macro, not while it's open. Two real fixes
+were identified: (1) Inventor's `InteractionEvents`/`SelectEvents`
+mechanism for an in-macro interactive multi-pick, confirmed real via a
+source already trusted elsewhere in this project's KB (Clint Brown), but
+flagged as genuinely more complex/riskier -- event-driven, needs careful
+start/stop lifecycle handling, with real documented warnings from
+Autodesk's own developer blog about crashes if event objects aren't
+cleaned up correctly; (2) launching Mark Operations from a button on an
+already-open Global Form instead of standalone -- Global Forms are
+non-modal by nature (confirmed per D-682's anchor-document finding), so
+selection stays possible while the form is open, and `PPM_MarkOperations`
+would need ZERO code changes since it already reads `SelectSet` at
+invocation time. DECISION: defer both to the future Add-in build (D-680);
+live with select-before-open for now rather than build either fix today.
+
+**D-701** `PPM_OrganizeProjectFiles` (the combined recursive
+Normalize+Sort+Group+Clear "Organize" macro) SCRAPPED by explicit
+decision -- not working as intended in practice, and a deliberate choice
+to keep macros separate (Normalize, Group, Clear each as their own
+standalone tool) rather than one bundled tool, with any future UI/workflow
+integration explicitly deferred to the Add-in build rather than more
+Inventor-native tooling now. The file remains in the repo for reference
+but is DEPRECATED -- not to be extended, relied upon, or used as the
+basis for future work. Person also confirmed: no ribbon panel work
+wanted (declining D-676/D-677's approach going forward) -- Global Form
+is the preferred trigger UI, with the caveat from D-700 (modal dialogs
+still block selection regardless of trigger mechanism) applying either
+way until the Add-in resolves it properly.
+
+**D-702** New, separate file `PPM_GroupOccurrencesBySamePart_Recursive.iLogicVb`
+built as new, explicitly-labeled UNPROVEN work (not a carryover from the
+scrapped D-701 script, despite reusing the same clear-folders-first
+pattern) -- Group-only recursion via the same `Queue(Of Document)` walk
+pattern as other recursive macros, reusing the CONFIRMED WORKING
+single-document Group logic (D-694) verbatim, with the per-document
+folder-clear step (D-693's `BrowserFolder.Delete()` mechanism) applied
+before each document's Group step. Does NOT bundle Normalize or Sort --
+those remain separate single-document tools per D-701's "keep macros
+separate" decision. CONFIRMED WORKING via live test on a real 80-document
+project (AD.A5.0C.PC01.00 PACK CALDERERIA CONF1): 0 issues logged, and --
+learning directly from the earlier Winkler false-negative where a clean
+log didn't mean correct folders -- spot-checked visually across multiple
+depths and folder sizes (2, 13, and 22 folders created) rather than
+trusting the log alone. This confirms D-692's root-cause theory (leftover
+folder state was the real cause of all the earlier jumbling, not a
+fundamental code/API bug) beyond "plausible" to CONFIRMED.

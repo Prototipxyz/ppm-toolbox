@@ -63,16 +63,110 @@ Sub Main()
         GoTo Cleanup
     End If
 
+    ' ── Multi-select detection (NEW) ────────────────────────────
+    ' If running from an assembly with 2+ occurrences selected in the
+    ' browser (Ctrl/Shift-click), resolve each to its underlying
+    ' document, dedupe (multiple instances of the same part collapse
+    ' to one target -- iProperties are per-document, so marking one
+    ' instance already marks all instances of that file), and treat
+    ' this as a batch operation across all of them. Any other case
+    ' (single part open, assembly with 0 or 1 selected) behaves
+    ' EXACTLY as before -- targetDocs is just {oDoc}, zero behavior
+    ' change to the proven single-document flow.
+    ' NOT YET LIVE-TESTED -- Document.SelectSet confirmed real via
+    ' multiple independent Autodesk Community/blog sources, but this
+    ' specific usage (multi-item iteration, ComponentOccurrence
+    ' filtering, dedup) has not been run against a real Inventor
+    ' session yet.
+    Dim multiSelectMode As Boolean = False
+    Dim targetDocs As New System.Collections.Generic.List(Of Inventor.Document)
+
+    If isAssembly Then
+        Try
+            If oDoc.SelectSet.Count > 1 Then
+                Dim seenPaths As New System.Collections.Generic.HashSet(Of String)( _
+                    System.StringComparer.OrdinalIgnoreCase)
+                For i As Integer = 1 To oDoc.SelectSet.Count
+                    Try
+                        Dim selItem As Object = oDoc.SelectSet.Item(i)
+                        If TypeOf selItem Is ComponentOccurrence Then
+                            Dim oSelOcc As ComponentOccurrence = CType(selItem, ComponentOccurrence)
+                            Dim oTargetDoc As Inventor.Document = oSelOcc.Definition.Document
+                            Dim tPath As String = oTargetDoc.FullFileName
+                            If Not seenPaths.Contains(tPath) Then
+                                seenPaths.Add(tPath)
+                                targetDocs.Add(oTargetDoc)
+                            End If
+                        End If
+                    Catch
+                        ' one bad selection item shouldn't abort the batch
+                    End Try
+                Next
+                If targetDocs.Count > 1 Then multiSelectMode = True
+            End If
+        Catch
+            ' SelectSet unavailable for some reason -- fall through to
+            ' normal single-document mode below
+        End Try
+    End If
+
+    If Not multiSelectMode Then
+        targetDocs.Clear()
+        targetDocs.Add(oDoc)
+    End If
+
+    ' ── Visual confirmation of resolved selection (NEW) ───────────
+    ' "N selected parts" alone isn't enough to trust before a batch
+    ' write -- show exactly which parts were resolved, with a chance
+    ' to back out if the selection resolved to something unexpected
+    ' (e.g. more/fewer parts than intended, wrong parts due to a
+    ' dedup surprise). Only shown in multi-select mode; single-part
+    ' mode is unchanged since there's nothing to confirm.
+    If multiSelectMode Then
+        Dim confirmLines As New System.Collections.Generic.List(Of String)
+        For Each dTarget As Inventor.Document In targetDocs
+            Dim dPn As String = ""
+            Try
+                Dim dProp As Inventor.Property = _
+                    dTarget.PropertySets.Item("Design Tracking Properties").Item("Part Number")
+                dPn = CStr(dProp.Value).Trim()
+            Catch : End Try
+            If dPn = "" Then
+                Try : dPn = System.IO.Path.GetFileNameWithoutExtension(dTarget.FullFileName)
+                Catch : dPn = "(unknown)" : End Try
+            End If
+            confirmLines.Add("• " & dPn)
+        Next
+
+        Dim confirmMsg As String = "Sledeći delovi će biti grupno označeni / " & _
+            "The following parts will be batch-marked (" & targetDocs.Count & "):" & _
+            vbCrLf & vbCrLf & String.Join(vbCrLf, confirmLines) & _
+            vbCrLf & vbCrLf & "Nastaviti? / Continue?"
+
+        Dim confirmResult = System.Windows.Forms.MessageBox.Show( _
+            confirmMsg, "PPM - Potvrdi izbor / Confirm Selection", _
+            System.Windows.Forms.MessageBoxButtons.YesNo, _
+            System.Windows.Forms.MessageBoxIcon.Question)
+
+        If confirmResult <> System.Windows.Forms.DialogResult.Yes Then
+            GoTo Cleanup
+        End If
+    End If
+
     ' ── Read part number ─────────────────────────────────────────
     Dim pn As String = ""
-    Try
-        Dim oProp As Inventor.Property = _
-            oDoc.PropertySets.Item("Design Tracking Properties").Item("Part Number")
-        pn = CStr(oProp.Value).Trim()
-    Catch : End Try
-    If pn = "" Then
-        Try : pn = System.IO.Path.GetFileNameWithoutExtension(oDoc.FullFileName)
-        Catch : pn = "UNKNOWN" : End Try
+    If multiSelectMode Then
+        pn = targetDocs.Count & " selected parts"
+    Else
+        Try
+            Dim oProp As Inventor.Property = _
+                oDoc.PropertySets.Item("Design Tracking Properties").Item("Part Number")
+            pn = CStr(oProp.Value).Trim()
+        Catch : End Try
+        If pn = "" Then
+            Try : pn = System.IO.Path.GetFileNameWithoutExtension(oDoc.FullFileName)
+            Catch : pn = "UNKNOWN" : End Try
+        End If
     End If
 
     ' ── Load org config ───────────────────────────────────────────
@@ -100,26 +194,57 @@ Sub Main()
     End If
 
     ' ── Read existing PPM iProperties ────────────────────────────
-    ' Pre-check any op already written as value=1 in this document.
+    ' Pre-check any op already written as value=1. In multi-select
+    ' mode, an op is only pre-checked if it's =1 on EVERY selected
+    ' document (the honest representation of "common state" across a
+    ' batch) -- not just the first one. Single-document mode is
+    ' UNCHANGED from the original.
     Dim existingIds As New System.Collections.Generic.HashSet(Of String)( _
         System.StringComparer.OrdinalIgnoreCase)
-    Try
-        Dim oCustom As PropertySet = oDoc.PropertySets.Item("Inventor User Defined Properties")
+    If multiSelectMode Then
         For Each op As String() In orgOps
             Dim propName As String = "PPM_" & op(0).Replace("-", "_")
-            Try
-                If CInt(oCustom.Item(propName).Value) = 1 Then existingIds.Add(op(0))
-            Catch : End Try
+            Dim setOnAll As Boolean = True
+            For Each dTarget As Inventor.Document In targetDocs
+                Try
+                    Dim oC As PropertySet = dTarget.PropertySets.Item("Inventor User Defined Properties")
+                    If CInt(oC.Item(propName).Value) <> 1 Then setOnAll = False : Exit For
+                Catch
+                    setOnAll = False : Exit For
+                End Try
+            Next
+            If setOnAll Then existingIds.Add(op(0))
         Next
-    Catch : End Try
+    Else
+        Try
+            Dim oCustom As PropertySet = oDoc.PropertySets.Item("Inventor User Defined Properties")
+            For Each op As String() In orgOps
+                Dim propName As String = "PPM_" & op(0).Replace("-", "_")
+                Try
+                    If CInt(oCustom.Item(propName).Value) = 1 Then existingIds.Add(op(0))
+                Catch : End Try
+            Next
+        Catch : End Try
+    End If
 
     ' ── Auto-populate detection ───────────────────────────────────
+    ' SKIPPED ENTIRELY in multi-select mode -- selected parts could be
+    ' mixed types (sheet metal + machined, etc.), and merging
+    ' per-part-type auto-detect logic across an arbitrary batch is not
+    ' something to guess at safely. Multi-select mode is pure manual
+    ' checklist based on common existing state (existingIds above) --
+    ' no auto-detect surprises. Single-document mode is UNCHANGED --
+    ' this just adds a new first branch to the existing If/ElseIf
+    ' chain below; the part-detection and weldment-detection branches
+    ' are untouched.
     Dim autoDetectedIds As New System.Collections.Generic.HashSet(Of String)( _
         System.StringComparer.OrdinalIgnoreCase)
     Dim isWeldment     As Boolean = False
     Dim configWarnings As New System.Collections.Generic.List(Of String)
 
-    If Not isAssembly Then
+    If multiSelectMode Then
+        ' no auto-detect in batch mode -- see comment above
+    ElseIf Not isAssembly Then
         ' ── Part: sheet metal + bend detection ───────────────────
         Dim oPart As PartDocument = CType(oDoc, PartDocument)
 
@@ -392,7 +517,11 @@ Sub Main()
 
     ' Document type
     Dim lblDocType As New System.Windows.Forms.Label
-    lblDocType.Text      = If(isAssembly, "SKLOP / ASSEMBLY", "DEO / PART")
+    If multiSelectMode Then
+        lblDocType.Text = "GRUPNO OZNAČAVANJE / BATCH MODE — auto-detekcija isključena / auto-detect disabled"
+    Else
+        lblDocType.Text = If(isAssembly, "SKLOP / ASSEMBLY", "DEO / PART")
+    End If
     lblDocType.Font      = fSub
     lblDocType.ForeColor = cSub
     lblDocType.Location  = New System.Drawing.Point(20, 66)
@@ -568,35 +697,55 @@ Sub Main()
     ' ── Write iProperties ─────────────────────────────────────────
     ' Every org operation is written: selected=1, not selected=0.
     ' This guarantees all org op columns appear in the BOM regardless
-    ' of which ops are checked on any given part.
+    ' of which ops are checked on any given part. Loops over
+    ' targetDocs -- in single-document mode this is just {oDoc}, same
+    ' as the original behavior; in multi-select mode it's every
+    ' selected part's document. One document's write failure does not
+    ' stop the others (isolated per document, same resilience
+    ' philosophy as the Organize macro work).
     Dim nMarked As Integer = 0
-    Try
-        Dim oPropSets  As PropertySets = oDoc.PropertySets
-        Dim oCustom    As PropertySet
-        Try
-            oCustom = oPropSets.Item("Inventor User Defined Properties")
-        Catch
-            oCustom = oPropSets.Add("Inventor User Defined Properties")
-        End Try
+    Dim nDocsWritten As Integer = 0
+    Dim writeFailures As New System.Collections.Generic.List(Of String)
 
-        For Each op As String() In orgOps
-            Dim propName As String  = "PPM_" & op(0).Replace("-", "_")
-            Dim propVal  As Integer = If(selectedIds.Contains(op(0)), 1, 0)
-            If propVal = 1 Then nMarked += 1
+    For Each dTarget As Inventor.Document In targetDocs
+        Try
+            Dim oPropSets  As PropertySets = dTarget.PropertySets
+            Dim oCustom    As PropertySet
             Try
-                oCustom.Item(propName).Value = propVal
+                oCustom = oPropSets.Item("Inventor User Defined Properties")
             Catch
-                Try : oCustom.Add(propVal, propName) : Catch : End Try
+                oCustom = oPropSets.Add("Inventor User Defined Properties")
             End Try
-        Next
-    Catch ex As Exception
-        ShowError("Greška pri pisanju iProperty-ja:" & vbCrLf & _
-                  "Error writing iProperties:" & vbCrLf & vbCrLf & ex.Message)
+
+            Dim nMarkedThisDoc As Integer = 0
+            For Each op As String() In orgOps
+                Dim propName As String  = "PPM_" & op(0).Replace("-", "_")
+                Dim propVal  As Integer = If(selectedIds.Contains(op(0)), 1, 0)
+                If propVal = 1 Then nMarkedThisDoc += 1
+                Try
+                    oCustom.Item(propName).Value = propVal
+                Catch
+                    Try : oCustom.Add(propVal, propName) : Catch : End Try
+                End Try
+            Next
+            nMarked = nMarkedThisDoc ' same selectedIds for every doc, so this is constant across the loop
+            nDocsWritten += 1
+        Catch ex As Exception
+            Dim dName As String = "(unknown)"
+            Try : dName = dTarget.DisplayName : Catch : End Try
+            writeFailures.Add(dName & ": " & ex.Message)
+        End Try
+    Next
+
+    If nDocsWritten = 0 Then
+        ShowError("Greška pri pisanju iProperty-ja na sve dokumente:" & vbCrLf & _
+                  "Error writing iProperties to all documents:" & vbCrLf & vbCrLf & _
+                  String.Join(vbCrLf, writeFailures))
         GoTo Cleanup
-    End Try
+    End If
 
     ' ── Auto-closing confirmation ─────────────────────────────────
-    ShowSavedConfirmation(nMarked)
+    ShowSavedConfirmation(nMarked, nDocsWritten)
 
 Cleanup:
     fUI.Dispose() : fSub.Dispose() : fBold.Dispose()
@@ -647,7 +796,7 @@ Function ExtractJsonField(block As String, fieldName As String) As String
     Return block.Substring(q1 + 1, q2 - q1 - 1)
 End Function
 
-Sub ShowSavedConfirmation(nMarked As Integer)
+Sub ShowSavedConfirmation(nMarked As Integer, Optional nDocs As Integer = 1)
     ' Auto-closes after 2000 ms; manual OK button as fallback.
     Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
     Dim cSurface As System.Drawing.Color = System.Drawing.Color.FromArgb(72, 82, 98)
@@ -673,7 +822,12 @@ Sub ShowSavedConfirmation(nMarked As Integer)
     sf.Controls.Add(lblSaved)
 
     Dim lblCount As New System.Windows.Forms.Label
-    lblCount.Text      = nMarked & " operacija označeno / " & nMarked & " operations marked"
+    If nDocs > 1 Then
+        lblCount.Text = nMarked & " operacija označeno na " & nDocs & " delova / " & _
+                        nMarked & " operations marked on " & nDocs & " parts"
+    Else
+        lblCount.Text = nMarked & " operacija označeno / " & nMarked & " operations marked"
+    End If
     lblCount.Font      = New System.Drawing.Font("Segoe UI", 9)
     lblCount.ForeColor = cSub
     lblCount.Location  = New System.Drawing.Point(20, 48)

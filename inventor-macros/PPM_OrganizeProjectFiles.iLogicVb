@@ -1,3 +1,20 @@
+' ============================================================
+' DEPRECATED (D-701) -- DO NOT USE OR EXTEND.
+' This combined Normalize+Sort+Group+Clear "Organize" macro was
+' scrapped by explicit decision: not working as intended, and a
+' deliberate choice to keep macros separate rather than one bundled
+' tool. Kept in the repo for reference only.
+'
+' Use instead:
+'   - PPM_NormaliseBrowserNodes.iLogicVb        (single document)
+'   - PPM_GroupOccurrencesBySamePart.iLogicVb   (single document)
+'   - PPM_GroupOccurrencesBySamePart_Recursive.iLogicVb  (full tree, CONFIRMED WORKING)
+'   - PPM_ClearBrowserFolders.iLogicVb          (single document)
+'
+' Any future combined/UI workflow is deferred to the Add-in build
+' (D-680), not this script.
+' ============================================================
+
 ' PROPOSED / UNVALIDATED IN RECURSIVE FORM -- Normalize and Sort are
 ' both confirmed working recursively across a full tree (today's and
 ' prior sessions' testing). Group's logic below is copied from the

@@ -1,0 +1,212 @@
+' PPM_GroupOccurrencesBySamePart_Recursive.iLogicVb
+'
+' NEW, UNPROVEN WORK -- not yet tested. Deliberately kept as a SEPARATE
+' file from the original standalone PPM_GroupOccurrencesBySamePart.iLogicVb
+' (which stays single-document only, per explicit decision to keep
+' macros separate rather than re-attempt the combined
+' Normalize+Sort+Group+Clear "Organize" macro, which was scrapped).
+'
+' This macro does ONLY ONE THING recursively: walks the assembly tree
+' from the top-level document down through every subassembly, and runs
+' Group-by-same-part on each one. No Normalize, no Sort -- those stay
+' single-document tools per the same "keep macros separate" decision.
+'
+' Core per-document Group logic is copied verbatim from the CONFIRMED
+' WORKING standalone script (FullFileName key, Suppressed/
+' ReferenceMissing skip, SKIP_SINGLE_INSTANCES) -- only the recursion
+' and the per-document folder-clear-first step are new. The folder-clear
+' step uses the same BrowserFolder.Delete() mechanism confirmed real via
+' multiple independent Autodesk Community sources (used already in
+' PPM_ClearBrowserFolders).
+'
+' WHY THIS IS STILL CALLED "UNPROVEN": the per-document-clear-then-group
+' pattern was only ever tested inside the now-scrapped combined
+' PPM_OrganizeProjectFiles script, which was never itself live-tested in
+' recursive form before being scrapped. This is a fresh attempt, not a
+' known-working carryover -- treat every result as new information.
+
+AddReference "System.IO"
+
+Const SKIP_SINGLE_INSTANCES As Boolean = True
+
+Dim visitedDocs As New HashSet(Of String)
+Dim docQueue As New Queue(Of Document)
+Dim failures As New List(Of String)
+Dim groupStats As New List(Of String)
+docQueue.Enqueue(ThisDoc.Document)
+
+Dim oTopDoc As Document = ThisDoc.Document
+If oTopDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then
+    MessageBox.Show("Run this from the top-level assembly.", "Not an Assembly")
+    Return
+End If
+
+Dim UNDO As Transaction = ThisApplication.TransactionManager.StartTransaction(oTopDoc, "Group Occurrences By Same Part (Recursive)")
+
+While docQueue.Count > 0
+    Dim oDoc As Document = docQueue.Dequeue()
+    Dim fullName As String = oDoc.FullFileName
+    If visitedDocs.Contains(fullName) Then Continue While
+    visitedDocs.Add(fullName)
+
+    If oDoc.DocumentType <> DocumentTypeEnum.kAssemblyDocumentObject Then Continue While
+
+    Dim isPurchased As Boolean = False
+    Try
+        Dim propVal = oDoc.PropertySets.Item("Inventor User Defined Properties") _
+            .Item("PPM_SubassemblyTreatment").Value.ToString()
+        isPurchased = (propVal = "PurchasedUnit")
+    Catch
+    End Try
+    If isPurchased Then Continue While
+
+    Dim oDef As AssemblyComponentDefinition = Nothing
+    Try
+        oDef = oDoc.ComponentDefinition
+    Catch exDef As Exception
+        failures.Add(fullName & " -- STEP=ComponentDefinition -- " & exDef.Message)
+        Continue While
+    End Try
+
+    Dim oPane As BrowserPane = Nothing
+    Try
+        oPane = oDoc.BrowserPanes.Item("Model")
+    Catch exPane As Exception
+        failures.Add(fullName & " -- STEP=BrowserPane -- " & exPane.Message)
+        Continue While
+    End Try
+
+    ' --- 0. Clear leftover top-level folders BEFORE grouping, same
+    ' as the (scrapped) combined script attempted. Non-fatal. ---
+    Dim clearedCount As Integer = 0
+    Try
+        Dim clearNames As New List(Of String)
+        For Each oOldFolder As BrowserFolder In oPane.TopNode.BrowserFolders
+            Try
+                clearNames.Add(oOldFolder.Name)
+            Catch
+            End Try
+        Next
+        For Each cname As String In clearNames
+            Try
+                oPane.TopNode.BrowserFolders.Item(cname).Delete()
+                clearedCount += 1
+            Catch
+            End Try
+        Next
+    Catch exClear As Exception
+        failures.Add(fullName & " -- STEP=ClearFolders -- " & exClear.Message)
+    End Try
+
+    ' --- 1. Group by same part -- logic copied verbatim from the
+    ' CONFIRMED WORKING standalone script. ---
+    Dim skippedCount As Integer = 0
+    Dim foldersCreated As Integer = 0
+    Try
+        Dim occsByFile As New Dictionary(Of String, List(Of ComponentOccurrence))
+        For Each oOcc As ComponentOccurrence In oDef.Occurrences
+            Dim isSuppressed As Boolean = False
+            Try
+                isSuppressed = oOcc.Suppressed
+            Catch
+            End Try
+
+            Dim isMissing As Boolean = False
+            Try
+                isMissing = oOcc.ReferencedDocumentDescriptor.ReferenceMissing
+            Catch
+            End Try
+
+            If isSuppressed OrElse isMissing Then
+                skippedCount += 1
+                Continue For
+            End If
+
+            Try
+                Dim key As String = oOcc.Definition.Document.FullFileName
+                If Not occsByFile.ContainsKey(key) Then
+                    occsByFile(key) = New List(Of ComponentOccurrence)
+                End If
+                occsByFile(key).Add(oOcc)
+            Catch
+                skippedCount += 1
+            End Try
+        Next
+
+        For Each kvp As KeyValuePair(Of String, List(Of ComponentOccurrence)) In occsByFile
+            Dim occList As List(Of ComponentOccurrence) = kvp.Value
+            If SKIP_SINGLE_INSTANCES AndAlso occList.Count = 1 Then Continue For
+
+            Try
+                Dim folderLabel As String = occList(0).Definition.Document.DisplayName
+
+                Dim oFolder As BrowserFolder = Nothing
+                Dim folderExists As Boolean = True
+                Try
+                    oFolder = oPane.TopNode.BrowserFolders.Item(folderLabel)
+                Catch
+                    folderExists = False
+                End Try
+
+                If folderExists Then
+                    For Each oOcc As ComponentOccurrence In occList
+                        Try
+                            oFolder.Add(oPane.GetBrowserNodeFromObject(oOcc))
+                        Catch
+                        End Try
+                    Next
+                Else
+                    Dim oNodes As ObjectCollection = ThisApplication.TransientObjects.CreateObjectCollection
+                    For Each oOcc As ComponentOccurrence In occList
+                        oNodes.Add(oPane.GetBrowserNodeFromObject(oOcc))
+                    Next
+                    oFolder = oPane.AddBrowserFolder(folderLabel, oNodes)
+                    foldersCreated += 1
+                End If
+            Catch exGroupItem As Exception
+                failures.Add(fullName & " -- STEP=Group (folder '" & kvp.Key & "') -- " & exGroupItem.Message)
+            End Try
+        Next
+    Catch exGroup As Exception
+        failures.Add(fullName & " -- STEP=Group (outer) -- " & exGroup.Message)
+    End Try
+    groupStats.Add(oDoc.DisplayName & ": " & clearedCount & " folder(s) cleared first, " & foldersCreated & " folder(s) created, " & skippedCount & " occurrence(s) skipped (suppressed/broken reference)")
+
+    ' --- 2. Enqueue children -- isolated ---
+    Try
+        For Each oOcc As ComponentOccurrence In oDef.Occurrences
+            Dim childDoc As Document = oOcc.Definition.Document
+            If childDoc.DocumentType = DocumentTypeEnum.kAssemblyDocumentObject Then
+                docQueue.Enqueue(childDoc)
+            End If
+        Next
+    Catch exEnq As Exception
+        failures.Add(fullName & " -- STEP=Enqueue -- " & exEnq.Message)
+    End Try
+End While
+
+UNDO.End()
+
+Dim summary As String = "Grouped " & visitedDocs.Count & " document(s), " & failures.Count & " issue(s) logged." & vbCrLf & vbCrLf
+summary &= "Group detail:" & vbCrLf & String.Join(vbCrLf, groupStats)
+If failures.Count > 0 Then
+    summary &= vbCrLf & vbCrLf & "Failed (with step):" & vbCrLf & String.Join(vbCrLf, failures)
+End If
+
+Dim logPath As String = ""
+Try
+    Dim topDir As String = System.IO.Path.GetDirectoryName(oTopDoc.FullFileName)
+    Dim topName As String = System.IO.Path.GetFileNameWithoutExtension(oTopDoc.FullFileName)
+    logPath = System.IO.Path.Combine(topDir, topName & "_group_recursive_log.txt")
+    System.IO.File.WriteAllText(logPath, summary)
+Catch exLog As Exception
+    logPath = ""
+End Try
+
+Dim shortMsg As String = "Grouped " & visitedDocs.Count & " document(s), " & failures.Count & " issue(s) logged."
+If logPath <> "" Then
+    shortMsg &= vbCrLf & vbCrLf & "Full log written to:" & vbCrLf & logPath
+Else
+    shortMsg &= vbCrLf & vbCrLf & "(Could not write log file -- showing summary below.)" & vbCrLf & vbCrLf & summary
+End If
+MessageBox.Show(shortMsg, "Group Occurrences By Same Part (Recursive)")
