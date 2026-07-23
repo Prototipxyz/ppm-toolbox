@@ -231,3 +231,46 @@ presets['machines']['SPRINT4020']['rates'] → list of entries
 Each entry: {material, thickness_mm, gas, cut_speed_mm_min, pierce_time_sec, ...}
 ```
 Machine key for Stirg primary laser: `SPRINT4020`
+
+
+---
+
+## Cross-project costing reference (ppm_reference) — added 2026-07-23
+
+All costing rates, operation norms, materials pricing, laser cut parameters, and brand identity data
+now live in a queryable Supabase schema, not in locally-committed Excel files. This replaced the
+old pattern of copying an Excel file forward from project to project (which caused stale-data bugs —
+see D-622, and the "significant jump in internal price" confusion caused by a formula bug that a
+static Excel copy couldn't self-correct).
+
+**Location:** Supabase project `bfhioxqspmypcnpmakyg`, schema `ppm_reference` (separate from the
+`public` schema, which holds the PPM App's production/tenant data — do not confuse the two).
+
+**Tables:** `machine_rates`, `operation_norms`, `materials`, `laser_params`, `global_constants`,
+`brand_identity`, `brand_assets`, `templates`, `change_log`. Every row carries `source_org` (currently
+always `'Stirg'`), `confidence` (`confirmed` / `placeholder` / `calibrated`), and where applicable a
+`d_number` linking back to the decision that set the value.
+
+**Official template:** `templates/PPM_Estimator_Template.xlsx` in this repo (also pointed to by
+`ppm_reference.templates`). 4 sheets: Norms & Rates (live snapshot from the DB), Materials & Procured
+(steel pricing live, procured items are examples to replace), Main Review (summary + example detail
+block), Quote (structure + example Risk/Margin — confirm before reuse). See D-706.
+
+**How a new chat/session should use this:**
+1. If continuing work in this Claude Project: check this file and `project_knowledge_search` first —
+   the schema and template location should already surface.
+2. If starting fresh (new project, no shared history, or Cowork): the operator pastes a short kickoff
+   prompt naming the Supabase project ID (`bfhioxqspmypcnpmakyg`), schema (`ppm_reference`), and the
+   template's GitHub path. Requires the Supabase MCP connector enabled for that session — this is a
+   per-conversation toggle, not automatic.
+3. Query before hand-typing any rate/norm/material value. Never assume a number from memory or a
+   previous Excel — `ppm_reference` is the only source of truth.
+4. Updates to `ppm_reference` require the same confirmation discipline as the KB push ritual — propose
+   the change with source/confidence, get explicit sign-off, then write + log to `change_log`.
+
+**Kickoff prompt template** (for new/disconnected chats):
+```
+Use ppm_reference schema in Supabase project bfhioxqspmypcnpmakyg for all rates/materials/norms.
+Template file: github.com/Prototipxyz/ppm-toolbox/templates/PPM_Estimator_Template.xlsx
+Don't hand-type rates — query the DB first.
+```

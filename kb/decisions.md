@@ -4290,3 +4290,16 @@ OQ-205 status update 2. Test plan: mark a real subassembly via
 `PPM_TogglePurchasedUnit`, run both export macros, confirm children
 excluded from DXF/BOM output while the subassembly itself still appears
 as one row, then toggle off and confirm full output returns.
+
+
+---
+
+**D-706** Official PPM Estimator template established (`templates/PPM_Estimator_Template.xlsx`, v1.0). Built from the boss-approved, bug-fixed Diesel+AdBlue quote file (confirmed by Voja as visual/structural standard). Structure:
+- **Norms & Rates**: fully live snapshot from Supabase `ppm_reference` at build time (machine rates, operation norms, laser parameters — includes D-622 CAM-calibrated S235 efficiencies). Order Qty and Engineering Hours reset to 0 — no default, must be set per project.
+- **Materials & Procured**: steel per-thickness pricing live from `ppm_reference.materials`. Procured Items reduced to 2 marked "EXAMPLE — replace" rows (KROMA/Parker/decoupling items were A-004627-specific, not universal template content).
+- **Main Review**: summary block + one example part + one example weldment demonstrating every operation sub-row pattern. **G29 formula bug permanently fixed** (`=E29`, mirrors the correction the boss applied manually to his copy — this was the root cause of the earlier "significant jump in internal price" confusion).
+- **Quote**: structure intact, Risk 8% / Margin 30% carried over as examples from the last approved quote, flagged in-cell (orange text) as "confirm before reuse" since 30% margin was a specific decision for that job, not necessarily permanent policy.
+
+Storage split by role: GitHub holds the versioned binary artifact; Supabase `ppm_reference.templates` holds a queryable pointer (raw GitHub URL + version + known-defaults note) so any chat can discover and fetch it without knowing the repo path in advance.
+
+**D-707** Cross-chat/cross-project access pattern for `ppm_reference` established: any Claude chat with the Supabase MCP connector enabled queries `ppm_reference.*` directly for current rates/norms/materials/brand identity/templates — no more re-uploading Excel files between sessions. For chats without shared conversation history (new projects, Cowork sessions), a short kickoff prompt naming the Supabase project ID and schema is required since project knowledge doesn't cross project boundaries. See `tooling_strategy.md` for the full access pattern and kickoff prompt template.
