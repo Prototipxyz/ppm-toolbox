@@ -1084,3 +1084,14 @@ completes fine either way, and is now logged rather than silently
 swallowed), but not understood. Low priority. NOTE: this was specific
 to Normalize, which stays a single-document tool (D-701) -- not relevant
 to the now-confirmed recursive Group path.
+
+**OQ-223** [OPEN] `PPM_ExportWeldBeadReport`'s Job Package mode
+(background thread typing the target path into dialog 2, then Enter)
+has NOT been confirmed via a real test -- only the standalone-mode
+dialog-1 auto-accept was confirmed before the session ended. Needs a
+real cross-rule test (`RunExternalRule` with `JobPackageMode=True` and
+a real `JobPackageDestPath`, matching the pattern already used for
+`PPM_ExportPartData` and `PPM_BatchExportFlatPatterns`) to confirm the
+full sequence -- both dialogs auto-handled, correct .xls file lands at
+the target path, no manual interaction required. First thing to test
+next session.

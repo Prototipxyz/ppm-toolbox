@@ -1,0 +1,172 @@
+' PPM_ExportWeldBeadReport.iLogicVb
+'
+' NEW macro (D-681 step 3, second half). No standalone version of this
+' existed before -- D-329 claimed this was confirmed via a manual
+' one-off live test, but that claim did NOT hold up under real testing
+' of this macro (both standalone and via RunExternalRule: neither
+' dialog was auto-accepted, everything required manual clicks).
+'
+' ROOT CAUSE, confirmed via Adam Nagy's official Autodesk ADN
+' Manufacturing DevBlog ("Execute vs Execute2 of ControlDefinition"):
+' ControlDefinition.Execute() is BLOCKING -- it "does not return until
+' the dialog got dismissed." The original design assumed Execute()
+' fires the command and returns immediately while the dialog stays open
+' asynchronously, matching neither this command's real behavior nor a
+' single-threaded execution model: the whole macro thread was frozen
+' inside Execute() until manually closed, so the Sleep+SendKeys code
+' written AFTER Execute() never got a chance to run while a dialog was
+' actually open.
+'
+' FIX, confirmed via a real, working Autodesk Community example using
+' this exact pattern: start a BACKGROUND THREAD that performs the
+' Sleep+SendKeys sequence BEFORE calling Execute() on the main thread.
+' The background thread sleeps briefly (giving the dialog time to
+' appear), then sends keystrokes into it from OUTSIDE the blocked main
+' thread -- Windows keystroke messages don't require being posted from
+' the specific thread that owns the target window, only from some
+' thread, so this works even while the main thread is frozen inside
+' Execute()'s modal wait.
+'
+' NOT YET LIVE-TESTED. This is a first attempt at the real fix,
+' confirmed conceptually against real documentation and a working
+' example, but background threading is new to this codebase -- treat
+' every result as new information, same discipline as everything else
+' this project has learned the hard way.
+
+' (No module-level field needed -- see fix below: the value is passed
+' directly into the background thread via Thread.Start(parameter)
+' instead. Two earlier attempts at a module-level field declaration
+' outside any Sub -- both "Dim" and "Private" -- failed to compile
+' identically ("Statement is not valid in a namespace"), meaning
+' iLogic's rule-to-class wrapping doesn't support that pattern the way
+' regular VB.NET does, regardless of keyword. This sidesteps the
+' question entirely rather than guessing a third variant.)
+
+Sub Main()
+    Dim jpMode As Boolean = False
+    Dim jpPath As String = ""
+    Try
+        If RuleArguments.Exists("JobPackageMode") Then
+            jpMode = CBool(RuleArguments("JobPackageMode"))
+        End If
+        If RuleArguments.Exists("JobPackageDestPath") Then
+            jpPath = CStr(RuleArguments("JobPackageDestPath"))
+        End If
+    Catch
+    End Try
+    DoExport(jpMode, jpPath)
+End Sub
+
+Sub DoExport(Optional JobPackageMode As Boolean = False, _
+        Optional JobPackageDestPath As String = "")
+
+    If Not TypeOf ThisApplication.ActiveDocument Is AssemblyDocument Then
+        If Not JobPackageMode Then
+            MessageBox.Show( _
+                "Otvori sklop (.iam) pre pokretanja makroa." & vbCrLf & _
+                "Open an assembly (.iam) before running this macro.", _
+                "PPM - Nije sklop / Not an Assembly")
+        End If
+        Return
+    End If
+
+    Dim oAsmDoc As AssemblyDocument = CType(ThisApplication.ActiveDocument, AssemblyDocument)
+
+    ' ── Weldment detection ──────────────────────────────────────────
+    Dim isWeldment As Boolean = False
+    Try
+        isWeldment = TypeOf oAsmDoc.ComponentDefinition Is WeldmentComponentDefinition
+    Catch
+    End Try
+
+    If Not isWeldment Then
+        If Not JobPackageMode Then
+            MessageBox.Show( _
+                "Ovaj sklop nije zavarena konstrukcija (Weldment)." & vbCrLf & _
+                "This assembly is not a Weldment." & vbCrLf & vbCrLf & _
+                "Weld Bead Report se ne moze generisati." & vbCrLf & _
+                "Weld Bead Report cannot be generated.", _
+                "PPM - Nije Weldment / Not a Weldment")
+        End If
+        Return
+    End If
+
+    ' ── Prepare the destination folder BEFORE starting anything,
+    ' so the background thread doesn't need to do file I/O under
+    ' time pressure while a dialog is waiting. ──────────────────────
+    If JobPackageDestPath <> "" Then
+        Try
+            Dim destDir As String = System.IO.Path.GetDirectoryName(JobPackageDestPath)
+            If Not System.IO.Directory.Exists(destDir) Then
+                System.IO.Directory.CreateDirectory(destDir)
+            End If
+        Catch
+        End Try
+    End If
+
+    ' ── Start the background SendKeys thread BEFORE Execute() -- see
+    ' header comment. Execute() blocks the main thread until every
+    ' dialog is dismissed, so the automation has to come from a
+    ' separate thread, started first. Value passed directly via
+    ' Thread.Start(parameter) -- ParameterizedThreadStart -- instead of
+    ' a shared field, since module-level fields aren't supported here
+    ' (see note above). ────────────────────────────────────────────
+    Dim t As New System.Threading.Thread(AddressOf SendKeysSequence)
+    t.IsBackground = True
+    Try : t.SetApartmentState(System.Threading.ApartmentState.STA) : Catch : End Try
+    t.Start(JobPackageDestPath)
+
+    Try
+        ThisApplication.CommandManager.ControlDefinitions.Item("AssemblyWeldBeadReportCmd").Execute()
+    Catch ex As Exception
+        If Not JobPackageMode Then
+            MessageBox.Show( _
+                "Ne mogu da pokrenem Weld Bead Report komandu:" & vbCrLf & _
+                "Could not start the Weld Bead Report command:" & vbCrLf & vbCrLf & _
+                ex.Message, "PPM - Greska / Error")
+        End If
+        Return
+    End Try
+
+    ' Execute() has now returned -- meaning every dialog was dismissed
+    ' (by the background thread, if the fix works). Brief poll for the
+    ' file in Job Package mode, since the caller's next step needs it
+    ' to genuinely exist.
+    If JobPackageDestPath <> "" Then
+        Dim waited As Integer = 0
+        Do While waited < 3000
+            If System.IO.File.Exists(JobPackageDestPath) Then Exit Do
+            System.Threading.Thread.Sleep(200)
+            waited += 200
+        Loop
+    End If
+End Sub
+
+Sub SendKeysSequence(state As Object)
+    ' Runs on a SEPARATE thread, started before Execute() is called on
+    ' the main thread. Receives the target path directly via
+    ' Thread.Start(parameter) -- ParameterizedThreadStart -- rather than
+    ' a shared module-level field (see header note on why).
+    Dim destPath As String = ""
+    Try : destPath = CStr(state) : Catch : End Try
+
+    Try
+        ' ── Dialog 1: "Include All Subassemblies" -> accept with Enter
+        System.Threading.Thread.Sleep(800)
+        System.Windows.Forms.SendKeys.SendWait("{ENTER}")
+
+        If destPath <> "" Then
+            ' ── Dialog 2 (Job Package mode): type full path, then Save
+            System.Threading.Thread.Sleep(800)
+            System.Windows.Forms.SendKeys.SendWait(destPath)
+            System.Threading.Thread.Sleep(300)
+            System.Windows.Forms.SendKeys.SendWait("{ENTER}")
+        End If
+        ' Else: standalone mode -- Dialog 2 (native Save dialog) is left
+        ' open for the user to pick their own location manually.
+    Catch
+        ' Background thread failure shouldn't crash the main thread --
+        ' worst case, the person just needs to click through manually,
+        ' same as before this fix existed.
+    End Try
+End Sub

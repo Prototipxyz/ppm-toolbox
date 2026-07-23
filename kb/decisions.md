@@ -4431,3 +4431,79 @@ change) is now COMPLETE. Steps 3 (DXF batch + weld-report calls) and 4
 (the orchestrator itself) remain not started, but now have a confirmed,
 tested cross-rule invocation pattern to build on rather than an
 unresolved question.
+
+---
+
+## D-681 Step 3 In Progress — DXF Job Package Confirmed, Weld Bead Report Fixed (July 2026, session end)
+
+**D-710** `PPM_BatchExportFlatPatterns` given the same `Main()`/`DoExport()`
++ `RuleArguments` treatment as `PPM_ExportPartData` (D-709):
+`JobPackageMode As Boolean` and `JobPackageDestFolder As String` parameters,
+both defaulting to exact original standalone behavior. `JobPackageDestFolder`
+non-empty skips the interactive destination dialog (creates the folder if
+missing); `JobPackageMode=True` additionally suppresses the completion
+summary popup -- a DESIGN DECISION beyond the original spec's literal
+scope (which only covered `PPM_ExportPartData`'s REPORT sheet), reasoned
+from the same "no per-part prompts, no blocking" principle already
+established for batch operations (D-209) and the orchestrator's own
+"chains all steps sequentially in one click" design (D-325).
+
+Real, confirmed limitation found while building this: **`RuleArguments`
+inside a called rule cannot be written to** -- confirmed via two
+consecutive real compile errors (indexer assignment: "Property 'Value'
+is ReadOnly"; then `.Add()`: "'Add' is not a member of
+Autodesk.iLogic.Interfaces.IRuleArguments"). `RuleArguments` is typed
+`IRuleArguments`, a read-only interface for receiving input, NOT the
+same read-write `NameValueMap` object the caller holds -- there is no
+confirmed mechanism for a called rule to pass results back through this
+object. Practical workaround adopted: the orchestrator should check the
+destination folder's file count directly after calling
+`RunExternalRule`, rather than depending on any return-value handoff.
+
+CONFIRMED WORKING via a real cross-rule test (throwaway
+`PPM_TestJobPackageDxf`, not committed): `RunExternalRule` returned 0,
+no destination dialog, no completion popup, correct DXF files appeared
+in the target folder. Standalone (no-argument) invocation separately
+confirmed unchanged on the same real project (14 exported, dialog and
+summary shown as always).
+
+**D-711** New macro `PPM_ExportWeldBeadReport.iLogicVb` built --
+no standalone version existed before this session. Real finding: **D-329's
+"confirmed working" claim (from a manual one-off live test, 2026-07-01)
+did NOT hold up when actually built into a reusable macro** -- neither
+dialog was auto-accepted, in standalone mode or via `RunExternalRule`;
+everything required manual clicks, contradicting the original spec
+pseudo-code's assumption.
+
+Root cause confirmed via Adam Nagy's official Autodesk ADN Manufacturing
+DevBlog ("Execute vs Execute2 of ControlDefinition"):
+`ControlDefinition.Execute()` is BLOCKING -- "does not return until the
+dialog got dismissed." The original spec's `Sleep`+`SendKeys` sequence,
+written to run AFTER `Execute()`, could never actually execute while a
+dialog was open, since the entire macro thread was frozen inside
+`Execute()` until manually closed.
+
+Fix, confirmed via a real working Autodesk Community example using this
+exact pattern: run the `Sleep`+`SendKeys` sequence on a **background
+thread, started BEFORE calling `Execute()`** on the main thread -- the
+background thread can send keystrokes into the dialog from outside the
+blocked main thread, since Windows keystroke messages don't require
+being posted from the thread that owns the target window.
+
+Two real compile failures along the way, both now resolved: (1) a
+module-level field declared outside any Sub (tried both `Dim` and
+`Private` keywords, both failed identically: "Statement is not valid in
+a namespace") is NOT supported by iLogic's rule-to-class wrapping,
+despite Autodesk's own general iLogic documentation describing this
+pattern as valid -- doesn't hold for this specific rule-file context;
+(2) fixed by using `Thread.Start(parameter)`
+(`ParameterizedThreadStart`) to pass the target path directly into the
+background thread instead of any shared field.
+
+PARTIALLY CONFIRMED as of session end: a standalone test showed dialog 1
+("Include All Subassemblies") correctly auto-accepted (not seen by the
+person running it), landing directly at dialog 2 (Save location) as
+designed for standalone mode. Job Package mode's dialog-2 auto-fill
+(typing the target path via the same background thread) NOT YET
+CONFIRMED -- session ended before that specific test was run. Continue
+here next session.

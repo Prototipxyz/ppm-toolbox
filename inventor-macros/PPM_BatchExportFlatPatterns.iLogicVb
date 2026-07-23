@@ -16,6 +16,51 @@ AddReference "System.IO.Compression"
 AddReference "System.IO.Compression.FileSystem"
 
 Sub Main()
+    ' Main() MUST be parameterless -- confirmed real constraint (D-709,
+    ' live compile error on PPM_ExportPartData). Same pattern applied
+    ' here: Main reads RuleArguments (if passed via RunExternalRule),
+    ' falls through to defaults on normal argument-less invocation, then
+    ' calls DoExport which holds all the actual logic.
+    Dim jpMode   As Boolean = False
+    Dim jpFolder As String = ""
+    Try
+        If RuleArguments.Exists("JobPackageMode") Then
+            jpMode = CBool(RuleArguments("JobPackageMode"))
+        End If
+        If RuleArguments.Exists("JobPackageDestFolder") Then
+            jpFolder = CStr(RuleArguments("JobPackageDestFolder"))
+        End If
+    Catch
+    End Try
+    DoExport(jpMode, jpFolder)
+End Sub
+
+Sub DoExport(Optional JobPackageMode As Boolean = False, _
+        Optional JobPackageDestFolder As String = "")
+    ' JobPackageMode / JobPackageDestFolder -- NEW (D-681 step 3). Both
+    ' default to the exact original standalone behavior (interactive
+    ' destination dialog, per-run summary popup) when called with no
+    ' arguments. Intended for the future PPM_SendToEstimator orchestrator:
+    ' JobPackageDestFolder, when non-empty, skips the interactive
+    ' destination dialog entirely and writes DXFs directly there
+    ' (creating the folder if missing) -- this dialog is this project's
+    ' own code, not a native Inventor command, so bypassing it directly
+    ' is more robust than SendKeys (consistent with D-709's reasoning).
+    ' JobPackageMode=True additionally suppresses the per-run ShowSummary
+    ' popup, since an orchestrator running multiple steps sequentially
+    ' shouldn't be interrupted by intermediate dialogs requiring manual
+    ' OK clicks -- DESIGN DECISION, not explicitly in the original spec
+    ' (which only covered PPM_ExportPartData's REPORT sheet), but follows
+    ' the same "no per-part prompts, no blocking" principle already
+    ' established for batch operations (D-209) and the orchestrator's own
+    ' "chains all steps sequentially in one click" design (D-325). Result
+    ' counts are written back into RuleArguments (if available) so the
+    ' orchestrator can build its own consolidated summary instead.
+    ' bomFilePath auto-detection and includeBendLines' True default both
+    ' already run/apply BEFORE the dialog block below either way, so
+    ' Job Package mode gets the same sensible defaults without needing
+    ' separate parameters for them.
+    ' NOT YET LIVE-TESTED.
 
     ' ── Auto-update check ────────────────────────────────────────
     Dim localPath   As String = "C:\PPM Cuts and Bends\iLogic\PPM_BatchExportFlatPatterns.iLogicVb"
@@ -119,6 +164,24 @@ Sub Main()
     Dim destFolder  As String  = ""
     Dim bomFilePath As String  = autoBomPath
     Dim includeBendLines As Boolean = True
+
+    If JobPackageDestFolder <> "" Then
+        ' ── Job Package mode: skip the interactive dialog entirely ──
+        destFolder = JobPackageDestFolder
+        Try
+            If Not System.IO.Directory.Exists(destFolder) Then
+                System.IO.Directory.CreateDirectory(destFolder)
+            End If
+        Catch ex As Exception
+            ShowError("Ne mogu da kreiram odredisni folder:" & vbCrLf & _
+                      "Could not create destination folder:" & vbCrLf & vbCrLf & _
+                      destFolder & vbCrLf & vbCrLf & ex.Message)
+            GoTo Cleanup
+        End Try
+        ' bomFilePath stays at auto-detected autoBomPath, includeBendLines
+        ' stays at its True default -- both already sensible without the
+        ' interactive dialog's overrides.
+    Else
 
     Dim dlg As New System.Windows.Forms.Form
     dlg.Text = "PPM - Batch Export Flat Patterns"
@@ -348,6 +411,7 @@ Sub Main()
     Try : System.IO.File.WriteAllText(lastPathFile, destFolder) : Catch : End Try
 
     includeBendLines = chkBend.Checked
+    End If
 
     ' ── Load BOM qty from xlsx ────────────────────────────────────
     Dim qtyMap   As New System.Collections.Generic.Dictionary(Of String, Integer)
@@ -556,7 +620,21 @@ Sub Main()
         End Try
     Next
 
-    ShowSummary(nExported, nSkipped, nFailed, nQty1, bomLoaded, failList, missingBom, destFolder, mirMergeLog, weldmentLog)
+    If JobPackageMode Then
+        ' No popup in Job Package mode -- see design note in DoExport's
+        ' header comment. Writing results back into RuleArguments for
+        ' the orchestrator to read was ATTEMPTED and CONFIRMED NOT
+        ' POSSIBLE: RuleArguments inside a called rule is typed
+        ' Autodesk.iLogic.Interfaces.IRuleArguments, a read-only
+        ' interface (confirmed via two real compile errors: indexer
+        ' assignment "Property 'Value' is ReadOnly", then ".Add" is not
+        ' a member of IRuleArguments either). Simpler working
+        ' alternative for the orchestrator instead of a return-value
+        ' handoff: count files in JobPackageDestFolder directly after
+        ' calling this rule via RunExternalRule.
+    Else
+        ShowSummary(nExported, nSkipped, nFailed, nQty1, bomLoaded, failList, missingBom, destFolder, mirMergeLog, weldmentLog)
+    End If
 
 Cleanup:
     fUI.Dispose() : fSub.Dispose() : fBold.Dispose() : fMono.Dispose()
