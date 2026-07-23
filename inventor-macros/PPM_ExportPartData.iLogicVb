@@ -11,6 +11,70 @@ AddReference "System.IO.Compression"
 AddReference "System.IO.Compression.FileSystem"
 
 Sub Main()
+    ' Main() MUST be parameterless -- confirmed by a real iLogic compile
+    ' error ("The rule must contain: Sub Main() ... End Sub") when this
+    ' was first tried with Optional parameters directly on Main.
+    '
+    ' Real fix, confirmed via official Autodesk documentation
+    ' (RunExternalRule / NameValueMap arguments, and the RuleArguments
+    ' object available inside any rule): Main() stays parameterless, but
+    ' reads incoming values from RuleArguments if present. A future
+    ' orchestrator calls this rule like:
+    '   Dim oArgs As Inventor.NameValueMap = _
+    '       ThisApplication.TransientObjects.CreateNameValueMap()
+    '   oArgs.Add("JobPackageMode", True)
+    '   oArgs.Add("JobPackageDestPath", somePath)
+    '   iLogicVb.RunExternalRule("PPM_ExportPartData", oArgs)
+    ' Normal invocation (ribbon/Rules panel double-click) passes no
+    ' arguments, RuleArguments.Exists(...) is False for both, and
+    ' behavior is completely unchanged from the original.
+    ' NOT YET LIVE-TESTED -- RuleArguments/RunExternalRule are real,
+    ' documented API, but this exact usage hasn't been run in Inventor
+    ' yet. Confirm with a real cross-rule test before trusting it in
+    ' the orchestrator (step 4).
+    Dim jpMode As Boolean = False
+    Dim jpPath As String = ""
+    Try
+        If RuleArguments.Exists("JobPackageMode") Then
+            jpMode = CBool(RuleArguments("JobPackageMode"))
+        End If
+        If RuleArguments.Exists("JobPackageDestPath") Then
+            jpPath = CStr(RuleArguments("JobPackageDestPath"))
+        End If
+    Catch
+        ' RuleArguments unavailable/empty on a normal, argument-less
+        ' invocation -- fall through with the defaults above, same as
+        ' original behavior.
+    End Try
+    DoExport(jpMode, jpPath)
+End Sub
+
+Sub DoExport(Optional JobPackageMode As Boolean = False, _
+        Optional JobPackageDestPath As String = "")
+    ' JobPackageMode / JobPackageDestPath -- NEW (D-681 step 2). Both
+    ' default to the exact original standalone behavior (interactive
+    ' destination dialog, all 4 sheets including REPORT) when called
+    ' with no arguments, as it always has been. Intended to be called
+    ' together by the future PPM_SendToEstimator orchestrator (step 4,
+    ' not yet built): JobPackageMode=True suppresses the REPORT sheet
+    ' (3 sheets only: PARTS, ASSEMBLIES, BOM_FLAT, per D-328).
+    ' JobPackageDestPath, when non-empty, is treated as the FULL target
+    ' .xlsx file path and skips the interactive destination dialog
+    ' entirely -- deliberately NOT done via SendKeys (unlike the Weld
+    ' Bead Report step, D-329) since this dialog is our own code, not a
+    ' native Inventor command; bypassing it directly is more robust than
+    ' faking keystrokes into it. Parent folder is created if missing
+    ' (the orchestrator's bom/ subfolder may not exist yet).
+    ' NOTE: the actual cross-rule invocation mechanism for calling THIS
+    ' sub (not Main) with real argument values from another iLogic rule
+    ' is NOT YET CONFIRMED -- Main()'s own parameterless requirement
+    ' means the orchestrator can't just call "PPM_ExportPartData" the
+    ' normal way and expect these values to apply. This needs its own
+    ' confirmed solution as part of step 4 (candidates: iLogic Shared
+    ' Modules so DoExport can be called directly cross-rule, or a small
+    ' temp flag-file handoff matching the existing "last folder" file
+    ' pattern already used lower in this same file). Genuinely unresolved
+    ' -- do not assume either approach works without testing it first.
 
     ' ── Auto-update check ────────────────────────────────────────
     Dim localPath   As String = "C:\PPM Cuts and Bends\iLogic\PPM_ExportPartData.iLogicVb"
@@ -124,7 +188,23 @@ Sub Main()
 
     Dim destFolder As String = lastFolder
     Dim xlsxName   As String = asmName & "_PPM_BOM.xlsx"
+    Dim xlsxPath As String
 
+    If JobPackageDestPath <> "" Then
+        ' ── Job Package mode: skip the interactive dialog entirely ──
+        xlsxPath   = JobPackageDestPath
+        destFolder = System.IO.Path.GetDirectoryName(xlsxPath)
+        Try
+            If Not System.IO.Directory.Exists(destFolder) Then
+                System.IO.Directory.CreateDirectory(destFolder)
+            End If
+        Catch ex As Exception
+            ShowError("Ne mogu da kreiram odredisni folder:" & vbCrLf & _
+                      "Could not create destination folder:" & vbCrLf & vbCrLf & _
+                      destFolder & vbCrLf & vbCrLf & ex.Message)
+            GoTo Cleanup
+        End Try
+    Else
     ' ── Dialog ───────────────────────────────────────────────────
     Dim dlg As New System.Windows.Forms.Form
     dlg.Text            = "PPM - BOM Export"
@@ -285,7 +365,8 @@ Sub Main()
 
     Try : System.IO.File.WriteAllText(lastPathFile, destFolder) : Catch : End Try
 
-    Dim xlsxPath As String = System.IO.Path.Combine(destFolder, xlsxName)
+    xlsxPath = System.IO.Path.Combine(destFolder, xlsxName)
+    End If
 
     ' ════════════════════════════════════════════════════════════════
     ' PART 1 END — commit checkpoint
@@ -445,7 +526,7 @@ Sub Main()
         Try : System.IO.File.Delete(xlsxPath) : Catch : End Try
     End If
     Try
-        WriteXlsx(xlsxPath, asmName, orgOps, partRows, asmRows)
+        WriteXlsx(xlsxPath, asmName, orgOps, partRows, asmRows, JobPackageMode)
     Catch ex As Exception
         ShowError("Greška pri pisanju xlsx fajla:" & vbCrLf & _
                   "Error writing xlsx file:" & vbCrLf & vbCrLf & _
@@ -838,7 +919,8 @@ End Function
 Sub WriteXlsx(xlsxPath As String, asmName As String, _
         orgOps As System.Collections.Generic.List(Of String()), _
         partRows As System.Collections.Generic.List(Of Object()), _
-        asmRows  As System.Collections.Generic.List(Of Object()))
+        asmRows  As System.Collections.Generic.List(Of Object()), _
+        Optional JobPackageMode As Boolean = False)
 
     Dim ss    As New System.Collections.Generic.List(Of String)
     Dim ssIdx As New System.Collections.Generic.Dictionary(Of String, Integer)( _
@@ -875,16 +957,57 @@ Sub WriteXlsx(xlsxPath As String, asmName As String, _
         System.IO.Compression.ZipFile.Open(xlsxPath, _
         System.IO.Compression.ZipArchiveMode.Create)
 
+        ' JobPackageMode (D-681 step 2 / D-328): 3 sheets only, no
+        ' REPORT -- BOM_FLAT takes REPORT's old slot (sheet3) so numbering
+        ' stays clean/sequential (1,2,3) rather than leaving a gap.
+        ' Non-JobPackageMode is BYTE-FOR-BYTE the original 4-sheet
+        ' structure -- default behavior is completely unchanged.
+        Dim sheetOverrides As String
+        Dim sheetRels      As String
+        Dim sheetsXml      As String
+
+        If JobPackageMode Then
+            sheetOverrides = _
+                "<Override PartName=""/xl/worksheets/sheet1.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+                "<Override PartName=""/xl/worksheets/sheet2.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+                "<Override PartName=""/xl/worksheets/sheet3.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>"
+            sheetRels = _
+                "<Relationship Id=""rId1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet1.xml""/>" & _
+                "<Relationship Id=""rId2"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet2.xml""/>" & _
+                "<Relationship Id=""rId3"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet3.xml""/>" & _
+                "<Relationship Id=""rId4"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"" Target=""sharedStrings.xml""/>" & _
+                "<Relationship Id=""rId5"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"" Target=""styles.xml""/>"
+            sheetsXml = _
+                "<sheet name=""PARTS"" sheetId=""1"" r:id=""rId1""/>" & _
+                "<sheet name=""ASSEMBLIES"" sheetId=""2"" r:id=""rId2""/>" & _
+                "<sheet name=""BOM_FLAT"" sheetId=""3"" r:id=""rId3""/>"
+        Else
+            sheetOverrides = _
+                "<Override PartName=""/xl/worksheets/sheet1.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+                "<Override PartName=""/xl/worksheets/sheet2.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+                "<Override PartName=""/xl/worksheets/sheet3.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+                "<Override PartName=""/xl/worksheets/sheet4.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>"
+            sheetRels = _
+                "<Relationship Id=""rId1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet1.xml""/>" & _
+                "<Relationship Id=""rId2"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet2.xml""/>" & _
+                "<Relationship Id=""rId3"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet3.xml""/>" & _
+                "<Relationship Id=""rId4"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet4.xml""/>" & _
+                "<Relationship Id=""rId5"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"" Target=""sharedStrings.xml""/>" & _
+                "<Relationship Id=""rId6"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"" Target=""styles.xml""/>"
+            sheetsXml = _
+                "<sheet name=""PARTS"" sheetId=""1"" r:id=""rId1""/>" & _
+                "<sheet name=""ASSEMBLIES"" sheetId=""2"" r:id=""rId2""/>" & _
+                "<sheet name=""REPORT"" sheetId=""3"" r:id=""rId3""/>" & _
+                "<sheet name=""BOM_FLAT"" sheetId=""4"" r:id=""rId4""/>"
+        End If
+
         WriteZipEntry(archive, "[Content_Types].xml", _
             "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>" & _
             "<Types xmlns=""http://schemas.openxmlformats.org/package/2006/content-types"">" & _
             "<Default Extension=""rels"" ContentType=""application/vnd.openxmlformats-package.relationships+xml""/>" & _
             "<Default Extension=""xml"" ContentType=""application/xml""/>" & _
             "<Override PartName=""/xl/workbook.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml""/>" & _
-            "<Override PartName=""/xl/worksheets/sheet1.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
-            "<Override PartName=""/xl/worksheets/sheet2.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
-            "<Override PartName=""/xl/worksheets/sheet3.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
-            "<Override PartName=""/xl/worksheets/sheet4.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml""/>" & _
+            sheetOverrides & _
             "<Override PartName=""/xl/sharedStrings.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml""/>" & _
             "<Override PartName=""/xl/styles.xml"" ContentType=""application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml""/>" & _
             "</Types>")
@@ -898,12 +1021,7 @@ Sub WriteXlsx(xlsxPath As String, asmName As String, _
         WriteZipEntry(archive, "xl/_rels/workbook.xml.rels", _
             "<?xml version=""1.0"" encoding=""UTF-8"" standalone=""yes""?>" & _
             "<Relationships xmlns=""http://schemas.openxmlformats.org/package/2006/relationships"">" & _
-            "<Relationship Id=""rId1"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet1.xml""/>" & _
-            "<Relationship Id=""rId2"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet2.xml""/>" & _
-            "<Relationship Id=""rId3"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet3.xml""/>" & _
-            "<Relationship Id=""rId4"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet"" Target=""worksheets/sheet4.xml""/>" & _
-            "<Relationship Id=""rId5"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings"" Target=""sharedStrings.xml""/>" & _
-            "<Relationship Id=""rId6"" Type=""http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles"" Target=""styles.xml""/>" & _
+            sheetRels & _
             "</Relationships>")
 
         WriteZipEntry(archive, "xl/workbook.xml", _
@@ -911,10 +1029,7 @@ Sub WriteXlsx(xlsxPath As String, asmName As String, _
             "<workbook xmlns=""http://schemas.openxmlformats.org/spreadsheetml/2006/main"" " & _
             "xmlns:r=""http://schemas.openxmlformats.org/officeDocument/2006/relationships"">" & _
             "<sheets>" & _
-            "<sheet name=""PARTS"" sheetId=""1"" r:id=""rId1""/>" & _
-            "<sheet name=""ASSEMBLIES"" sheetId=""2"" r:id=""rId2""/>" & _
-            "<sheet name=""REPORT"" sheetId=""3"" r:id=""rId3""/>" & _
-            "<sheet name=""BOM_FLAT"" sheetId=""4"" r:id=""rId4""/>" & _
+            sheetsXml & _
             "</sheets></workbook>")
 
         WriteZipEntry(archive, "xl/styles.xml", BuildStylesXml())
@@ -935,10 +1050,16 @@ Sub WriteXlsx(xlsxPath As String, asmName As String, _
             BuildPartsSheet(orgOps, partRows, ssIdx))
         WriteZipEntry(archive, "xl/worksheets/sheet2.xml", _
             BuildAsmsSheet(orgOps, asmRows, ssIdx))
-        WriteZipEntry(archive, "xl/worksheets/sheet3.xml", _
-            BuildReportSheet(asmName, orgOps, partRows, asmRows))
-        WriteZipEntry(archive, "xl/worksheets/sheet4.xml", _
-            BuildBomFlatSheet(orgOps, partRows, ssIdx))
+        If JobPackageMode Then
+            ' sheet3 = BOM_FLAT (REPORT skipped entirely -- D-328)
+            WriteZipEntry(archive, "xl/worksheets/sheet3.xml", _
+                BuildBomFlatSheet(orgOps, partRows, ssIdx))
+        Else
+            WriteZipEntry(archive, "xl/worksheets/sheet3.xml", _
+                BuildReportSheet(asmName, orgOps, partRows, asmRows))
+            WriteZipEntry(archive, "xl/worksheets/sheet4.xml", _
+                BuildBomFlatSheet(orgOps, partRows, ssIdx))
+        End If
     End Using
 End Sub
 

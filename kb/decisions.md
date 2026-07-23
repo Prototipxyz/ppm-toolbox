@@ -4377,3 +4377,57 @@ confirmed with certainty rather than guessed -- consistent with this
 project's established discipline of building small diagnostics before
 attempting further fixes when a theory can't be confirmed by reading code
 alone.
+
+---
+
+## D-681 Step 2 Complete — JobPackageMode Built and Confirmed via Real Cross-Rule Test (July 2026)
+
+**D-709** `PPM_ExportPartData` refactored to support Job Package mode,
+completing D-681 step 2. Real constraint discovered via a live compile
+error, not assumed: iLogic external rules require the literal,
+parameterless `Sub Main()` signature -- an initial attempt to add
+`Optional JobPackageMode`/`JobPackageDestPath` directly to `Main`'s own
+signature failed to compile ("The rule must contain: Sub Main() ... End
+Sub"). Fixed by moving all actual logic into a new internal
+`Sub DoExport(JobPackageMode As Boolean, JobPackageDestPath As String)`,
+with `Main()` staying parameterless and calling `DoExport` internally.
+
+Real cross-rule invocation mechanism confirmed via official Autodesk
+documentation and CONFIRMED WORKING via a live test (not assumed):
+`Main()` reads incoming values via the `RuleArguments` object (checking
+`RuleArguments.Exists(...)` first, so normal argument-less invocation is
+unaffected) -- populated by a caller using
+`ThisApplication.TransientObjects.CreateNameValueMap()` +
+`iLogicVb.RunExternalRule(ruleName, ruleArguments)`. This is the
+confirmed mechanism the future `PPM_SendToEstimator` orchestrator
+(D-681 step 4) will use to invoke this rule.
+
+Live test (throwaway `PPM_TestJobPackageArgs` rule, not committed --
+passed `JobPackageMode=True` + a real `JobPackageDestPath`) CONFIRMED,
+via direct inspection of the resulting file (not just the summary
+dialog): `RunExternalRule` returned 0 (success), no destination dialog
+appeared, output file had exactly 3 sheets (PARTS, ASSEMBLIES,
+BOM_FLAT -- no REPORT), landed exactly at the supplied path. Normal
+argument-less invocation separately confirmed unchanged (4 sheets,
+dialog appears as always) on a different real project.
+
+**Behavior summary:**
+- `JobPackageMode As Boolean` (default False): when True, suppresses
+  `BuildReportSheet` entirely; output is a clean 3-sheet file, sheet
+  numbers renumbered sequentially (1,2,3) rather than leaving a gap
+  where REPORT would have been.
+- `JobPackageDestPath As String` (default ""): when non-empty, treated
+  as the full target `.xlsx` path -- skips the interactive destination
+  dialog entirely (this dialog is this project's own code, not a native
+  Inventor command, so bypassing it directly is more robust than the
+  `SendKeys` approach already used for the Weld Bead Report step,
+  D-329) and creates the parent folder if it doesn't exist yet.
+- Both default to exactly the original standalone behavior when the
+  rule is run normally with no arguments -- zero behavior change for
+  the existing individual "Export Part Data" button.
+
+D-681 step 2 (`JobPackageMode` as an isolated, independently-tested
+change) is now COMPLETE. Steps 3 (DXF batch + weld-report calls) and 4
+(the orchestrator itself) remain not started, but now have a confirmed,
+tested cross-rule invocation pattern to build on rather than an
+unresolved question.
