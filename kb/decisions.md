@@ -4303,3 +4303,77 @@ as one row, then toggle off and confirm full output returns.
 Storage split by role: GitHub holds the versioned binary artifact; Supabase `ppm_reference.templates` holds a queryable pointer (raw GitHub URL + version + known-defaults note) so any chat can discover and fetch it without knowing the repo path in advance.
 
 **D-707** Cross-chat/cross-project access pattern for `ppm_reference` established: any Claude chat with the Supabase MCP connector enabled queries `ppm_reference.*` directly for current rates/norms/materials/brand identity/templates — no more re-uploading Excel files between sessions. For chats without shared conversation history (new projects, Cowork sessions), a short kickoff prompt naming the Supabase project ID and schema is required since project knowledge doesn't cross project boundaries. See `tooling_strategy.md` for the full access pattern and kickoff prompt template.
+
+---
+
+## OQ-205 Fully Resolved — Three Unplanned Bugs Found and Fixed Along the Way (July 2026)
+
+**D-706** Two real, unrelated bugs found via live testing of the OQ-205
+patches, both pre-existing (not introduced by this session's changes):
+
+1. `PPM_ExportPartData`'s `ShowError` dialog used a fixed-size Form
+   (460x200) with a fixed-size Label (420x80) -- any error message
+   longer than that was SILENTLY CLIPPED, invisible, not
+   truncated-with-ellipsis. This meant a real diagnostic addition (row
+   counts + full `ex.ToString()`) only ever showed the row counts,
+   hiding the actual exception. Fixed: `ShowError` now uses a resizable
+   Form with a scrollable, word-wrapped, read-only, SELECTABLE
+   multi-line TextBox instead of a Label.
+2. Once visible, the real crash was `System.ArgumentException` at
+   `Microsoft.VisualBasic.Strings.Chr(Int32 CharCode)` inside
+   `BuildReportSheet`, called via `"REQ " & Chr(10003)` /
+   `"DONE " & Chr(10003)` -- building the REPORT sheet's checkmark (✓,
+   U+2713) header. `Chr()` (legacy VB, single-byte ANSI) only accepts
+   0-255; 10003 is far outside that range and throws unconditionally,
+   every time that line executes, regardless of PurchasedUnit or
+   anything else. This would have crashed on ANY successful run that
+   reached that header row, on any project -- confirmed NOT caused by
+   today's changes (the crash persisted with `purchasedPns=0`, meaning
+   the OQ-205 filter code was never even engaging). Fixed: `ChrW(10003)`
+   (wide-char, correct for Unicode code points beyond 255).
+
+**D-707** Real bug in the OQ-205 fix itself, found via live test:
+`PPM_ExportPartData`'s first attempt at PurchasedUnit detection was
+placed inside the existing enrichment loop, which is gated by
+`ThisApplication.Documents` (only documents Inventor is currently
+tracking as "open" top-level documents) filtered by `asmRefPaths`
+membership. This returned `purchasedPns=0` even for a document
+independently confirmed correctly flagged and excluded by the sibling
+macro (`PPM_BatchExportFlatPatterns`), which discovers documents via a
+direct recursive `.ReferencedDocuments` walk instead --
+`ThisApplication.Documents` does not reliably include every referenced
+subassembly for a large/deep tree. Fixed: PurchasedUnit detection moved
+to a new dedicated function, `CollectPurchasedPns`, using the same
+reliable `.ReferencedDocuments` recursion already proven working in the
+sibling macro, completely independent of `ThisApplication.Documents`.
+
+**D-708** [Root cause of the whole "still exported the same" symptom]
+Confirmed via official Autodesk BOM API documentation and a real working
+code sample (`BOMView_Export_Sample.htm`): `BOM.StructuredViewFirstLevelOnly`
+defaults to `True` in the Inventor API, meaning Inventor's Structured BOM
+export -- by default, for performance reasons, per Autodesk's own
+documentation -- only includes an assembly's DIRECT children, regardless
+of how many real levels deep the interactive BOM Editor's tree visually
+shows (confirmed by ground-truth inspection of Inventor's own raw,
+unmodified BOM export file: `outlineLevel=0` on every row, flat Item
+numbers 1-13, with a real nested subassembly and all its children
+completely absent). This was never a parsing bug in `ParseStructuredBom`
+-- the function was faithfully reporting exactly what Inventor's own
+export contained. Fixed with one line:
+`oBOM.StructuredViewFirstLevelOnly = False`, set right alongside the
+existing `StructuredViewEnabled = True`. Known Autodesk-documented edge
+case: iAssemblies only support First-Level Structured view regardless of
+this setting -- left as a silent no-op (Try/Catch) for that case rather
+than failing the export. CONFIRMED WORKING via direct row-by-row
+comparison of two real exports of the same project (see OQ-205
+resolution) -- exact math match between rows removed and real descendant
+count, everything unrelated byte-for-byte identical.
+
+**Also part of this chain:** a temporary diagnostic addition to
+`ParseStructuredBom` (keeping the raw Inventor-exported temp file instead
+of auto-deleting it, plus a `_debug.txt` row-by-row dump including the
+`outlineLevel` attribute) was what allowed D-708's root cause to be
+confirmed with certainty rather than guessed -- consistent with this
+project's established discipline of building small diagnostics before
+attempting further fixes when a theory can't be confirmed by reading code
+alone.

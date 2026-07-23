@@ -296,17 +296,31 @@ Sub Main()
     Dim bomRows As System.Collections.Generic.List(Of Object()) = _
         ParseStructuredBom(oAsmDoc, asmName)
 
+    ' ── Detect PurchasedUnit assemblies (OQ-205 / D-703) ──────────
+    ' FIXED after a live test: the first version of this detection was
+    ' gated on ThisApplication.Documents (inside the enrichMap loop
+    ' below), which returned purchasedPns=0 even for a document
+    ' confirmed correctly flagged and excluded by the SIBLING macro
+    ' (PPM_BatchExportFlatPatterns). Root cause: ThisApplication.Documents
+    ' only reliably contains documents Inventor is tracking as currently
+    ' "open" top-level documents -- for a large/deep assembly this does
+    ' not reliably include every referenced subassembly. Fixed by
+    ' switching to the SAME reliable mechanism already confirmed working
+    ' in PPM_BatchExportFlatPatterns' CollectReferencedPaths: a direct
+    ' recursive walk of .ReferencedDocuments, independent of whatever
+    ' ThisApplication.Documents happens to contain.
+    Dim purchasedPns As New System.Collections.Generic.HashSet(Of String)( _
+        System.StringComparer.OrdinalIgnoreCase)
+    Try
+        CollectPurchasedPns(oAsmDoc, purchasedPns)
+    Catch
+    End Try
+
     ' ── Build enrichment map: pn → {docType, material, thickMM,
     '    bendCount, ppmHoles, ppmThreads, opFlags} from open docs
-    ' NEW (OQ-205 / D-703): also collects purchasedPns -- PNs of
-    ' assemblies flagged PPM_SubassemblyTreatment = PurchasedUnit --
-    ' in the same walk, so a second pass over ThisApplication.Documents
-    ' isn't needed.
     Dim enrichMap As New System.Collections.Generic.Dictionary(Of String, Object())( _
         System.StringComparer.OrdinalIgnoreCase)
     Dim seenEnrich As New System.Collections.Generic.HashSet(Of String)( _
-        System.StringComparer.OrdinalIgnoreCase)
-    Dim purchasedPns As New System.Collections.Generic.HashSet(Of String)( _
         System.StringComparer.OrdinalIgnoreCase)
     For Each oDoc As Document In ThisApplication.Documents
         Dim docPath As String = ""
@@ -346,13 +360,6 @@ Sub Main()
                     Is WeldmentComponentDefinition Then eDocType = "Weld Assy"
             Catch : End Try
             enrichMap(ePn) = New Object() {eDocType, "", 0.0, 0, "", "", eOpFlags}
-
-            Try
-                Dim propVal = oDoc.PropertySets.Item("Inventor User Defined Properties") _
-                    .Item("PPM_SubassemblyTreatment").Value.ToString()
-                If propVal = "PurchasedUnit" Then purchasedPns.Add(ePn)
-            Catch
-            End Try
         End If
     Next
 
@@ -441,7 +448,10 @@ Sub Main()
         WriteXlsx(xlsxPath, asmName, orgOps, partRows, asmRows)
     Catch ex As Exception
         ShowError("Greška pri pisanju xlsx fajla:" & vbCrLf & _
-                  "Error writing xlsx file:" & vbCrLf & vbCrLf & ex.Message)
+                  "Error writing xlsx file:" & vbCrLf & vbCrLf & _
+                  "bomRows=" & bomRows.Count & " partRows=" & partRows.Count & _
+                  " asmRows=" & asmRows.Count & " purchasedPns=" & purchasedPns.Count & vbCrLf & vbCrLf & _
+                  ex.ToString())
         GoTo Cleanup
     End Try
 
@@ -450,7 +460,8 @@ Sub Main()
     ' Part 3: sheets 3-4, summary dialog
     ' ════════════════════════════════════════════════════════════════
 
-    ShowSummaryDialog(partRows.Count, asmRows.Count, xlsxPath)
+    ShowSummaryDialog(partRows.Count, asmRows.Count, xlsxPath, _
+        New System.Collections.Generic.List(Of String)(purchasedPns))
 
 Cleanup:
     fUI.Dispose() : fSub.Dispose() : fBold.Dispose() : fMono.Dispose()
@@ -470,6 +481,39 @@ Sub CollectReferencedPaths(oDoc As Document, _
         paths.Add(refPath)
         If TypeOf refDoc Is AssemblyDocument Then
             CollectReferencedPaths(refDoc, paths)
+        End If
+    Next
+End Sub
+
+Sub CollectPurchasedPns(oDoc As Document, _
+        ByRef purchasedPns As System.Collections.Generic.HashSet(Of String))
+    ' NEW (OQ-205 / D-703, fixed after live test): recursively walk
+    ' .ReferencedDocuments directly -- same reliable mechanism already
+    ' confirmed working in PPM_BatchExportFlatPatterns' CollectReferencedPaths
+    ' -- rather than relying on ThisApplication.Documents, which does not
+    ' reliably include every referenced subassembly for a large tree.
+    ' Does NOT recurse into a PurchasedUnit assembly's own children
+    ' (matches D-703 / the sibling macro's behavior -- what's inside a
+    ' purchased unit is irrelevant either way, since D-703 already
+    ' excludes it from the BOM).
+    For Each refDoc As Document In oDoc.ReferencedDocuments
+        If TypeOf refDoc Is AssemblyDocument Then
+            Dim isPurchased As Boolean = False
+            Try
+                Dim propVal = refDoc.PropertySets.Item("Inventor User Defined Properties") _
+                    .Item("PPM_SubassemblyTreatment").Value.ToString()
+                isPurchased = (propVal = "PurchasedUnit")
+            Catch
+            End Try
+            If isPurchased Then
+                Dim rPn As String = ReadDTP(refDoc, "Part Number")
+                If rPn = "" Then
+                    Try : rPn = System.IO.Path.GetFileNameWithoutExtension(refDoc.FullFileName) : Catch : End Try
+                End If
+                If rPn <> "" Then purchasedPns.Add(rPn)
+            Else
+                CollectPurchasedPns(refDoc, purchasedPns)
+            End If
         End If
     Next
 End Sub
@@ -513,20 +557,39 @@ Function ExtractJsonField(block As String, fieldName As String) As String
 End Function
 
 Sub ShowError(msg As String)
+    ' FIXED: previously used a fixed-size Label (420x80) inside a fixed
+    ' 460x200 Form -- any message longer than that was SILENTLY CLIPPED,
+    ' invisible, not truncated-with-ellipsis. This is why a real
+    ' diagnostic error (row counts + full ex.ToString()) only ever showed
+    ' the row counts -- the exception detail was there in the string,
+    ' just never rendered. Now uses a resizable form with a scrollable,
+    ' word-wrapped, read-only, SELECTABLE multi-line textbox (so the
+    ' text can be copied out for reporting) instead.
     Dim ef As New System.Windows.Forms.Form
     ef.Text            = "PPM - Greška / Error"
-    ef.Size            = New System.Drawing.Size(460, 200)
+    ef.Size            = New System.Drawing.Size(620, 420)
     ef.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
-    ef.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
+    ef.FormBorderStyle = System.Windows.Forms.FormBorderStyle.Sizable
+    ef.MinimumSize     = New System.Drawing.Size(400, 250)
     ef.BackColor       = System.Drawing.Color.FromArgb(59, 68, 83)
-    ef.MaximizeBox     = False : ef.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
-    Dim lbl As New System.Windows.Forms.Label
-    lbl.Text      = msg
-    lbl.Font      = New System.Drawing.Font("Segoe UI", 9)
-    lbl.ForeColor = System.Drawing.Color.FromArgb(210, 153, 34)
-    lbl.Location  = New System.Drawing.Point(20, 20)
-    lbl.Size      = New System.Drawing.Size(420, 80)
-    ef.Controls.Add(lbl)
+    ef.MaximizeBox     = True : ef.AutoScaleMode = System.Windows.Forms.AutoScaleMode.None
+
+    Dim txt As New System.Windows.Forms.TextBox
+    txt.Text        = msg
+    txt.Multiline   = True
+    txt.ReadOnly    = True
+    txt.ScrollBars  = System.Windows.Forms.ScrollBars.Vertical
+    txt.WordWrap    = True
+    txt.Font        = New System.Drawing.Font("Segoe UI", 9)
+    txt.ForeColor   = System.Drawing.Color.FromArgb(210, 153, 34)
+    txt.BackColor   = System.Drawing.Color.FromArgb(45, 52, 64)
+    txt.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle
+    txt.Location    = New System.Drawing.Point(15, 15)
+    txt.Size        = New System.Drawing.Size(575, 320)
+    txt.Anchor      = System.Windows.Forms.AnchorStyles.Top Or System.Windows.Forms.AnchorStyles.Bottom Or _
+                       System.Windows.Forms.AnchorStyles.Left Or System.Windows.Forms.AnchorStyles.Right
+    ef.Controls.Add(txt)
+
     Dim btn As New System.Windows.Forms.Button
     btn.Text      = "OK"
     btn.Font      = New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
@@ -534,8 +597,9 @@ Sub ShowError(msg As String)
     btn.ForeColor = System.Drawing.Color.FromArgb(230, 237, 243)
     btn.FlatStyle = System.Windows.Forms.FlatStyle.Flat
     btn.FlatAppearance.BorderColor = System.Drawing.Color.FromArgb(46, 125, 209)
-    btn.Location     = New System.Drawing.Point(180, 134)
-    btn.Size         = New System.Drawing.Size(100, 32)
+    btn.Location     = New System.Drawing.Point(495, 345)
+    btn.Size         = New System.Drawing.Size(95, 32)
+    btn.Anchor       = System.Windows.Forms.AnchorStyles.Bottom Or System.Windows.Forms.AnchorStyles.Right
     btn.DialogResult = System.Windows.Forms.DialogResult.OK
     ef.Controls.Add(btn) : ef.AcceptButton = btn : ef.ShowDialog()
 End Sub
@@ -584,9 +648,26 @@ End Function
 Function ParseStructuredBom(oAsmDoc As AssemblyDocument, asmName As String) _
         As System.Collections.Generic.List(Of Object())
     Dim result As New System.Collections.Generic.List(Of Object())
+    Dim bomDebugLines As New System.Collections.Generic.List(Of String)
     Try
         Dim oBOM As BOM = oAsmDoc.ComponentDefinition.BOM
         Try : oBOM.StructuredViewEnabled = True : Catch : End Try
+        ' NEW (D-706): confirmed via official Autodesk BOM API
+        ' documentation + a real working sample (BOMView_Export_Sample.htm)
+        ' -- oBOM.StructuredViewFirstLevelOnly defaults to True, which
+        ' silently limits the Structured view (and therefore this export)
+        ' to only the assembly's DIRECT children, regardless of how deep
+        ' the interactive BOM Editor's tree visually goes. This is the
+        ' real, confirmed cause of a live test showing a nested
+        ' subassembly's own children (multiple real levels deep, visible
+        ' in Inventor's BOM Editor) completely absent from the exported
+        ' BOM -- ground-truth-checked via the raw unmodified Inventor
+        ' export (outlineLevel=0 on every row, flat Item numbers). Known
+        ' edge case (Autodesk-documented): iAssemblies only support
+        ' First-Level Structured view -- "All Levels" cannot be enabled
+        ' for those regardless of this setting, so the Try/Catch below
+        ' just lets that silently no-op rather than fail the whole export.
+        Try : oBOM.StructuredViewFirstLevelOnly = False : Catch : End Try
         Dim oView As BOMView = Nothing
         Try : oView = oBOM.BOMViews.Item("Structured") : Catch : End Try
         If oView Is Nothing Then
@@ -658,12 +739,41 @@ Function ParseStructuredBom(oAsmDoc As AssemblyDocument, asmName As String) _
                     If qtyCol >= 0 AndAlso cellVals.ContainsKey(qtyCol) Then
                         Try : bQty = CInt(cellVals(qtyCol)) : Catch : End Try
                     End If
+                    ' NEW (D-706 diagnostic): also read the row's real
+                    ' outlineLevel attribute -- a standard OOXML row
+                    ' attribute, confirmed real via Microsoft's own
+                    ' documentation -- as a candidate MORE RELIABLE
+                    ' source of hierarchy depth than counting dots in the
+                    ' Item text, since a live test showed Item numbers can
+                    ' be flat ("1","2","3") even for genuinely nested
+                    ' assemblies, depending on this project's BOM Item
+                    ' Numbering configuration in Inventor. Not yet used
+                    ' for anything -- logged only, to see ground truth
+                    ' before deciding whether it's actually populated by
+                    ' Inventor's own BOMView.Export.
+                    Dim rowOutlineLevel As Integer = 0
+                    Try
+                        Dim olAttr As System.Xml.XmlAttribute = rowNode.Attributes("outlineLevel")
+                        If olAttr IsNot Nothing Then rowOutlineLevel = CInt(olAttr.Value)
+                    Catch
+                    End Try
+                    bomDebugLines.Add("Item=""" & itemStr & """ outlineLevel=" & rowOutlineLevel & _
+                        " PN=""" & bPn & """ rowXml=" & rowNode.OuterXml)
+
                     Dim dotCount As Integer = itemStr.Split("."c).Length - 1
                     result.Add(New Object() {itemStr, dotCount + 1, bPn, bDesc, bQty})
                 End If
             Next
         End Using
-        Try : System.IO.File.Delete(tmpPath) : Catch : End Try
+        ' NEW (D-706 diagnostic): keep the raw temp file (was previously
+        ' always deleted) and write the row-level debug dump next to it,
+        ' so the actual native Inventor BOM export can be inspected
+        ' directly instead of only trusting our re-parsed interpretation.
+        Try
+            Dim debugPath As String = tmpPath & "_debug.txt"
+            System.IO.File.WriteAllText(debugPath, String.Join(vbCrLf, bomDebugLines))
+        Catch
+        End Try
     Catch : End Try
     Return result
 End Function
@@ -1103,8 +1213,8 @@ Function BuildReportSheet(asmName As String, _
     RICell(sb, 1, rn, "Op.ID", 1)
     RICell(sb, 2, rn, "Operacija / Operation", 1)
     RICell(sb, 3, rn, "Kategorija / Category", 1)
-    RICell(sb, 4, rn, "REQ " & Chr(10003), 1)
-    RICell(sb, 5, rn, "DONE " & Chr(10003), 1)
+    RICell(sb, 4, rn, "REQ " & ChrW(10003), 1)
+    RICell(sb, 5, rn, "DONE " & ChrW(10003), 1)
     RICell(sb, 6, rn, "% Komplet / Completion %", 1)
     RICell(sb, 7, rn, "Status", 1)
     RICell(sb, 8, rn, "Notes", 1)
@@ -1317,7 +1427,8 @@ End Function
 ' Summary dialog — auto-closes after 3000 ms
 ' ════════════════════════════════════════════════════════════════
 
-Sub ShowSummaryDialog(nParts As Integer, nAsms As Integer, xlsxPath As String)
+Sub ShowSummaryDialog(nParts As Integer, nAsms As Integer, xlsxPath As String, _
+        Optional purchasedNames As System.Collections.Generic.List(Of String) = Nothing)
     Dim cBg      As System.Drawing.Color = System.Drawing.Color.FromArgb(59, 68, 83)
     Dim cSurface As System.Drawing.Color = System.Drawing.Color.FromArgb(72, 82, 98)
     Dim cAccent  As System.Drawing.Color = System.Drawing.Color.FromArgb(46, 125, 209)
@@ -1326,9 +1437,12 @@ Sub ShowSummaryDialog(nParts As Integer, nAsms As Integer, xlsxPath As String)
     Dim fUI   As New System.Drawing.Font("Segoe UI", 9)
     Dim fBold As New System.Drawing.Font("Segoe UI", 9, System.Drawing.FontStyle.Bold)
 
+    Dim hasPurchased As Boolean = (purchasedNames IsNot Nothing AndAlso purchasedNames.Count > 0)
+    Dim extraH As Integer = If(hasPurchased, 20 + (purchasedNames.Count * 16), 0)
+
     Dim dlg As New System.Windows.Forms.Form
     dlg.Text            = "PPM - BOM Export"
-    dlg.Size            = New System.Drawing.Size(520, 200)
+    dlg.Size            = New System.Drawing.Size(520, 200 + extraH)
     dlg.StartPosition   = System.Windows.Forms.FormStartPosition.CenterScreen
     dlg.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedDialog
     dlg.MaximizeBox     = False : dlg.MinimizeBox = False
@@ -1353,9 +1467,24 @@ Sub ShowSummaryDialog(nParts As Integer, nAsms As Integer, xlsxPath As String)
     lblMsg.Size      = New System.Drawing.Size(480, 40)
     dlg.Controls.Add(lblMsg)
 
+    ' NEW (OQ-205 / D-703 diagnostic): show which PurchasedUnit assemblies
+    ' were detected -- added after a test where BOM output looked
+    ' identical with/without marking, and there was no visibility into
+    ' whether detection ran at all vs. ran and correctly found zero.
+    If hasPurchased Then
+        Dim lblPurch As New System.Windows.Forms.Label
+        lblPurch.Text      = "PurchasedUnit detektovano (deca isključena) / detected (children excluded):" & _
+            vbCrLf & String.Join(vbCrLf, purchasedNames)
+        lblPurch.Font      = fUI
+        lblPurch.ForeColor = System.Drawing.Color.FromArgb(210, 153, 34)
+        lblPurch.Location  = New System.Drawing.Point(20, 90)
+        lblPurch.Size      = New System.Drawing.Size(480, extraH)
+        dlg.Controls.Add(lblPurch)
+    End If
+
     Dim sep As New System.Windows.Forms.Label
     sep.BackColor = cSurface
-    sep.Location  = New System.Drawing.Point(20, 96)
+    sep.Location  = New System.Drawing.Point(20, 96 + extraH)
     sep.Size      = New System.Drawing.Size(480, 1)
     dlg.Controls.Add(sep)
 
@@ -1365,14 +1494,14 @@ Sub ShowSummaryDialog(nParts As Integer, nAsms As Integer, xlsxPath As String)
     btnOK.BackColor = cAccent : btnOK.ForeColor = cText
     btnOK.FlatStyle = System.Windows.Forms.FlatStyle.Flat
     btnOK.FlatAppearance.BorderColor = cAccent
-    btnOK.Location     = New System.Drawing.Point(200, 114)
+    btnOK.Location     = New System.Drawing.Point(200, 114 + extraH)
     btnOK.Size         = New System.Drawing.Size(120, 34)
     btnOK.DialogResult = System.Windows.Forms.DialogResult.OK
     dlg.Controls.Add(btnOK)
     dlg.AcceptButton = btnOK
 
     Dim tmr As New System.Windows.Forms.Timer
-    tmr.Interval = 3000
+    tmr.Interval = If(hasPurchased, 6000, 3000)
     AddHandler tmr.Tick, Sub(s, e)
         tmr.Stop()
         dlg.Close()

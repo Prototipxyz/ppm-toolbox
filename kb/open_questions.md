@@ -1033,6 +1033,15 @@ PurchasedUnit/PPM_SubassemblyTreatment checks in either file. Fixes for
 both are now BUILT (see D-705 for the differing fix shape each required)
 but NOT YET LIVE-TESTED. Remains open until confirmed on a real project.
 
+**OQ-205** [RESOLVED — see D-706, D-707, D-708] Both macros confirmed
+working with verified data, not just a clean summary dialog: exact row
+math checked directly (35→24 PARTS rows, 13→11 ASSEMBLIES rows between
+non-purchased/purchased exports of the same real project, matching
+precisely the 13 real descendant rows of the marked assembly, no more no
+less), with everything unrelated to the marked branch byte-for-byte
+identical between both exports. Getting here required three additional,
+unplanned fixes beyond the original scope — see D-706 through D-708.
+
 **OQ-220** [OPEN] For D-683's customer-numbered-project duplicate-PN
 scan: does it need to cover parts not currently open/loaded in Inventor
 (a file-system-level read), or is scanning `ThisApplication.Documents`
